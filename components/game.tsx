@@ -29,7 +29,7 @@ import {
   DialogDescription,
   DialogClose,
 } from '@/components/ui/dialog';
-import { initialState, isWon, selectCell } from '@/lib/game';
+import { initialState, isWon, selectCell, areNeighbors, selectionText } from '@/lib/game';
 import {
   HOME_VIEW,
   MAX_DISTANCE,
@@ -109,6 +109,8 @@ export default function Game() {
   }, []);
   const inside = isInside(view);
   const won = isWon(game);
+  const lastSelected = game.selection.at(-1);
+  const neighbors = new Set(lastSelected === undefined ? [] : game.puzzle.cells.filter(c => areNeighbors(lastSelected, c.id) && !game.selection.includes(c.id)).map(c => c.id));
   const foundCells = useMemo(
     () =>
       new Set(
@@ -146,7 +148,7 @@ export default function Game() {
     setDismissedWin(false);
   }
   function requestReset(kind: 'new' | 'restart') {
-    if (game.found.length || game.start !== null) setConfirm(kind);
+    if (game.found.length || game.selection.length) setConfirm(kind);
     else reset(kind);
   }
   function onDown(e: PointerEvent<HTMLDivElement>) {
@@ -200,8 +202,8 @@ export default function Game() {
     setMode('select');
     setGame((s) => ({
       ...s,
-      start: null,
-      message: `Pista para ${word.text}: empieza en la letra marcada. Termina en la capa ${game.puzzle.cells[word.path.at(-1)!].position[2] + 1}.`,
+      selection: [],
+      message: `Pista para ${word.text}: empieza en la letra marcada y sigue las letras vecinas. Termina en la capa ${game.puzzle.cells[word.path.at(-1)!].position[2] + 1}.`,
     }));
   }
   function pick(id: number) {
@@ -324,19 +326,15 @@ export default function Game() {
                     )
                   );
                 })}
-                {game.puzzle.words
-                  .filter((w) => game.found.includes(w.text))
-                  .map((w) => {
-                    const segment = projectSegment(
-                      cameraPoints[w.path[0]],
-                      cameraPoints[w.path.at(-1)!],
-                    );
-                    return (
-                      segment && (
-                        <line key={w.text} {...segment} className="word-line" />
-                      )
-                    );
-                  })}
+                {lastSelected !== undefined && [...neighbors].map(id => {
+                  const segment = projectSegment(cameraPoints[lastSelected], cameraPoints[id]);
+                  return segment && <line key={`neighbor-${id}`} {...segment} className="neighbor-line" />;
+                })}
+                {[...game.puzzle.words.filter(w => game.found.includes(w.text)).map(w => ({ key: w.text, path: w.path, active: false })),
+                  { key: 'selection', path: game.selection, active: true }].flatMap(trace => trace.path.slice(1).map((id, index) => {
+                  const segment = projectSegment(cameraPoints[trace.path[index]], cameraPoints[id]);
+                  return segment && <line key={`${trace.key}-${index}`} {...segment} className={trace.active ? 'selection-line' : 'word-line'} />;
+                }))}
               </svg>
               {game.puzzle.cells.map((cell, i) => {
                 const p = points[i];
@@ -351,13 +349,13 @@ export default function Game() {
                   return null;
                 const active =
                   layer === 'all' || cell.position[2] === Number(layer);
-                const selected = game.start === i;
+                const selected = game.selection.includes(i);
                 const found = foundCells.has(i);
                 return active ? (
                   <button
                     key={i}
                     data-cell={i}
-                    className={`letter ${selected ? 'selected' : ''} ${found ? 'found' : ''} ${hint === i ? 'hint' : ''}`}
+                    className={`letter ${selected ? 'selected' : ''} ${found ? 'found' : ''} ${hint === i ? 'hint' : ''} ${neighbors.has(i) ? 'neighbor' : ''}`}
                     style={
                       {
                         left: `${p.x}%`,
@@ -520,7 +518,7 @@ export default function Game() {
             <span className="live-dot" />
             {mode === 'rotate'
               ? 'Arrastra para girar. Rueda o pellizca para entrar y salir.'
-              : 'Toca dos extremos. Rueda o pellizca para explorar la profundidad.'}
+              : 'Toca las letras una a una y sigue sus conexiones. Sin saltos.'}
           </div>
         </section>
         <aside className="mission-panel">
@@ -535,8 +533,8 @@ export default function Game() {
             <br /> las seis palabras.
           </h2>
           <p className="mission-copy">
-            En horizontal, vertical o diagonal.
-            <br /> También a través del cubo.
+            Une letras vecinas, también en diagonal.
+            <br /> Puedes cambiar de dirección y de capa.
           </p>
           <div className="progress-label">
             <span>{won ? 'Cubo resuelto' : 'Palabras descubiertas'}</span>
@@ -566,27 +564,32 @@ export default function Game() {
               </li>
             ))}
           </ul>
+          {game.selection.length > 0 && <div className="selection-trail" aria-label="Palabra en curso">
+            <strong>{selectionText(game)}</strong>
+            <span>{game.selection.length} letras</span>
+            <button aria-label="Deshacer última letra" onClick={() => lastSelected !== undefined && setGame(s => selectCell(s, lastSelected))}>Deshacer</button>
+          </div>}
           <output
-            className={`selection-message ${game.start !== null ? 'has-selection' : ''}`}
+            className={`selection-message ${game.selection.length ? 'has-selection' : ''}`}
             aria-live="polite"
           >
             <span className="selection-symbol">
               {won ? (
                 <Check size={19} />
-              ) : game.start !== null ? (
-                game.puzzle.cells[game.start].letter
+              ) : lastSelected !== undefined ? (
+                game.puzzle.cells[lastSelected].letter
               ) : (
                 <MousePointer2 size={19} />
               )}
             </span>
             <p>{game.message}</p>
-            {game.start !== null && (
+            {game.selection.length > 0 && (
               <button
                 aria-label="Cancelar selección"
                 onClick={() =>
                   setGame((s) => ({
                     ...s,
-                    start: null,
+                    selection: [],
                     message: 'Selección cancelada.',
                   }))
                 }
@@ -625,8 +628,8 @@ export default function Game() {
         <DialogContent className="game-dialog" showCloseButton={false}>
           <DialogTitle>Una sopa en tres dimensiones.</DialogTitle>
           <DialogDescription>
-            Encuentra las seis palabras de la lista en líneas rectas. Se pueden
-            leer en ambos sentidos.
+            Forma las seis palabras tocando sus letras una a una. Cada letra
+            debe estar junto a la anterior, también en diagonal o en otra capa.
           </DialogDescription>
           <ol className="instructions">
             <li>
@@ -644,12 +647,14 @@ export default function Game() {
               una; Todas muestra el cubo entero.
             </li>
             <li>
-              <b>Conecta.</b> En Elegir, toca la primera y la última letra.
-              Puedes cambiar de capa y girar entre ambos toques.
+              <b>Conecta.</b> En Elegir, toca cada letra de la palabra. Las
+              conexiones muestran sus vecinas. Puedes cambiar de dirección,
+              girar y pasar de capa entre toques; no puedes saltarte letras.
             </li>
             <li>
-              <b>Sigue la profundidad.</b> Una diagonal puede cruzar varias
-              capas. Una pista marca un inicio y dice la capa final.
+              <b>Corrige el camino.</b> Toca la última letra para deshacer, o
+              una anterior para volver hasta ella. No se repite una casilla
+              dentro de la misma palabra. Las palabras valen en ambos sentidos.
             </li>
           </ol>
           <p className="keyboard-note">

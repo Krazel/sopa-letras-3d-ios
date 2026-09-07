@@ -277,6 +277,13 @@ h1 span {
   stroke-linecap: round;
   opacity: 0.6;
 }
+.neighbor-line { stroke: #82cedc; stroke-width: 0.28; opacity: 0.5; stroke-dasharray: 1 0.8; }
+.selection-line { stroke: #e4ffa7; stroke-width: 0.85; stroke-linecap: round; }
+.letter.neighbor:not(.selected) { border-color: #98dfeb; box-shadow: 0 0 10px #80d8eb35; }
+.selection-trail { display: flex; gap: 12px; align-items: center; margin: 14px 0; min-width: 0; }
+.selection-trail strong { color: #cefa73; letter-spacing: 3px; overflow-wrap: anywhere; min-width: 0; }
+.selection-trail span { color: #99abc3; font-size: 12px; white-space: nowrap; }
+.selection-trail button { color: #cfdbec; border: 1px solid #506078; border-radius: 8px; padding: 8px; background: transparent; margin-left: auto; }
 .letter {
   position: absolute;
   transform: translate(-50%, -50%) scale(var(--scale, 1));

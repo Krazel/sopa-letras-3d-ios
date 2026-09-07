@@ -14,6 +14,8 @@ if (!plist.includes('ITSAppUsesNonExemptEncryption')) plist = plist.replace(/<\/
 fs.writeFileSync(info, plist);
 const web = 'ios/App/App/public/index.html';
 if (!fs.existsSync(web)) throw Error('Run build and cap sync ios first');
+const html=fs.readFileSync(web,'utf8');
+if (!html.includes('Zoom del holograma') || !html.includes('game-shell') || !html.includes('viewport')) throw Error('Bundled HTML must contain the rendered game and mobile viewport');
 const cap = JSON.parse(fs.readFileSync('ios/App/App/capacitor.config.json', 'utf8'));
 if (cap.server?.url || cap.appId !== cfg.bundleId) throw Error('The native game must use its own bundled offline assets');
 console.log(`Prepared iPhone ${cfg.marketingVersion} (${cfg.buildNumber}), ${cfg.bundleId}, bundled offline game`);

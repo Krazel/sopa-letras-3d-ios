@@ -36,13 +36,22 @@ jobs:
         run: |
           set -o pipefail
           DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for k,v in d["devices"].items() if "iOS" in k for x in v if "iPhone" in x["name"]))')
-          xcodebuild test -project ios/App/App.xcodeproj -scheme SopaQA -destination "platform=iOS Simulator,id=$DEVICE" -resultBundlePath artifacts/iPhone-QA.xcresult CODE_SIGNING_ALLOWED=NO | tee iphone-qa.log
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcodebuild test -project ios/App/App.xcodeproj -scheme SopaQA -destination "platform=iOS Simulator,id=$DEVICE" -parallel-testing-enabled NO -resultBundlePath artifacts/iPhone-QA.xcresult CODE_SIGNING_ALLOWED=NO | tee iphone-qa.log
+      - name: Export native screenshots
+        if: always()
+        run: |
+          if [ -d artifacts/iPhone-QA.xcresult ]; then
+            xcrun xcresulttool export attachments --path artifacts/iPhone-QA.xcresult --output-path artifacts/screenshots
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Sopa3D-iPhone-QA-${{ github.sha }}
           path: |
             artifacts/iPhone-QA.xcresult
+            artifacts/screenshots
             iphone-qa.log
           retention-days: 3
   testflight:
