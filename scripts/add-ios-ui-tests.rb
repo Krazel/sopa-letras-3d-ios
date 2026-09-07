@@ -11,6 +11,8 @@ unless test
   test.build_configurations.each do |config|
     config.build_settings['GENERATE_INFOPLIST_FILE'] = 'YES'
     config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.krazel.sopaletras3d.uitests'
+    config.build_settings['PRODUCT_NAME'] = 'SopaUITests'
+    config.build_settings['MACH_O_TYPE'] = 'mh_bundle'
     config.build_settings['SWIFT_VERSION'] = '5.0'
     config.build_settings['TEST_TARGET_NAME'] = 'App'
     config.build_settings['TARGETED_DEVICE_FAMILY'] = '1'
