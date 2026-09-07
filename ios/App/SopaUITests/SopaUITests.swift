@@ -9,6 +9,9 @@ final class SopaUITests: XCTestCase {
         // WKWebView exposes aria-pressed letter buttons as Switch on iOS.
         let letters = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", columna "))
         XCTAssertTrue(letters.firstMatch.waitForExistence(timeout: 60), "Bundled game must render: \(app.debugDescription)")
+        let objective = app.staticTexts["Une letras vecinas y encuentra las 6 palabras."]
+        XCTAssertTrue(objective.exists, "The short objective must appear above the board")
+        XCTAssertLessThan(objective.frame.maxY, letters.firstMatch.frame.minY)
         for word in ["LUNA", "NUBE", "AIRE", "SOL", "MAR", "RIO"] {
             XCTAssertTrue(app.staticTexts[word].exists, "The target word must be visible: \(word)")
         }
@@ -16,7 +19,7 @@ final class SopaUITests: XCTestCase {
             XCTAssertFalse(app.buttons[control].exists, "Obsolete controls must be removed")
         }
         let launch = XCTAttachment(screenshot: app.screenshot())
-        launch.name = "Sopa3D-minimal-launch"
+        launch.name = "Sopa3D-help-launch"
         launch.lifetime = .keepAlways
         add(launch)
         let first = try XCTUnwrap(letters.allElementsBoundByIndex.first(where: { $0.isHittable }))
@@ -39,8 +42,18 @@ final class SopaUITests: XCTestCase {
         XCTAssertTrue(!zoomReference.exists || zoomReference.frame != beforeZoom, "Pinching must move the viewpoint")
         XCTAssertEqual(selected.count, 1, "Pinching must not select another letter")
         let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Sopa3D-minimal-selected-connections"
+        screenshot.name = "Sopa3D-border-connections"
         screenshot.lifetime = .keepAlways
         add(screenshot)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        XCTAssertTrue(objective.isHittable, "Instructions remain visible in landscape")
+        for word in ["LUNA", "NUBE", "AIRE", "SOL", "MAR", "RIO"] {
+            XCTAssertTrue(app.staticTexts[word].isHittable, "Words fit in landscape: \(word)")
+        }
+        let landscape = XCTAttachment(screenshot: app.screenshot())
+        landscape.name = "Sopa3D-help-landscape"
+        landscape.lifetime = .keepAlways
+        add(landscape)
     }
 }
