@@ -8,11 +8,11 @@ final class SopaUITests: XCTestCase {
         XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 30))
         let enter = app.buttons["Entrar"]
         let loaded = enter.waitForExistence(timeout: 60)
+        XCTAssertTrue(loaded, "Bundled game must render in WKWebView: \(app.debugDescription)")
         let launch = XCTAttachment(screenshot: app.screenshot())
         launch.name = "Sopa3D-launch"
         launch.lifetime = .keepAlways
         add(launch)
-        XCTAssertTrue(loaded, "Bundled game must render in WKWebView: \(app.debugDescription)")
         if !enter.isHittable { app.swipeUp() }
         enter.tap()
         XCTAssertTrue(app.buttons["Salir"].waitForExistence(timeout: 5))
