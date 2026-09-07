@@ -10,10 +10,7 @@ export const clampDistance = (distance: number) =>
 export const turn = (view: CameraView, dx: number, dy: number): CameraView => ({
   ...view,
   rotation: [
-    Math.max(
-      -Math.PI / 2 + 0.02,
-      Math.min(Math.PI / 2 - 0.02, view.rotation[0] - dy * 0.008),
-    ),
+    (view.rotation[0] - dy * 0.008) % (Math.PI * 2),
     (view.rotation[1] + dx * 0.008) % (Math.PI * 2),
   ],
 });

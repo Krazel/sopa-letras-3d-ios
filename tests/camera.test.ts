@@ -37,6 +37,26 @@ void test('turning at the center reveals the opposite side and preserves a stabl
   assert.ok(!isInside(HOME_VIEW));
 });
 
+void test('vertical and horizontal drags can complete repeated revolutions without a pole stop', () => {
+  const original = cameraPoint([0, 0, 0], HOME_VIEW);
+  for (const axis of ['vertical', 'horizontal']) {
+    for (const direction of [-1, 1]) {
+      let view = HOME_VIEW;
+      let previous = original;
+      const pixels = direction * Math.PI / 180 / 0.008;
+      for (let step = 0; step < 1080; step++) {
+        view = turn(view, axis === 'horizontal' ? pixels : 0, axis === 'vertical' ? pixels : 0);
+        const point = cameraPoint([0, 0, 0], view);
+        assert.ok(point.distanceTo(previous) > 0.001, `${axis} stalled at step ${step}`);
+        assert.ok(view.rotation.every(value => Number.isFinite(value) && Math.abs(value) <= Math.PI * 2));
+        previous = point;
+      }
+      assert.ok(previous.distanceTo(original) < 1e-9, 'three full turns return to the same view');
+      assert.equal(view.distance, HOME_VIEW.distance);
+    }
+  }
+});
+
 void test('pinching works in both directions including when already at the center', () => {
   const before = [
     { x: 0, y: 0 },

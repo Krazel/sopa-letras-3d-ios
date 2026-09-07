@@ -250,12 +250,16 @@ h1 span {
 }
 .word-line {
   stroke: #cafa75;
-  stroke-width: 1.1;
+  stroke-width: 2.5px;
   stroke-linecap: round;
-  opacity: 0.6;
+  opacity: 0.95;
 }
-.neighbor-line { stroke: #82cedc; stroke-width: 0.28; opacity: 0.5; stroke-dasharray: 1 0.8; }
-.selection-line { stroke: #e4ffa7; stroke-width: 0.85; stroke-linecap: round; }
+.connection-overlay { z-index: 110; }
+.connection-overlay line { vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.connection-halo { stroke: #08111e; stroke-width: 5px; opacity: 0.95; }
+.connection-halo.active-halo { stroke-width: 7px; }
+.neighbor-line { stroke: #a8efff; stroke-width: 2.2px; opacity: 1; }
+.selection-line { stroke: #e4ffa7; stroke-width: 3.5px; }
 .letter.neighbor:not(.selected) { border-color: #98dfeb; box-shadow: 0 0 10px #80d8eb35; }
 .selection-trail { display: flex; gap: 12px; align-items: center; margin: 14px 0; min-width: 0; }
 .selection-trail strong { color: #cefa73; letter-spacing: 3px; overflow-wrap: anywhere; min-width: 0; }

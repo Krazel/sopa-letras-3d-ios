@@ -301,14 +301,27 @@ export default function Game() {
                     )
                   );
                 })}
+              </svg>
+              <svg
+                className="cube-lines connection-overlay"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
                 {lastSelected !== undefined && [...neighbors].map(id => {
                   const segment = projectSegment(cameraPoints[lastSelected], cameraPoints[id]);
-                  return segment && <line key={`neighbor-${id}`} {...segment} className="neighbor-line" />;
+                  return segment && <g key={`neighbor-${id}`}>
+                    <line {...segment} className="connection-halo" />
+                    <line {...segment} className="neighbor-line" />
+                  </g>;
                 })}
                 {[...game.puzzle.words.filter(w => game.found.includes(w.text)).map(w => ({ key: w.text, path: w.path, active: false })),
                   { key: 'selection', path: game.selection, active: true }].flatMap(trace => trace.path.slice(1).map((id, index) => {
                   const segment = projectSegment(cameraPoints[trace.path[index]], cameraPoints[id]);
-                  return segment && <line key={`${trace.key}-${index}`} {...segment} className={trace.active ? 'selection-line' : 'word-line'} />;
+                  return segment && <g key={`${trace.key}-${index}`}>
+                    <line {...segment} className={`connection-halo ${trace.active ? 'active-halo' : ''}`} />
+                    <line {...segment} className={trace.active ? 'selection-line' : 'word-line'} />
+                  </g>;
                 }))}
               </svg>
               {game.puzzle.cells.map((cell, i) => {
@@ -605,7 +618,8 @@ export default function Game() {
           </DialogDescription>
           <ol className="instructions">
             <li>
-              <b>Explora.</b> Arrastra el cubo, o usa las flechas. Las
+              <b>Explora.</b> Arrastra el cubo, o usa las flechas. Puedes dar
+              vueltas completas en cualquier dirección, sin topes. Las
               letras se mantienen legibles desde cualquier ángulo.
             </li>
             <li>
