@@ -1,0 +1,34 @@
+name: Export iPhone QA evidence
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Completed iPhone workflow run to inspect
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  evidence:
+    if: github.actor == github.repository_owner && github.ref == 'refs/heads/main'
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.run_id }}
+          pattern: Sopa3D-iPhone-QA-*
+          merge-multiple: true
+      - name: Export screenshots and result details
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          xcrun xcresulttool export attachments --path artifacts/iPhone-QA.xcresult --output-path screenshots
+          xcrun xcresulttool get object --legacy --path artifacts/iPhone-QA.xcresult --format json > result.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Sopa3D-QA-inspection-${{ inputs.run_id }}
+          path: |
+            screenshots/
+            result.json
+          retention-days: 3
