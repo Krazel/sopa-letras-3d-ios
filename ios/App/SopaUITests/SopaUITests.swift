@@ -6,7 +6,8 @@ final class SopaUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 30))
-        let letters = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", ", columna "))
+        // WKWebView exposes aria-pressed letter buttons as Switch on iOS.
+        let letters = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", columna "))
         XCTAssertTrue(letters.firstMatch.waitForExistence(timeout: 60), "Bundled game must render: \(app.debugDescription)")
         for word in ["LUNA", "NUBE", "AIRE", "SOL", "MAR", "RIO"] {
             XCTAssertTrue(app.staticTexts[word].exists, "The target word must be visible: \(word)")
@@ -23,7 +24,7 @@ final class SopaUITests: XCTestCase {
         let from = first.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         from.press(forDuration: 0.1, thenDragTo: from.withOffset(CGVector(dx: 65, dy: 20)))
         XCTAssertTrue(!first.exists || first.frame != beforeDrag, "Dragging must move the cube")
-        let selected = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", ", seleccionada"))
+        let selected = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", seleccionada"))
         XCTAssertEqual(selected.count, 0, "Dragging must not select a letter")
         let next = try XCTUnwrap(letters.allElementsBoundByIndex.first(where: { $0.isHittable }))
         next.tap()
