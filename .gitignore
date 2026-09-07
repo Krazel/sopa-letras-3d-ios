@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vinext/
+.next/
+artifacts/
+*.log
+*.tsbuildinfo
+.env*

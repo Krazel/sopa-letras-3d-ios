@@ -1,0 +1,79 @@
+name: iPhone validation and TestFlight
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Upload the signed build to TestFlight
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: sopa-ios-release
+  cancel-in-progress: false
+jobs:
+  iphone:
+    if: github.actor == github.repository_owner && github.ref == 'refs/heads/main' && !github.event.repository.private
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm test && npm run typecheck && npm run build
+      - run: npx cap sync ios && node scripts/prepare-ios.mjs
+      - name: Select supported Xcode and prepare UI tests
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          xcodebuild -version
+          ruby scripts/add-ios-ui-tests.rb
+      - name: Run the bundled game on iPhone
+        run: |
+          set -o pipefail
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for k,v in d["devices"].items() if "iOS" in k for x in v if "iPhone" in x["name"]))')
+          xcodebuild test -project ios/App/App.xcodeproj -scheme SopaQA -destination "platform=iOS Simulator,id=$DEVICE" -resultBundlePath artifacts/iPhone-QA.xcresult CODE_SIGNING_ALLOWED=NO | tee iphone-qa.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Sopa3D-iPhone-QA-${{ github.sha }}
+          path: |
+            artifacts/iPhone-QA.xcresult
+            iphone-qa.log
+          retention-days: 3
+  testflight:
+    needs: iphone
+    if: inputs.upload
+    runs-on: macos-26
+    environment: app-store-production
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - run: npm ci && npm run build && npx cap sync ios && node scripts/prepare-ios.mjs
+      - run: sudo xcode-select -s /Applications/Xcode_26.6.app
+      - name: Sign, verify and upload
+        env:
+          SOPA_TESTFLIGHT_UPLOAD: 'true'
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY_BASE64: ${{ secrets.ASC_PRIVATE_KEY_BASE64 }}
+          IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          IOS_APP_STORE_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_PROFILE_BASE64 }}
+        run: node scripts/build-testflight.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Sopa3D-0.3-build1-TestFlight-${{ github.sha }}
+          path: artifacts/testflight/
+          retention-days: 3
