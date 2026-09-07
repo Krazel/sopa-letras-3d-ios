@@ -1,37 +1,13 @@
 'use client';
 
+// The 3D board is a keyboard-operated application containing letter buttons;
+// a button or slider wrapper would give it incorrect nested-control semantics.
+/* oxlint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
+
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import {
-  Box,
-  MousePointer2,
-  RotateCcw,
-  Lightbulb,
-  ArrowUpRight,
-  Check,
-  X,
-  HelpCircle,
-  Trophy,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  ChevronDown,
-  Plus,
-  Minus,
-  Scan,
-} from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
-} from '@/components/ui/dialog';
-import { initialState, isWon, selectCell, areNeighbors, selectionText } from '@/lib/game';
+import { initialState, isWon, selectCell, areNeighbors } from '@/lib/game';
 import {
   HOME_VIEW,
-  MAX_DISTANCE,
   cameraPoint,
   projectPoint,
   projectSegment,
@@ -51,20 +27,9 @@ export default function Game() {
   const pointers = useRef(new Map<number, TouchPoint>());
   const pressOrigin = useRef<TouchPoint | null>(null);
   const suppressPick = useRef(false);
-  const [layer, setLayer] = useState('all');
-  const [help, setHelp] = useState(false);
-  const [confirm, setConfirm] = useState<'new' | 'restart' | null>(null);
-  const [dismissedWin, setDismissedWin] = useState(false);
-  const [hint, setHint] = useState<number | null>(null);
   function moveCamera(next: CameraView) {
     viewRef.current = next;
     setView(next);
-  }
-  function restoreView() {
-    pointers.current.clear();
-    pressOrigin.current = null;
-    moveCamera(HOME_VIEW);
-    setLayer('all');
   }
   useEffect(() => {
     const stage = stageRef.current;
@@ -106,10 +71,19 @@ export default function Game() {
       window.removeEventListener('pointercancel', releaseOutside);
     };
   }, []);
-  const inside = isInside(view);
   const won = isWon(game);
   const lastSelected = game.selection.at(-1);
-  const neighbors = new Set(lastSelected === undefined ? [] : game.puzzle.cells.filter(c => areNeighbors(lastSelected, c.id) && !game.selection.includes(c.id)).map(c => c.id));
+  const neighbors = new Set(
+    lastSelected === undefined
+      ? []
+      : game.puzzle.cells
+          .filter(
+            (c) =>
+              areNeighbors(lastSelected, c.id) &&
+              !game.selection.includes(c.id),
+          )
+          .map((c) => c.id),
+  );
   const foundCells = useMemo(
     () =>
       new Set(
@@ -135,22 +109,7 @@ export default function Game() {
     );
   }
   for (const corner of [0, 3, 12, 15]) edges.push([corner, corner + 48]);
-  function reset(kind: 'new' | 'restart') {
-    const seed =
-      kind === 'restart' ? game.puzzle.seed : (game.puzzle.seed + 7919) >>> 0;
-    setGame(initialState(seed));
-    restoreView();
-    setLayer('all');
-    setHint(null);
-    setConfirm(null);
-    setDismissedWin(false);
-  }
-  function requestReset(kind: 'new' | 'restart') {
-    if (game.found.length || game.selection.length) setConfirm(kind);
-    else reset(kind);
-  }
   function onDown(e: PointerEvent<HTMLDivElement>) {
-    if ((e.target as HTMLElement).closest('[data-camera-controls]')) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (pointers.current.size === 0) {
       suppressPick.current = false;
@@ -195,522 +154,178 @@ export default function Game() {
     if (e.type === 'pointercancel') suppressPick.current = true;
     pressOrigin.current = pointers.current.values().next().value ?? null;
   }
-  function showHint() {
-    const word = game.puzzle.words.find((w) => !game.found.includes(w.text));
-    if (!word) return;
-    const id = word.path[0];
-    setHint(id);
-    setLayer(String(game.puzzle.cells[id].position[2]));
-    moveCamera(HOME_VIEW);
-    setGame((s) => ({
-      ...s,
-      selection: [],
-      message: `Pista para ${word.text}: empieza en la letra marcada y sigue las letras vecinas. Termina en la capa ${game.puzzle.cells[word.path.at(-1)!].position[2] + 1}.`,
-    }));
-  }
-  function pick(id: number) {
-    setHint(null);
-    setGame((s) => selectCell(s, id));
-  }
   return (
-    <main className="game-shell">
-      <header className="masthead">
-        <div className="brand" aria-label="Krazel Games">
-          <span className="brand-mark">
-            <Box size={22} />
-          </span>
-          <span>
-            KRAZEL <b>GAMES</b>
-          </span>
-        </div>
-        <span className="demo-tag">LAB / 001</span>
-        <button
-          className="help-button"
-          aria-label="Cómo jugar"
-          onClick={() => setHelp(true)}
-        >
-          <HelpCircle size={18} />
-          <span>Cómo jugar</span>
-        </button>
-      </header>
-      <section className="heading-row">
-        <div>
-          <p className="eyebrow">UN PEQUEÑO RETO ESPACIAL</p>
-          <h1>
-            Sopa de letras <span>3D</span>
-          </h1>
-        </div>
-        <p className="intro">
-          Las palabras tienen
-          <br />
-          <strong>otra dimensión.</strong>
-        </p>
-      </section>
-      <div className="play-layout">
-        <section className="play-panel" aria-label="Tablero tridimensional">
-          <div className="board-toolbar">
-            <span className="gesture-hint">Toca para elegir · Arrastra para girar</span>
-            <span className="cube-size">
-              4 × 4 × 4 <span>/ 64 letras</span>
-            </span>
-          </div>
-          <div
-            ref={stageRef}
-            className="cube-stage"
-            data-distance={view.distance.toFixed(3)}
-            data-rotation={view.rotation.join(',')}
-            data-inside={inside}
-            onPointerDown={onDown}
-            onPointerMove={onMove}
-            onPointerUp={onUp}
-            onPointerCancel={onUp}
-            onLostPointerCapture={(e) => {
-              // Touch initially captures the letter itself. Transferring that
-              // capture to the board must not end the new rotation gesture.
-              if (e.target === e.currentTarget && pointers.current.has(e.pointerId)) {
-                suppressPick.current = true;
-                onUp(e);
-              }
-            }}
+    <main className="game-shell" aria-label="Sopa de letras 3D">
+      <p id="gesture-help" className="sr-only">
+        Toca y suelta letras vecinas para formar palabras. Arrastra para girar
+        sin límites; pellizca o usa la rueda para acercarte y alejarte. Toca la
+        última letra para deshacer. Con el cubo enfocado, usa las flechas para
+        girar y más o menos para el zoom.
+      </p>
+      <div
+        ref={stageRef}
+        className="cube-stage"
+        role="application"
+        aria-label="Cubo de letras"
+        aria-describedby="gesture-help"
+        tabIndex={0}
+        data-distance={view.distance.toFixed(3)}
+        data-rotation={view.rotation.join(',')}
+        data-inside={isInside(view)}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        onLostPointerCapture={(e) => {
+          if (
+            e.target === e.currentTarget &&
+            pointers.current.has(e.pointerId)
+          ) {
+            suppressPick.current = true;
+            onUp(e);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          const directions: Record<string, [number, number]> = {
+            ArrowLeft: [-30, 0],
+            ArrowRight: [30, 0],
+            ArrowUp: [0, 30],
+            ArrowDown: [0, -30],
+          };
+          if (directions[e.key]) {
+            e.preventDefault();
+            moveCamera(turn(viewRef.current, ...directions[e.key]));
+          } else if (['+', '=', '-'].includes(e.key)) {
+            e.preventDefault();
+            moveCamera(dolly(viewRef.current, e.key === '-' ? 0.65 : -0.65));
+          }
+        }}
+      >
+        <div className="cube-volume">
+          <svg
+            className="cube-lines"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
           >
-            <div className="space-grid" aria-hidden="true" />
-            <span className="axis-label" aria-hidden="true">
-              {inside
-                ? 'DENTRO DEL HOLOGRAMA'
-                : layer === 'all'
-                  ? 'VOLUMEN COMPLETO'
-                  : `CAPA 0${Number(layer) + 1}`}
-            </span>
-            <div
-              className={`cube-volume ${layer !== 'all' ? 'layer-focused' : ''}`}
-            >
-              <svg
-                className="cube-lines"
-                viewBox="0 0 100 100"
-                preserveAspectRatio="none"
-                aria-hidden="true"
-              >
-                {edges.map(([a, b], i) => {
-                  const segment = projectSegment(
-                    cameraPoints[a],
-                    cameraPoints[b],
-                  );
-                  return (
-                    segment && (
-                      <line key={i} {...segment} className="cage-line" />
-                    )
-                  );
-                })}
-              </svg>
-              <svg
-                className="cube-lines connection-overlay"
-                viewBox="0 0 100 100"
-                preserveAspectRatio="none"
-                aria-hidden="true"
-              >
-                {lastSelected !== undefined && [...neighbors].map(id => {
-                  const segment = projectSegment(cameraPoints[lastSelected], cameraPoints[id]);
-                  return segment && <g key={`neighbor-${id}`}>
-                    <line {...segment} className="connection-halo" />
-                    <line {...segment} className="neighbor-line" />
-                  </g>;
-                })}
-                {[...game.puzzle.words.filter(w => game.found.includes(w.text)).map(w => ({ key: w.text, path: w.path, active: false })),
-                  { key: 'selection', path: game.selection, active: true }].flatMap(trace => trace.path.slice(1).map((id, index) => {
-                  const segment = projectSegment(cameraPoints[trace.path[index]], cameraPoints[id]);
-                  return segment && <g key={`${trace.key}-${index}`}>
-                    <line {...segment} className={`connection-halo ${trace.active ? 'active-halo' : ''}`} />
-                    <line {...segment} className={trace.active ? 'selection-line' : 'word-line'} />
-                  </g>;
-                }))}
-              </svg>
-              {game.puzzle.cells.map((cell, i) => {
-                const p = points[i];
-                if (
-                  !p ||
-                  p.fade < 0.05 ||
-                  p.x < -5 ||
-                  p.x > 105 ||
-                  p.y < -5 ||
-                  p.y > 105
-                )
-                  return null;
-                const active =
-                  layer === 'all' || cell.position[2] === Number(layer);
-                const selected = game.selection.includes(i);
-                const found = foundCells.has(i);
-                return active ? (
-                  <button
-                    key={i}
-                    data-cell={i}
-                    className={`letter ${selected ? 'selected' : ''} ${found ? 'found' : ''} ${hint === i ? 'hint' : ''} ${neighbors.has(i) ? 'neighbor' : ''}`}
-                    style={
-                      {
-                        left: `${p.x}%`,
-                        top: `${p.y}%`,
-                        zIndex: Math.round(95 - p.depth * 4),
-                        '--depth': Math.max(0, Math.min(1, 1 - p.depth / 15)),
-                        '--scale': p.scale,
-                        '--fade': p.fade,
-                      } as React.CSSProperties
-                    }
-                    onClick={(event) => {
-                      if (event.detail === 0 || !suppressPick.current) pick(i);
-                    }}
-                    disabled={won}
-                    aria-pressed={selected}
-                    aria-label={`${cell.letter}, columna ${cell.position[0] + 1}, fila ${cell.position[1] + 1}, capa ${cell.position[2] + 1}${found ? ', encontrada' : ''}`}
-                  >
-                    {cell.letter}
-                  </button>
-                ) : (
-                  <span
-                    key={i}
-                    className={`ghost-dot ${selected ? 'anchor' : ''} ${found ? 'found-dot' : ''}`}
-                    style={{ left: `${p.x}%`, top: `${p.y}%` }}
-                    aria-hidden="true"
-                  >
-                    {selected ? cell.letter : ''}
-                  </span>
+            {edges.map(([a, b], i) => {
+              const segment = projectSegment(cameraPoints[a], cameraPoints[b]);
+              return (
+                segment && <line key={i} {...segment} className="cage-line" />
+              );
+            })}
+          </svg>
+          <svg
+            className="cube-lines connection-overlay"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            {lastSelected !== undefined &&
+              [...neighbors].map((id) => {
+                const segment = projectSegment(
+                  cameraPoints[lastSelected],
+                  cameraPoints[id],
+                );
+                return (
+                  segment && (
+                    <g key={`neighbor-${id}`}>
+                      <line {...segment} className="connection-halo" />
+                      <line {...segment} className="neighbor-line" />
+                    </g>
+                  )
                 );
               })}
-            </div>
-            <div
-              className="rotation-controls"
-              data-camera-controls
-              aria-label="Rotar por pasos"
-            >
-              <button
-                aria-label="Girar a la izquierda"
-                onClick={() => moveCamera(turn(viewRef.current, -44, 0))}
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <button
-                aria-label="Inclinar arriba"
-                onClick={() => moveCamera(turn(viewRef.current, 0, 25))}
-              >
-                <ChevronUp size={18} />
-              </button>
-              <button
-                aria-label="Inclinar abajo"
-                onClick={() => moveCamera(turn(viewRef.current, 0, -25))}
-              >
-                <ChevronDown size={18} />
-              </button>
-              <button
-                aria-label="Girar a la derecha"
-                onClick={() => moveCamera(turn(viewRef.current, 44, 0))}
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-            <button
-              className="reset-view"
-              data-camera-controls
-              onClick={restoreView}
-              aria-label="Restaurar vista inicial"
-              title="Restaurar vista inicial"
-            >
-              <RotateCcw size={16} />
-            </button>
-          </div>
-          <div className="zoom-bar" aria-label="Acercarse y alejarse">
-            <button
-              aria-label="Alejar"
-              onClick={() => moveCamera(dolly(viewRef.current, 0.65))}
-              disabled={view.distance >= MAX_DISTANCE}
-            >
-              <Minus size={18} />
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="140"
-              step="1"
-              value={Math.round((MAX_DISTANCE - view.distance) * 10)}
-              onChange={(e) =>
-                moveCamera({
-                  ...viewRef.current,
-                  distance: MAX_DISTANCE - Number(e.target.value) / 10,
-                })
-              }
-              aria-label="Zoom del holograma"
-              aria-valuetext={
-                inside
-                  ? 'Dentro del holograma'
-                  : `Distancia ${view.distance.toFixed(1)}`
-              }
-            />
-            <button
-              aria-label="Acercar"
-              onClick={() => moveCamera(dolly(viewRef.current, -0.65))}
-              disabled={view.distance <= 0}
-            >
-              <Plus size={18} />
-            </button>
-            <button
-              className="enter-volume"
-              onClick={() => {
-                if (inside) restoreView();
-                else {
-                  moveCamera({ ...viewRef.current, distance: 0.8 });
-                  setLayer('all');
-                }
-              }}
-            >
-              <Scan size={16} />
-              {inside ? 'Salir' : 'Entrar'}
-            </button>
-          </div>
-          <div className="layer-bar">
-            <div className="layer-label">
-              <span className="layer-icon">▱</span>
-              <span>Explorar capas</span>
-            </div>
-            <RadioGroup
-              className="layer-switch"
-              value={layer}
-              onValueChange={(v) => setLayer(String(v))}
-              aria-label="Capa visible"
-            >
-              <label
-                htmlFor="layer-all"
-                className={layer === 'all' ? 'active' : ''}
-              >
-                <RadioGroupItem
-                  id="layer-all"
-                  value="all"
-                  aria-label="Todas las capas"
-                />
-                Todas
-              </label>
-              {[0, 1, 2, 3].map((z) => (
-                <label
-                  key={z}
-                  htmlFor={`layer-${z}`}
-                  className={layer === String(z) ? 'active' : ''}
-                >
-                  <RadioGroupItem
-                    id={`layer-${z}`}
-                    value={String(z)}
-                    aria-label={`Capa ${z + 1}`}
-                  />
-                  <span>{z + 1}</span>
-                </label>
-              ))}
-            </RadioGroup>
-          </div>
-          <div className="board-caption">
-            <span className="live-dot" />
-            Toca letras vecinas, arrastra para girar y pellizca para acercarte.
-          </div>
-        </section>
-        <aside className="mission-panel">
-          <div className="mission-heading">
-            <p className="eyebrow">TU MISIÓN</p>
-            <span className="orbit-icon">
-              <Box size={21} />
-            </span>
-          </div>
-          <h2>
-            Encuentra
-            <br /> las seis palabras.
-          </h2>
-          <p className="mission-copy">
-            Une letras vecinas, también en diagonal.
-            <br /> Puedes cambiar de dirección y de capa.
-          </p>
-          <div className="progress-label">
-            <span>{won ? 'Cubo resuelto' : 'Palabras descubiertas'}</span>
-            <strong>
-              {game.found.length}
-              <span> / 6</span>
-            </strong>
-          </div>
-          <Progress
-            value={(game.found.length / 6) * 100}
-            aria-label="Palabras encontradas"
-            className="game-progress"
-          />
-          <ul className="word-list">
-            {game.puzzle.words.map((word, i) => (
-              <li
-                key={word.text}
-                className={game.found.includes(word.text) ? 'complete' : ''}
-              >
-                <span className="word-number">0{i + 1}</span>
-                <span className="word-text">{word.text}</span>
-                {game.found.includes(word.text) ? (
-                  <Check size={20} />
-                ) : (
-                  <span className="word-length">{word.text.length} letras</span>
-                )}
-              </li>
-            ))}
-          </ul>
-          {game.selection.length > 0 && <div className="selection-trail" aria-label="Palabra en curso">
-            <strong>{selectionText(game)}</strong>
-            <span>{game.selection.length} letras</span>
-            <button aria-label="Deshacer última letra" onClick={() => lastSelected !== undefined && setGame(s => selectCell(s, lastSelected))}>Deshacer</button>
-          </div>}
-          <output
-            className={`selection-message ${game.selection.length ? 'has-selection' : ''}`}
-            aria-live="polite"
-          >
-            <span className="selection-symbol">
-              {won ? (
-                <Check size={19} />
-              ) : lastSelected !== undefined ? (
-                game.puzzle.cells[lastSelected].letter
-              ) : (
-                <MousePointer2 size={19} />
-              )}
-            </span>
-            <p>{game.message}</p>
-            {game.selection.length > 0 && (
-              <button
-                aria-label="Cancelar selección"
-                onClick={() =>
-                  setGame((s) => ({
-                    ...s,
-                    selection: [],
-                    message: 'Selección cancelada.',
-                  }))
-                }
-              >
-                <X size={16} />
-              </button>
+            {[
+              ...game.puzzle.words
+                .filter((w) => game.found.includes(w.text))
+                .map((w) => ({ key: w.text, path: w.path, active: false })),
+              { key: 'selection', path: game.selection, active: true },
+            ].flatMap((trace) =>
+              trace.path.slice(1).map((id, index) => {
+                const segment = projectSegment(
+                  cameraPoints[trace.path[index]],
+                  cameraPoints[id],
+                );
+                return (
+                  segment && (
+                    <g key={`${trace.key}-${index}`}>
+                      <line
+                        {...segment}
+                        className={`connection-halo ${trace.active ? 'active-halo' : ''}`}
+                      />
+                      <line
+                        {...segment}
+                        className={
+                          trace.active ? 'selection-line' : 'word-line'
+                        }
+                      />
+                    </g>
+                  )
+                );
+              }),
             )}
-          </output>
-          <div className="mission-actions">
-            <button className="hint-button" onClick={showHint} disabled={won}>
-              <Lightbulb size={18} />
-              Una pista
-            </button>
-            <button className="new-button" onClick={() => requestReset('new')}>
-              Nueva partida
-              <ArrowUpRight size={18} />
-            </button>
-          </div>
-          <button
-            className="restart-button"
-            onClick={() => requestReset('restart')}
-          >
-            <RotateCcw size={14} />
-            Reiniciar este cubo
-          </button>
-        </aside>
+          </svg>
+
+          {game.puzzle.cells.map((cell, i) => {
+            const p = points[i];
+            if (
+              !p ||
+              p.fade < 0.05 ||
+              p.x < -5 ||
+              p.x > 105 ||
+              p.y < -5 ||
+              p.y > 105
+            )
+              return null;
+            const selected = game.selection.includes(i);
+            const found = foundCells.has(i);
+            return (
+              <button
+                key={i}
+                data-cell={i}
+                className={`letter ${selected ? 'selected' : ''} ${found ? 'found' : ''} ${neighbors.has(i) ? 'neighbor' : ''}`}
+                style={
+                  {
+                    left: `${p.x}%`,
+                    top: `${p.y}%`,
+                    zIndex: Math.round(95 - p.depth * 4),
+                    '--depth': Math.max(0, Math.min(1, 1 - p.depth / 15)),
+                    '--scale': p.scale,
+                    '--fade': p.fade,
+                  } as React.CSSProperties
+                }
+                onClick={(e) => {
+                  if (e.detail === 0 || !suppressPick.current)
+                    setGame((s) => selectCell(s, i));
+                }}
+                aria-pressed={selected}
+                aria-label={`${cell.letter}, columna ${cell.position[0] + 1}, fila ${cell.position[1] + 1}, capa ${cell.position[2] + 1}${selected ? ', seleccionada' : ''}${found ? ', encontrada' : ''}`}
+              >
+                {cell.letter}
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <footer className="page-footer">
-        <span>PAUSA. GIRA. DESCUBRE.</span>
-        <span>
-          Demo 01 <span className="footer-dot">·</span> Sin prisa, sin
-          cronómetro.
-        </span>
-      </footer>
-      <Dialog open={help} onOpenChange={setHelp}>
-        <DialogContent className="game-dialog" showCloseButton={false}>
-          <DialogTitle>Una sopa en tres dimensiones.</DialogTitle>
-          <DialogDescription>
-            Forma las seis palabras tocando sus letras una a una. Cada letra
-            debe estar junto a la anterior, también en diagonal o en otra capa.
-          </DialogDescription>
-          <ol className="instructions">
-            <li>
-              <b>Explora.</b> Arrastra el cubo, o usa las flechas. Puedes dar
-              vueltas completas en cualquier dirección, sin topes. Las
-              letras se mantienen legibles desde cualquier ángulo.
-            </li>
-            <li>
-              <b>Entra en el holograma.</b> Usa la rueda, pellizca con dos dedos
-              o ajusta el zoom. Entrar te sitúa entre las letras; arrastra
-              para mirar alrededor. Salir o Restaurar vista inicial
-              recuperan el cubo completo sin perder tu partida.
-            </li>
-            <li>
-              <b>Despeja la vista.</b> Las capas 1–4 muestran 16 letras cada
-              una; Todas muestra el cubo entero.
-            </li>
-            <li>
-              <b>Conecta.</b> Toca y suelta cada letra de la palabra. Si arrastras,
-              giras el cubo sin seleccionar. Las
-              conexiones muestran sus vecinas. Puedes cambiar de dirección,
-              girar y pasar de capa entre toques; no puedes saltarte letras.
-            </li>
-            <li>
-              <b>Corrige el camino.</b> Toca la última letra para deshacer, o
-              una anterior para volver hasta ella. No se repite una casilla
-              dentro de la misma palabra. Las palabras valen en ambos sentidos.
-            </li>
-          </ol>
-          <p className="keyboard-note">
-            Teclado: Tab para recorrer controles, flechas en capas y Enter
-            o espacio para elegir una letra. RIO aparece sin tilde en el
-            tablero.
-          </p>
-          <DialogClose className="primary-action">
-            Vamos a jugar
-            <ArrowUpRight size={18} />
-          </DialogClose>
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={won && !dismissedWin}
-        onOpenChange={(open) => {
-          if (!open) setDismissedWin(true);
-        }}
+      <ul
+        className={`word-list ${won ? 'solved' : ''}`}
+        aria-label="Palabras por encontrar"
       >
-        <DialogContent
-          className="game-dialog win-dialog"
-          showCloseButton={false}
-        >
-          <div className="trophy">
-            <Trophy size={36} />
-          </div>
-          <p className="eyebrow">6 DE 6 · CUBO COMPLETO</p>
-          <DialogTitle>¡Tienes visión espacial!</DialogTitle>
-          <DialogDescription>
-            Has encontrado todas las palabras, incluso las que se escondían en
-            profundidad.
-          </DialogDescription>
-          <button className="primary-action" onClick={() => reset('new')}>
-            Explorar otro cubo
-            <ArrowUpRight size={18} />
-          </button>
-          <DialogClose className="quiet-action">
-            Ver mi cubo resuelto
-          </DialogClose>
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={confirm !== null}
-        onOpenChange={(open) => {
-          if (!open) setConfirm(null);
-        }}
-      >
-        <DialogContent className="game-dialog" showCloseButton={false}>
-          <DialogTitle>
-            {confirm === 'restart'
-              ? '¿Reiniciar este cubo?'
-              : '¿Explorar un cubo nuevo?'}
-          </DialogTitle>
-          <DialogDescription>
-            Se borrará el progreso de esta partida.{' '}
-            {confirm === 'restart'
-              ? 'Las letras seguirán en el mismo sitio.'
-              : 'Las palabras cambiarán de sitio.'}
-          </DialogDescription>
-          <button
-            className="primary-action"
-            onClick={() => confirm && reset(confirm)}
+        {game.puzzle.words.map((word) => (
+          <li
+            key={word.text}
+            className={game.found.includes(word.text) ? 'complete' : ''}
+            aria-label={`${word.text}${game.found.includes(word.text) ? ', encontrada' : ''}`}
           >
-            {confirm === 'restart' ? 'Reiniciar' : 'Nueva partida'}
-            <ArrowUpRight size={18} />
-          </button>
-          <DialogClose className="quiet-action">Seguir jugando</DialogClose>
-        </DialogContent>
-      </Dialog>
+            {word.text}
+          </li>
+        ))}
+      </ul>
+      <output className="sr-only" aria-live="polite">
+        {game.message}
+      </output>
     </main>
   );
 }
