@@ -6,3 +6,9 @@ artifacts/
 *.log
 *.tsbuildinfo
 .env*
+*.p8
+*.p12
+*.pem
+*.key
+*.csr
+*.mobileprovision
