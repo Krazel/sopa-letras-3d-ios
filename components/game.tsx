@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import {
   Box,
-  Rotate3D,
   MousePointer2,
   RotateCcw,
   Lightbulb,
@@ -52,7 +51,6 @@ export default function Game() {
   const pointers = useRef(new Map<number, TouchPoint>());
   const pressOrigin = useRef<TouchPoint | null>(null);
   const suppressPick = useRef(false);
-  const [mode, setMode] = useState('select');
   const [layer, setLayer] = useState('all');
   const [help, setHelp] = useState(false);
   const [confirm, setConfirm] = useState<'new' | 'restart' | null>(null);
@@ -88,6 +86,7 @@ export default function Game() {
     };
     const cancel = () => {
       pointers.current.clear();
+      pressOrigin.current = null;
       suppressPick.current = true;
     };
     // A selection gesture can leave the board before release. Clear it even
@@ -142,7 +141,6 @@ export default function Game() {
     setGame(initialState(seed));
     restoreView();
     setLayer('all');
-    setMode('select');
     setHint(null);
     setConfirm(null);
     setDismissedWin(false);
@@ -159,10 +157,10 @@ export default function Game() {
       pressOrigin.current = { x: e.clientX, y: e.clientY };
     }
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (mode === 'rotate' || pointers.current.size > 1) {
+    if (pointers.current.size > 1) {
+      suppressPick.current = true;
       for (const id of pointers.current.keys())
         e.currentTarget.setPointerCapture(id);
-      if (pointers.current.size > 1) suppressPick.current = true;
     }
   }
   function onMove(e: PointerEvent<HTMLDivElement>) {
@@ -179,13 +177,18 @@ export default function Game() {
       const origin = pressOrigin.current;
       if (origin && Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > 6)
         suppressPick.current = true;
-      if (mode === 'rotate')
+      if (suppressPick.current) {
+        e.currentTarget.setPointerCapture(e.pointerId);
         moveCamera(
           turn(viewRef.current, e.clientX - previous.x, e.clientY - previous.y),
         );
+      }
     }
   }
   function onUp(e: PointerEvent<HTMLDivElement>) {
+    const origin = pressOrigin.current;
+    if (origin && Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > 6)
+      suppressPick.current = true;
     pointers.current.delete(e.pointerId);
     if (e.currentTarget.hasPointerCapture(e.pointerId))
       e.currentTarget.releasePointerCapture(e.pointerId);
@@ -199,7 +202,6 @@ export default function Game() {
     setHint(id);
     setLayer(String(game.puzzle.cells[id].position[2]));
     moveCamera(HOME_VIEW);
-    setMode('select');
     setGame((s) => ({
       ...s,
       selection: [],
@@ -207,7 +209,6 @@ export default function Game() {
     }));
   }
   function pick(id: number) {
-    if (mode !== 'select') return;
     setHint(null);
     setGame((s) => selectCell(s, id));
   }
@@ -248,47 +249,14 @@ export default function Game() {
       <div className="play-layout">
         <section className="play-panel" aria-label="Tablero tridimensional">
           <div className="board-toolbar">
-            <RadioGroup
-              className="mode-switch"
-              value={mode}
-              onValueChange={(v) => {
-                setMode(String(v));
-                pointers.current.clear();
-              }}
-              aria-label="Modo de interacción"
-            >
-              <label
-                htmlFor="mode-select"
-                className={mode === 'select' ? 'active' : ''}
-              >
-                <RadioGroupItem
-                  id="mode-select"
-                  value="select"
-                  aria-label="Elegir"
-                />
-                <MousePointer2 size={16} />
-                Elegir
-              </label>
-              <label
-                htmlFor="mode-rotate"
-                className={mode === 'rotate' ? 'active' : ''}
-              >
-                <RadioGroupItem
-                  id="mode-rotate"
-                  value="rotate"
-                  aria-label="Girar"
-                />
-                <Rotate3D size={18} />
-                Girar
-              </label>
-            </RadioGroup>
+            <span className="gesture-hint">Toca para elegir · Arrastra para girar</span>
             <span className="cube-size">
               4 × 4 × 4 <span>/ 64 letras</span>
             </span>
           </div>
           <div
             ref={stageRef}
-            className={`cube-stage ${mode === 'rotate' ? 'rotating' : ''}`}
+            className="cube-stage"
             data-distance={view.distance.toFixed(3)}
             data-rotation={view.rotation.join(',')}
             data-inside={inside}
@@ -296,7 +264,14 @@ export default function Game() {
             onPointerMove={onMove}
             onPointerUp={onUp}
             onPointerCancel={onUp}
-            onLostPointerCapture={onUp}
+            onLostPointerCapture={(e) => {
+              // Touch initially captures the letter itself. Transferring that
+              // capture to the board must not end the new rotation gesture.
+              if (e.target === e.currentTarget && pointers.current.has(e.pointerId)) {
+                suppressPick.current = true;
+                onUp(e);
+              }
+            }}
           >
             <div className="space-grid" aria-hidden="true" />
             <span className="axis-label" aria-hidden="true">
@@ -369,7 +344,7 @@ export default function Game() {
                     onClick={(event) => {
                       if (event.detail === 0 || !suppressPick.current) pick(i);
                     }}
-                    disabled={mode === 'rotate' || won}
+                    disabled={won}
                     aria-pressed={selected}
                     aria-label={`${cell.letter}, columna ${cell.position[0] + 1}, fila ${cell.position[1] + 1}, capa ${cell.position[2] + 1}${found ? ', encontrada' : ''}`}
                   >
@@ -468,7 +443,6 @@ export default function Game() {
                 else {
                   moveCamera({ ...viewRef.current, distance: 0.8 });
                   setLayer('all');
-                  setMode('rotate');
                 }
               }}
             >
@@ -516,9 +490,7 @@ export default function Game() {
           </div>
           <div className="board-caption">
             <span className="live-dot" />
-            {mode === 'rotate'
-              ? 'Arrastra para girar. Rueda o pellizca para entrar y salir.'
-              : 'Toca las letras una a una y sigue sus conexiones. Sin saltos.'}
+            Toca letras vecinas, arrastra para girar y pellizca para acercarte.
           </div>
         </section>
         <aside className="mission-panel">
@@ -633,13 +605,13 @@ export default function Game() {
           </DialogDescription>
           <ol className="instructions">
             <li>
-              <b>Explora.</b> Elige Girar y arrastra, o usa las flechas. Las
+              <b>Explora.</b> Arrastra el cubo, o usa las flechas. Las
               letras se mantienen legibles desde cualquier ángulo.
             </li>
             <li>
               <b>Entra en el holograma.</b> Usa la rueda, pellizca con dos dedos
-              o ajusta el zoom. Entrar te sitúa entre las letras; arrastra en
-              Girar para mirar alrededor. Salir o Restaurar vista inicial
+              o ajusta el zoom. Entrar te sitúa entre las letras; arrastra
+              para mirar alrededor. Salir o Restaurar vista inicial
               recuperan el cubo completo sin perder tu partida.
             </li>
             <li>
@@ -647,7 +619,8 @@ export default function Game() {
               una; Todas muestra el cubo entero.
             </li>
             <li>
-              <b>Conecta.</b> En Elegir, toca cada letra de la palabra. Las
+              <b>Conecta.</b> Toca y suelta cada letra de la palabra. Si arrastras,
+              giras el cubo sin seleccionar. Las
               conexiones muestran sus vecinas. Puedes cambiar de dirección,
               girar y pasar de capa entre toques; no puedes saltarte letras.
             </li>
@@ -658,7 +631,7 @@ export default function Game() {
             </li>
           </ol>
           <p className="keyboard-note">
-            Teclado: Tab para recorrer controles, flechas en modos/capas y Enter
+            Teclado: Tab para recorrer controles, flechas en capas y Enter
             o espacio para elegir una letra. RIO aparece sin tilde en el
             tablero.
           </p>

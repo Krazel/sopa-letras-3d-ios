@@ -184,31 +184,11 @@ h1 span {
   position: relative;
   z-index: 110;
 }
-.mode-switch {
-  display: flex !important;
-  width: auto !important;
-  background: #0b1323;
-  border: 1px solid #2c3a51;
-  border-radius: 8px;
-  padding: 4px;
-  gap: 3px !important;
-}
-.mode-switch label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
+.gesture-hint {
   font-size: 14px;
-  padding: 9px 13px;
+  line-height: 1.5;
   color: #aab9cd;
-  border-radius: 5px;
-  cursor: pointer;
 }
-.mode-switch label.active {
-  background: #d5e6fd;
-  color: #16263b;
-}
-.mode-switch [data-slot='radio-group-item'],
 .layer-switch [data-slot='radio-group-item'] {
   position: absolute !important;
   opacity: 0;
@@ -230,12 +210,9 @@ h1 span {
   overflow: hidden;
   touch-action: none;
   user-select: none;
-}
-.cube-stage.rotating {
   cursor: grab;
-  touch-action: none;
 }
-.cube-stage.rotating:active {
+.cube-stage:active {
   cursor: grabbing;
 }
 .space-grid {
@@ -326,9 +303,6 @@ h1 span {
 .letter.found.selected {
   background: #cefa73;
   color: #203011;
-}
-.rotating .letter {
-  pointer-events: none;
 }
 .ghost-dot {
   position: absolute;
@@ -877,10 +851,6 @@ h2 {
   .board-toolbar {
     height: 65px;
     padding: 12px 14px;
-  }
-  .mode-switch label {
-    font-size: 13px;
-    padding: 8px 12px;
   }
   .cube-size {
     font-size: 12px;
