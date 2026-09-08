@@ -28,6 +28,7 @@ import {
 
 export default function Game() {
   const [game, setGame] = useState(() => initialState());
+  const [highlightNeighbors, setHighlightNeighbors] = useState(false);
   const [view, setView] = useState<CameraView>(HOME_VIEW);
   const viewRef = useRef(view);
   const connectionMaskId = useId();
@@ -142,6 +143,62 @@ export default function Game() {
     );
   }
   for (const corner of [0, 3, 12, 15]) edges.push([corner, corner + 48]);
+  function connection(a: number, b: number, key: string, kind: string) {
+    const segment = projectSegment(cameraPoints[a], cameraPoints[b]);
+    if (!segment || frame.size <= 0) return null;
+    const maskId = `${connectionMaskId}-${key}`;
+    return (
+      <g key={key}>
+        <defs>
+          <mask
+            id={maskId}
+            maskUnits="userSpaceOnUse"
+            maskContentUnits="userSpaceOnUse"
+            x="0"
+            y="0"
+            width="100"
+            height="100"
+            style={{ maskType: 'luminance' }}
+          >
+            <rect width="100" height="100" fill="white" />
+            {/* Only this connection's endpoints interrupt it. Other letters
+              remain underneath the translucent foreground stroke. */}
+            {[a, b].map((id) => {
+              const p = points[id];
+              if (
+                !p ||
+                p.fade < 0.05 ||
+                p.x < -5 ||
+                p.x > 105 ||
+                p.y < -5 ||
+                p.y > 105
+              )
+                return null;
+              const side = (frame.tile * p.scale * 100) / frame.size;
+              return (
+                <rect
+                  key={id}
+                  x={p.x - side / 2}
+                  y={p.y - side / 2}
+                  width={side}
+                  height={side}
+                  rx={(frame.radius * p.scale * 100) / frame.size}
+                  fill="black"
+                />
+              );
+            })}
+          </mask>
+        </defs>
+        <g
+          mask={`url(#${maskId})`}
+          className={`connection ${kind === 'selection-line' ? 'active-connection' : ''}`}
+        >
+          <line {...segment} className="connection-halo" />
+          <line {...segment} className={kind} />
+        </g>
+      </g>
+    );
+  }
   function onDown(e: PointerEvent<HTMLDivElement>) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (pointers.current.size === 0) {
@@ -196,11 +253,20 @@ export default function Game() {
           el zoom.
         </span>
       </p>
+      <label className="neighbor-option">
+        <input
+          type="checkbox"
+          checked={highlightNeighbors}
+          onChange={(e) => setHighlightNeighbors(e.target.checked)}
+        />
+        Resaltar letras vecinas
+      </label>
       <p id="gesture-help" className="sr-only">
         Toca y suelta letras vecinas para formar palabras. Arrastra para girar
         sin límites; pellizca o usa la rueda para acercarte y alejarte. Toca la
         última letra para deshacer. Con el cubo enfocado, usa las flechas para
-        girar y más o menos para el zoom.
+        girar y más o menos para el zoom. Tocar una letra no vecina borra la
+        selección.
       </p>
       <div className="game-board">
         <div
@@ -269,93 +335,40 @@ export default function Game() {
               preserveAspectRatio="none"
               aria-hidden="true"
             >
-              <defs>
-                <mask
-                  id={connectionMaskId}
-                  maskUnits="userSpaceOnUse"
-                  maskContentUnits="userSpaceOnUse"
-                  x="0"
-                  y="0"
-                  width="100"
-                  height="100"
-                  style={{ maskType: 'luminance' }}
-                >
-                  <rect width="100" height="100" fill="white" />
-                  {frame.size > 0 &&
-                    points.map((p, id) => {
-                      if (
-                        !p ||
-                        p.fade < 0.05 ||
-                        p.x < -5 ||
-                        p.x > 105 ||
-                        p.y < -5 ||
-                        p.y > 105
-                      )
-                        return null;
-                      const side = (frame.tile * p.scale * 100) / frame.size;
-                      return (
-                        <rect
-                          key={id}
-                          x={p.x - side / 2}
-                          y={p.y - side / 2}
-                          width={side}
-                          height={side}
-                          rx={(frame.radius * p.scale * 100) / frame.size}
-                          fill="black"
-                        />
-                      );
-                    })}
-                </mask>
-              </defs>
-              <g
-                mask={`url(#${connectionMaskId})`}
-                visibility={frame.size > 0 ? 'visible' : 'hidden'}
-              >
-                {lastSelected !== undefined &&
-                  [...neighbors].map((id) => {
-                    const segment = projectSegment(
-                      cameraPoints[lastSelected],
-                      cameraPoints[id],
-                    );
-                    return (
-                      segment && (
-                        <g key={`neighbor-${id}`}>
-                          <line {...segment} className="connection-halo" />
-                          <line {...segment} className="neighbor-line" />
-                        </g>
-                      )
-                    );
-                  })}
-                {[
-                  ...game.puzzle.words
-                    .filter((w) => game.found.includes(w.text))
-                    .map((w) => ({ key: w.text, path: w.path, active: false })),
-                  { key: 'selection', path: game.selection, active: true },
-                ].flatMap((trace) =>
-                  trace.path.slice(1).map((id, index) => {
-                    const segment = projectSegment(
-                      cameraPoints[trace.path[index]],
-                      cameraPoints[id],
-                    );
-                    return (
-                      segment && (
-                        <g key={`${trace.key}-${index}`}>
-                          <line
-                            {...segment}
-                            className={`connection-halo ${trace.active ? 'active-halo' : ''}`}
-                          />
-                          <line
-                            {...segment}
-                            className={
-                              trace.active ? 'selection-line' : 'word-line'
-                            }
-                          />
-                        </g>
-                      )
-                    );
-                  }),
+              {lastSelected !== undefined &&
+                [...neighbors].map((id) =>
+                  connection(
+                    lastSelected,
+                    id,
+                    `neighbor-${id}`,
+                    'neighbor-line',
+                  ),
                 )}
-              </g>
+              {[
+                ...game.puzzle.words
+                  .filter((w) => game.found.includes(w.text))
+                  .map((w) => ({
+                    key: w.text,
+                    path: w.path,
+                    kind: 'word-line',
+                  })),
+                {
+                  key: 'selection',
+                  path: game.selection,
+                  kind: 'selection-line',
+                },
+              ].flatMap((trace) =>
+                trace.path
+                  .slice(1)
+                  .map((id, index) =>
+                    connection(
+                      trace.path[index],
+                      id,
+                      `${trace.key}-${index}`,
+                      trace.kind,
+                    ),
+                  ),
+              )}
             </svg>
 
             {game.puzzle.cells.map((cell, i) => {
@@ -375,7 +388,7 @@ export default function Game() {
                 <button
                   key={i}
                   data-cell={i}
-                  className={`letter ${selected ? 'selected' : ''} ${found ? 'found' : ''} ${neighbors.has(i) ? 'neighbor' : ''}`}
+                  className={`letter ${selected ? 'selected' : ''} ${found ? 'found' : ''} ${highlightNeighbors && neighbors.has(i) ? 'neighbor' : ''}`}
                   style={
                     {
                       left: `${p.x}%`,
@@ -391,7 +404,7 @@ export default function Game() {
                       setGame((s) => selectCell(s, i));
                   }}
                   aria-pressed={selected}
-                  aria-label={`${cell.letter}, columna ${cell.position[0] + 1}, fila ${cell.position[1] + 1}, capa ${cell.position[2] + 1}${selected ? ', seleccionada' : ''}${found ? ', encontrada' : ''}`}
+                  aria-label={`${cell.letter}, columna ${cell.position[0] + 1}, fila ${cell.position[1] + 1}, capa ${cell.position[2] + 1}${selected ? ', seleccionada' : ''}${found ? ', encontrada' : ''}${highlightNeighbors && neighbors.has(i) ? ', vecina resaltada' : ''}`}
                 >
                   {cell.letter}
                 </button>

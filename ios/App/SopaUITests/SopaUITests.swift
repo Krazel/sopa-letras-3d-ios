@@ -18,7 +18,10 @@ final class SopaUITests: XCTestCase {
         for control in ["Entrar", "Salir", "Acercar", "Alejar", "Restaurar vista inicial", "Girar a la derecha", "Elegir", "Girar"] {
             XCTAssertFalse(app.buttons[control].exists, "Obsolete controls must be removed")
         }
-        let launch = XCTAttachment(screenshot: app.screenshot())
+        let highlight = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@ AND value IN {'0', '1'}", "Resaltar letras vecinas")).firstMatch
+        XCTAssertTrue(highlight.exists)
+        XCTAssertEqual(highlight.value as? String, "0", "Neighbor highlighting starts off")
+        let launch = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         launch.name = "Sopa3D-help-launch"
         launch.lifetime = .keepAlways
         add(launch)
@@ -41,17 +44,35 @@ final class SopaUITests: XCTestCase {
         app.webViews.firstMatch.pinch(withScale: 1.15, velocity: 0.5)
         XCTAssertTrue(!zoomReference.exists || zoomReference.frame != beforeZoom, "Pinching must move the viewpoint")
         XCTAssertEqual(selected.count, 1, "Pinching must not select another letter")
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Sopa3D-border-connections"
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = "Sopa3D-translucent-connections"
         screenshot.lifetime = .keepAlways
         add(screenshot)
+        let highlighted = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", vecina resaltada"))
+        XCTAssertEqual(highlighted.count, 0)
+        highlight.tap()
+        XCTAssertEqual(highlight.value as? String, "1")
+        XCTAssertGreaterThan(highlighted.count, 0)
+        XCTAssertEqual(selected.count, 1, "The option must preserve the current path")
+        let hints = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        hints.name = "Sopa3D-neighbor-highlight-on"
+        hints.lifetime = .keepAlways
+        add(hints)
+        highlight.tap()
+        XCTAssertEqual(highlighted.count, 0)
+        let invalid = letters.matching(NSPredicate(format: "label CONTAINS %@", ", columna 4, fila 4, capa 4")).firstMatch
+        XCTAssertTrue(invalid.isHittable)
+        invalid.tap()
+        XCTAssertEqual(selected.count, 0, "Tapping a non-neighbor clears the whole selection")
+        invalid.tap()
+        XCTAssertEqual(selected.count, 1, "A subsequent tap starts a fresh path")
         XCUIDevice.shared.orientation = .landscapeLeft
         defer { XCUIDevice.shared.orientation = .portrait }
         XCTAssertTrue(objective.isHittable, "Instructions remain visible in landscape")
         for word in ["LUNA", "NUBE", "AIRE", "SOL", "MAR", "RIO"] {
             XCTAssertTrue(app.staticTexts[word].isHittable, "Words fit in landscape: \(word)")
         }
-        let landscape = XCTAttachment(screenshot: app.screenshot())
+        let landscape = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         landscape.name = "Sopa3D-help-landscape"
         landscape.lifetime = .keepAlways
         add(landscape)
