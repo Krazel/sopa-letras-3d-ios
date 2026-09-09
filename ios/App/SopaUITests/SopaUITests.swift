@@ -2,6 +2,9 @@ import XCTest
 
 final class SopaUITests: XCTestCase {
     func capture(_ name: String) {
+        // WebKit accessibility updates before the simulator presents its pixels.
+        // Allow its compositor to finish theme/rotation and large-cube redraws.
+        RunLoop.current.run(until: Date().addingTimeInterval(5))
         let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         image.name = name
         image.lifetime = .keepAlways
