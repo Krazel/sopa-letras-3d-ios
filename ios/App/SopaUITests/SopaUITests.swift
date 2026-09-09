@@ -34,7 +34,9 @@ final class SopaUITests: XCTestCase {
         XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 30))
         // WKWebView exposes aria-pressed letter buttons as Switch on iOS.
         let letters = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", columna "))
-        XCTAssertTrue(letters.firstMatch.waitForExistence(timeout: 60), "Bundled game must render: \(app.debugDescription)")
+        let rendered = letters.firstMatch.waitForExistence(timeout: 60)
+        if !rendered { capture("Sopa3D-startup-failure") }
+        XCTAssertTrue(rendered, "Bundled game must render: \(app.debugDescription)")
         let objective = app.staticTexts["Une letras vecinas y encuentra las 6 palabras."]
         XCTAssertTrue(objective.waitForExistence(timeout: 60), "The short objective must appear above the board: \(app.debugDescription)")
         capture("Sopa3D-initial-accessibility")
