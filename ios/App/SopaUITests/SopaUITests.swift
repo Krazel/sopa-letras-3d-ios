@@ -33,8 +33,8 @@ final class SopaUITests: XCTestCase {
         let letters = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", columna "))
         XCTAssertTrue(letters.firstMatch.waitForExistence(timeout: 60), "Bundled game must render: \(app.debugDescription)")
         let objective = app.staticTexts["Une letras vecinas y encuentra las 6 palabras."]
+        XCTAssertTrue(objective.waitForExistence(timeout: 60), "The short objective must appear above the board: \(app.debugDescription)")
         capture("Sopa3D-initial-accessibility")
-        XCTAssertTrue(objective.exists, "The short objective must appear above the board: \(app.debugDescription)")
         XCTAssertLessThan(objective.frame.maxY, letters.firstMatch.frame.minY)
         for word in ["LUNA", "NUBE", "AIRE", "SOL", "MAR", "RIO"] {
             XCTAssertTrue(app.staticTexts[word].exists, "The target word must be visible: \(word)")
