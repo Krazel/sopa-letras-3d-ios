@@ -1,35 +1,148 @@
 import {
-  cameraPoint,
+  cameraProjector,
   projectPoint,
   projectSegment,
   type CameraView,
 } from './camera';
-import type { GameState } from './game';
+import { idAt, type GameState } from './game';
 
-// Large cubes use one canvas while the camera moves. Letter buttons remain
-// available at rest for touch, keyboard and VoiceOver; the game state is shared.
+type Frame = {
+  size: number;
+  tile: number;
+  radius: number;
+  font: number;
+  width?: number;
+  height?: number;
+};
+type Sprite = { image: HTMLCanvasElement; pad: number };
+const sprites = new WeakMap<
+  HTMLCanvasElement,
+  { key: string; tiles: Map<string, Sprite> }
+>();
+const states = new WeakMap<
+  GameState,
+  {
+    found: Set<number>;
+    selected: Set<number>;
+    traces: { path: number[]; kind: string }[];
+  }
+>();
+function drawingState(game: GameState) {
+  const cached = states.get(game);
+  if (cached) return cached;
+  const words = game.puzzle.words.filter((w) => game.found.includes(w.text));
+  const found = new Set(words.flatMap((w) => w.path)),
+    selected = new Set(game.selection);
+  const traces = words.map((w) => ({ path: w.path, kind: 'word' }));
+  traces.push({ path: game.selection, kind: 'selection' });
+  const last = game.selection.at(-1),
+    n = game.puzzle.size;
+  if (last !== undefined) {
+    const [x, y, z] = game.puzzle.cells[last].position;
+    for (let dz = -1; dz <= 1; dz++)
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const p: [number, number, number] = [x + dx, y + dy, z + dz];
+          if (p.some((v) => v < 0 || v >= n)) continue;
+          const id = idAt(p, n);
+          if (!selected.has(id))
+            traces.push({ path: [last, id], kind: 'neighbor' });
+        }
+  }
+  const result = { found, selected, traces };
+  states.set(game, result);
+  return result;
+}
+
+function letterSprite(
+  cache: Map<string, Sprite>,
+  letter: string,
+  kind: string,
+  frame: Frame,
+  colors: Record<string, string>,
+): Sprite {
+  const key = letter + kind,
+    hit = cache.get(key);
+  if (hit) return hit;
+  const image = document.createElement('canvas'),
+    pad = kind === 'selected' ? 12 : 1,
+    scale = 4;
+  image.width = image.height = Math.ceil((frame.tile + pad * 2) * scale);
+  const ctx = image.getContext('2d')!;
+  ctx.scale(scale, scale);
+  ctx.fillStyle = colors[kind === 'normal' ? 'tile' : kind];
+  ctx.strokeStyle =
+    colors[kind === 'normal' ? 'tile-border' : kind + '-border'];
+  ctx.lineWidth = kind === 'selected' ? 2 : 1;
+  if (kind === 'selected') {
+    ctx.shadowColor = '#cafa7533';
+    ctx.shadowBlur = 12;
+  }
+  ctx.beginPath();
+  ctx.roundRect(pad, pad, frame.tile, frame.tile, frame.radius);
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = colors[kind === 'normal' ? 'foreground' : kind + '-text'];
+  ctx.font = `600 ${frame.font}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(
+    letter,
+    pad + frame.tile / 2,
+    pad + frame.tile / 2 + frame.font * 0.04,
+  );
+  const sprite = { image, pad };
+  cache.set(key, sprite);
+  return sprite;
+}
+
+// One demand-driven canvas draws both moving and resting boards. Cached letter
+// images avoid rebuilding font glyphs and rounded paths for every camera frame.
 export function drawMotion(
   canvas: HTMLCanvasElement,
   game: GameState,
   view: CameraView,
-  frame: { size: number; tile: number; radius: number; font: number },
+  frame: Frame,
   edges: [number, number][],
   colors: Record<string, string>,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx || !frame.size) return;
   const dpr = Math.min(2, window.devicePixelRatio || 1),
-    width = Math.round(frame.size * dpr);
-  if (canvas.width !== width) {
-    canvas.width = width;
-    canvas.height = width;
+    width = frame.width ?? frame.size,
+    height = frame.height ?? frame.size,
+    ox = (width - frame.size) / 2,
+    oy = (height - frame.size) / 2;
+  const bounds = {
+    left: (-ox / frame.size) * 100,
+    right: 100 + (ox / frame.size) * 100,
+    top: (-oy / frame.size) * 100,
+    bottom: 100 + (oy / frame.size) * 100,
+  };
+  if (
+    canvas.width !== Math.round(width * dpr) ||
+    canvas.height !== Math.round(height * dpr)
+  ) {
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
   }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, frame.size, frame.size);
-  const camera = game.puzzle.cells.map((c) =>
-    cameraPoint(c.position, view, game.puzzle.size),
-  );
+  ctx.clearRect(0, 0, width, height);
+  const projector = cameraProjector(view, game.puzzle.size);
+  const camera = game.puzzle.cells.map((c) => projector(c.position));
   const projected = camera.map(projectPoint);
+  const cacheKey = JSON.stringify([
+    frame.tile,
+    frame.radius,
+    frame.font,
+    colors,
+  ]);
+  let cache = sprites.get(canvas);
+  if (!cache || cache.key !== cacheKey) {
+    cache = { key: cacheKey, tiles: new Map() };
+    sprites.set(canvas, cache);
+  }
   const line = (
     a: number,
     b: number,
@@ -37,86 +150,56 @@ export function drawMotion(
     weight: number,
     alpha: number,
   ) => {
-    const p = projectSegment(camera[a], camera[b]);
+    const p = projectSegment(camera[a], camera[b], bounds);
     if (!p) return;
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = color;
     ctx.lineWidth = weight;
     ctx.beginPath();
-    ctx.moveTo((p.x1 * frame.size) / 100, (p.y1 * frame.size) / 100);
-    ctx.lineTo((p.x2 * frame.size) / 100, (p.y2 * frame.size) / 100);
+    ctx.moveTo(ox + (p.x1 * frame.size) / 100, oy + (p.y1 * frame.size) / 100);
+    ctx.lineTo(ox + (p.x2 * frame.size) / 100, oy + (p.y2 * frame.size) / 100);
     ctx.stroke();
   };
   for (const [a, b] of edges) line(a, b, '#668ab1', frame.size * 0.002, 0.24);
-  const found = new Set(
-    game.puzzle.words
-      .filter((w) => game.found.includes(w.text))
-      .flatMap((w) => w.path),
-  );
+  const { found, selected: selection, traces } = drawingState(game);
   const visible = projected
     .map((p, id) => ({ p, id }))
     .filter(
       ({ p }) =>
         p &&
         p.fade >= 0.05 &&
-        p.x >= -5 &&
-        p.x <= 105 &&
-        p.y >= -5 &&
-        p.y <= 105,
+        p.x >= bounds.left - 12 &&
+        p.x <= bounds.right + 12 &&
+        p.y >= bounds.top - 12 &&
+        p.y <= bounds.bottom + 12,
     )
     .sort((a, b) => b.p!.depth - a.p!.depth);
   for (const { p: point, id } of visible) {
     const p = point!,
-      selected = game.selection.includes(id),
+      selected = selection.has(id),
       hit = found.has(id);
-    const x = (p.x * frame.size) / 100,
-      y = (p.y * frame.size) / 100,
+    const x = ox + (p.x * frame.size) / 100,
+      y = oy + (p.y * frame.size) / 100,
       side = frame.tile * p.scale;
     ctx.globalAlpha =
       selected || hit
         ? p.fade
         : (0.72 + Math.max(0, Math.min(1, 1 - p.depth / 15)) * 0.28) * p.fade;
-    ctx.fillStyle = colors[selected ? 'selected' : hit ? 'found' : 'tile'];
-    ctx.strokeStyle =
-      colors[
-        selected ? 'selected-border' : hit ? 'found-border' : 'tile-border'
-      ];
-    ctx.lineWidth = (selected ? 2 : 1) * p.scale;
-    ctx.beginPath();
-    ctx.roundRect(
-      x - side / 2,
-      y - side / 2,
-      side,
-      side,
-      frame.radius * p.scale,
-    );
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle =
-      colors[selected ? 'selected-text' : hit ? 'found-text' : 'foreground'];
-    ctx.font = `600 ${frame.font * p.scale}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(
+    const sprite = letterSprite(
+      cache.tiles,
       game.puzzle.cells[id].letter,
-      x,
-      y + frame.font * p.scale * 0.04,
+      selected ? 'selected' : hit ? 'found' : 'normal',
+      frame,
+      colors,
     );
-  }
-  const traces = game.puzzle.words
-    .filter((w) => game.found.includes(w.text))
-    .map((w) => ({ path: w.path, kind: 'word' }));
-  traces.push({ path: game.selection, kind: 'selection' });
-  const last = game.selection.at(-1);
-  // Neighbor list derives from coordinates directly, avoiding an all-pairs graph.
-  if (last !== undefined) {
-    const origin = game.puzzle.cells[last].position;
-    for (const c of game.puzzle.cells)
-      if (
-        !game.selection.includes(c.id) &&
-        c.position.every((v, axis) => Math.abs(v - origin[axis]) <= 1)
-      )
-        traces.push({ path: [last, c.id], kind: 'neighbor' });
+    const pad = sprite.pad * p.scale;
+    ctx.drawImage(
+      sprite.image,
+      x - side / 2 - pad,
+      y - side / 2 - pad,
+      side + pad * 2,
+      side + pad * 2,
+    );
   }
   ctx.lineCap = 'round';
   for (const trace of traces)
@@ -131,10 +214,10 @@ export function drawMotion(
         // Intersect the two exclusions separately: a single even-odd path
         // would incorrectly reveal the overlap between the endpoint holes.
         ctx.beginPath();
-        ctx.rect(0, 0, frame.size, frame.size);
+        ctx.rect(0, 0, width, height);
         ctx.roundRect(
-          (p.x * frame.size) / 100 - side / 2,
-          (p.y * frame.size) / 100 - side / 2,
+          ox + (p.x * frame.size) / 100 - side / 2,
+          oy + (p.y * frame.size) / 100 - side / 2,
           side,
           side,
           frame.radius * p.scale,

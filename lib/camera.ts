@@ -24,11 +24,24 @@ export const dolly = (view: CameraView, delta: number): CameraView => ({
 });
 
 export function cameraPoint(p: readonly number[], view: CameraView, size = 4) {
+  return cameraProjector(view, size)(p);
+}
+
+// Compute the orientation once per frame, rather than once per letter.
+export function cameraProjector(view: CameraView, size = 4) {
   const center = (size - 1) / 2;
-  const v = new Vector3(p[0] - center, p[1] - center, p[2] - center).applyEuler(
+  const orientation = new Quaternion().setFromEuler(
     new Euler(view.rotation[0], view.rotation[1], 0, 'YXZ'),
   );
-  return new Vector3(v.x, v.y, view.distance - v.z);
+  return (p: readonly number[]) => {
+    const v = new Vector3(
+      p[0] - center,
+      p[1] - center,
+      p[2] - center,
+    ).applyQuaternion(orientation);
+    v.z = view.distance - v.z;
+    return v;
+  };
 }
 
 export function projectPoint(v: Vector3) {
@@ -44,7 +57,11 @@ export function projectPoint(v: Vector3) {
 
 // Clip in camera space before dividing by depth. A word crossing the camera
 // must not flip backwards or connect to a letter behind the viewer.
-export function projectSegment(start: Vector3, end: Vector3) {
+export function projectSegment(
+  start: Vector3,
+  end: Vector3,
+  bounds = { left: 0, right: 100, top: 0, bottom: 100 },
+) {
   const a = start.clone(),
     b = end.clone();
   if (a.z < NEAR && b.z < NEAR) return null;
@@ -64,10 +81,10 @@ export function projectSegment(start: Vector3, end: Vector3) {
   const dx = q.x - p.x,
     dy = q.y - p.y;
   for (const [den, num] of [
-    [-dx, p.x],
-    [dx, 100 - p.x],
-    [-dy, p.y],
-    [dy, 100 - p.y],
+    [-dx, p.x - bounds.left],
+    [dx, bounds.right - p.x],
+    [-dy, p.y - bounds.top],
+    [dy, bounds.bottom - p.y],
   ]) {
     if (den === 0) {
       if (num < 0) return null;

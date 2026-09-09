@@ -82,6 +82,15 @@ final class SopaUITests: XCTestCase {
         hints.name = "Sopa3D-light-4"
         hints.lifetime = .keepAlways
         add(hints)
+        let beforeCollapse = letters.firstMatch.frame
+        app.buttons["Ocultar controles"].tap()
+        XCTAssertTrue(app.buttons["Mostrar controles"].waitForExistence(timeout: 5))
+        XCTAssertFalse(objective.exists)
+        XCTAssertEqual(selected.count, 1, "Collapsing controls preserves selection")
+        XCTAssertNotEqual(letters.firstMatch.frame, beforeCollapse, "The board uses the freed height")
+        capture("Sopa3D-controls-hidden-4")
+        app.buttons["Mostrar controles"].tap()
+        XCTAssertTrue(objective.waitForExistence(timeout: 5))
         let invalid = letters.matching(NSPredicate(format: "label CONTAINS %@", ", columna 4, fila 4, capa 4")).firstMatch
         XCTAssertTrue(invalid.isHittable)
         invalid.tap()
@@ -142,6 +151,11 @@ final class SopaUITests: XCTestCase {
             XCTAssertTrue(app.staticTexts[word].isHittable, "Large-cube words remain visible after theme and orientation change")
         }
         capture("Sopa3D-light-10-landscape")
+        app.buttons["Ocultar controles"].tap()
+        XCTAssertTrue(app.buttons["Mostrar controles"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["TELESCOPIO"].isHittable)
+        capture("Sopa3D-controls-hidden-10-landscape")
+        app.buttons["Mostrar controles"].tap()
         app.terminate()
         app.launch()
         XCTAssertTrue(app.buttons["Cambiar a tema oscuro"].waitForExistence(timeout: 30), "Theme persists after relaunch")

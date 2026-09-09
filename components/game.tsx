@@ -7,7 +7,6 @@
 import {
   useEffect,
   useLayoutEffect,
-  useId,
   useMemo,
   useRef,
   useState,
@@ -23,15 +22,13 @@ import {
   DEFAULT_PUZZLE,
   isWon,
   selectCell,
-  areNeighbors,
   type GameState,
 } from '@/lib/game';
 import {
   HOME_VIEW,
   homeView,
-  cameraPoint,
+  cameraProjector,
   projectPoint,
-  projectSegment,
   isInside,
   turn,
   dolly,
@@ -61,8 +58,9 @@ export default function Game() {
   const [puzzleId, setPuzzleId] = useState(DEFAULT_PUZZLE);
   const [game, setGame] = useState(() => startPuzzle(DEFAULT_PUZZLE));
   const games = useRef(new Map<string, GameState>());
+  const [controlsHidden, setControlsHidden] = useState(false);
   const theme = useSyncExternalStore(subscribeTheme, readTheme, () => 'dark');
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
     document
       .querySelector('meta[name="theme-color"]')
@@ -96,9 +94,10 @@ export default function Game() {
     },
     [],
   );
-  const connectionMaskId = useId();
   const [frame, setFrame] = useState({
     size: 0,
+    width: 0,
+    height: 0,
     tile: 38,
     radius: 9,
     font: 21,
@@ -110,14 +109,17 @@ export default function Game() {
   function moveCamera(next: CameraView) {
     viewRef.current = next;
     if (settleFrame.current !== null) clearTimeout(settleFrame.current);
-    settleFrame.current = setTimeout(commitCamera, 140);
+    settleFrame.current =
+      pointers.current.size === 0 ? setTimeout(commitCamera, 140) : null;
     if (cameraFrame.current === null)
       cameraFrame.current = requestAnimationFrame(() => {
         cameraFrame.current = null;
         if (motionRenderer.current) {
           motionRenderer.current(viewRef.current);
-          stageRef.current?.classList.add('moving');
-        } else setView(viewRef.current);
+          const stage = stageRef.current;
+          if (stage && !stage.classList.contains('moving'))
+            stage.classList.add('moving');
+        }
       });
   }
   function commitCamera() {
@@ -180,12 +182,16 @@ export default function Game() {
       const css = getComputedStyle(stage);
       const next = {
         size: Math.max(0, Math.min(bounds.width, bounds.height, 800)),
+        width: bounds.width,
+        height: bounds.height,
         tile: parseFloat(css.getPropertyValue('--letter-size')),
         radius: parseFloat(css.getPropertyValue('--letter-radius')),
         font: parseFloat(css.getPropertyValue('--letter-font-size')),
       };
       setFrame((old) =>
         old.size === next.size &&
+        old.width === next.width &&
+        old.height === next.height &&
         old.tile === next.tile &&
         old.radius === next.radius &&
         old.font === next.font
@@ -212,22 +218,6 @@ export default function Game() {
   }, []);
   const won = isWon(game);
   const size = game.puzzle.size;
-  const lastSelected = game.selection.at(-1);
-  const neighbors = useMemo(
-    () =>
-      new Set(
-        lastSelected === undefined
-          ? []
-          : game.puzzle.cells
-              .filter(
-                (c) =>
-                  areNeighbors(lastSelected, c.id, size) &&
-                  !game.selection.includes(c.id),
-              )
-              .map((c) => c.id),
-      ),
-    [game, lastSelected, size],
-  );
   const foundCells = useMemo(
     () =>
       new Set(
@@ -238,11 +228,15 @@ export default function Game() {
     [game],
   );
   // Move the viewpoint through the volume, rather than magnifying a flat board.
-  const cameraPoints = useMemo(
-    () => game.puzzle.cells.map((c) => cameraPoint(c.position, view, size)),
-    [game.puzzle.cells, view, size],
-  );
+  const cameraPoints = useMemo(() => {
+    const project = cameraProjector(view, size);
+    return game.puzzle.cells.map((c) => project(c.position));
+  }, [game.puzzle.cells, view, size]);
   const points = cameraPoints.map(projectPoint);
+  const offsetX = (frame.width - frame.size) / 2,
+    offsetY = (frame.height - frame.size) / 2;
+  const extentX = frame.size ? (offsetX / frame.size) * 100 : 0,
+    extentY = frame.size ? (offsetY / frame.size) * 100 : 0;
   const edges = useMemo(() => {
     const edges: [number, number][] = [];
     const far = size * size - 1,
@@ -260,13 +254,10 @@ export default function Game() {
       edges.push([corner, corner + size * size * (size - 1)]);
     return edges;
   }, [size]);
-  useEffect(() => {
-    if (size < 8) {
-      motionRenderer.current = null;
-      return;
-    }
+  const paintColors = useRef<Record<string, string>>({});
+  useLayoutEffect(() => {
     const css = getComputedStyle(document.documentElement);
-    const colors = Object.fromEntries(
+    paintColors.current = Object.fromEntries(
       [
         'foreground',
         'tile',
@@ -282,67 +273,25 @@ export default function Game() {
         'primary',
       ].map((key) => [key, css.getPropertyValue(`--${key}`).trim()]),
     );
+  }, [theme]);
+  useLayoutEffect(() => {
     motionRenderer.current = (next) => {
-      if (motionCanvas.current)
-        drawMotion(motionCanvas.current, game, next, frame, edges, colors);
+      if (motionCanvas.current && frame.size) {
+        drawMotion(
+          motionCanvas.current,
+          game,
+          next,
+          frame,
+          edges,
+          paintColors.current,
+        );
+        const stage = stageRef.current;
+        if (stage && !stage.classList.contains('canvas-ready'))
+          stage.classList.add('canvas-ready');
+      }
     };
-  }, [game, size, frame, edges, theme]);
-  function connection(a: number, b: number, key: string, kind: string) {
-    const segment = projectSegment(cameraPoints[a], cameraPoints[b]);
-    if (!segment || frame.size <= 0) return null;
-    const maskId = `${connectionMaskId}-${key}`;
-    return (
-      <g key={key}>
-        <defs>
-          <mask
-            id={maskId}
-            maskUnits="userSpaceOnUse"
-            maskContentUnits="userSpaceOnUse"
-            x="0"
-            y="0"
-            width="100"
-            height="100"
-            style={{ maskType: 'luminance' }}
-          >
-            <rect width="100" height="100" fill="white" />
-            {/* Only this connection's endpoints interrupt it. Other letters
-              remain underneath the translucent foreground stroke. */}
-            {[a, b].map((id) => {
-              const p = points[id];
-              if (
-                !p ||
-                p.fade < 0.05 ||
-                p.x < -5 ||
-                p.x > 105 ||
-                p.y < -5 ||
-                p.y > 105
-              )
-                return null;
-              const side = (frame.tile * p.scale * 100) / frame.size;
-              return (
-                <rect
-                  key={id}
-                  x={p.x - side / 2}
-                  y={p.y - side / 2}
-                  width={side}
-                  height={side}
-                  rx={(frame.radius * p.scale * 100) / frame.size}
-                  fill="black"
-                />
-              );
-            })}
-          </mask>
-        </defs>
-        <g
-          mask={`url(#${maskId})`}
-          className={`connection ${kind === 'selection-line' ? 'active-connection' : ''}`}
-        >
-          <line {...segment} className="connection-halo" />
-          <line {...segment} className={kind} />
-        </g>
-      </g>
-    );
-  }
+    motionRenderer.current(viewRef.current);
+  }, [game, size, frame, edges, theme, view]);
   function onDown(e: PointerEvent<HTMLDivElement>) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (pointers.current.size === 0) {
@@ -391,40 +340,56 @@ export default function Game() {
     if (pointers.current.size === 0) commitCamera();
   }
   return (
-    <main className="game-shell" aria-label="Sopa de letras 3D">
-      <p className="game-help">
-        <span>
-          {`Une letras vecinas y encuentra las ${game.puzzle.words.length} palabras.`}
-        </span>
-        <span>
-          Toca para elegir · Arrastra para girar · Pellizca o usa la rueda para
-          el zoom.
-        </span>
-      </p>
-      <div className="game-options">
-        <select
-          aria-label="Sopa"
-          value={puzzleId}
-          onChange={(e) => changePuzzle(e.target.value)}
-        >
-          {[3, 4, 5, 6, 8, 10].map((n) => (
-            <optgroup key={n} label={`${n}×${n}×${n} · ${n ** 3} letras`}>
-              {PUZZLES.filter((p) => p.size === n).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {n}×{n}×{n} · {p.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-        <button
-          type="button"
-          className="theme-toggle"
-          onClick={toggleTheme}
-          aria-label={`Cambiar a tema ${theme === 'dark' ? 'claro' : 'oscuro'}`}
-        >
-          {theme === 'dark' ? '◐ Claro' : '◑ Oscuro'}
-        </button>
+    <main
+      className="game-shell"
+      data-controls-hidden={controlsHidden}
+      aria-label="Sopa de letras 3D"
+    >
+      <button
+        type="button"
+        className="controls-toggle"
+        aria-controls="game-controls"
+        aria-expanded={!controlsHidden}
+        aria-label={controlsHidden ? 'Mostrar controles' : 'Ocultar controles'}
+        onClick={() => setControlsHidden((v) => !v)}
+      >
+        <span aria-hidden="true">{controlsHidden ? '⌄' : '⌃'}</span>
+      </button>
+      <div id="game-controls" className="game-controls" hidden={controlsHidden}>
+        <p className="game-help">
+          <span>
+            {`Une letras vecinas y encuentra las ${game.puzzle.words.length} palabras.`}
+          </span>
+          <span>
+            Toca para elegir · Arrastra para girar · Pellizca o usa la rueda
+            para el zoom.
+          </span>
+        </p>
+        <div className="game-options">
+          <select
+            aria-label="Sopa"
+            value={puzzleId}
+            onChange={(e) => changePuzzle(e.target.value)}
+          >
+            {[3, 4, 5, 6, 8, 10].map((n) => (
+              <optgroup key={n} label={`${n}×${n}×${n} · ${n ** 3} letras`}>
+                {PUZZLES.filter((p) => p.size === n).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {n}×{n}×{n} · {p.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={`Cambiar a tema ${theme === 'dark' ? 'claro' : 'oscuro'}`}
+          >
+            {theme === 'dark' ? '◐ Claro' : '◑ Oscuro'}
+          </button>
+        </div>
       </div>
       <p id="gesture-help" className="sr-only">
         Toca y suelta letras vecinas para formar palabras. Arrastra para girar
@@ -475,84 +440,21 @@ export default function Game() {
             }
           }}
         >
-          <div
-            className="cube-volume"
-            style={frame.size ? { width: frame.size } : undefined}
-          >
-            {size >= 8 && (
-              <canvas
-                ref={motionCanvas}
-                className="motion-canvas"
-                aria-hidden="true"
-              />
-            )}
-            <svg
-              className="cube-lines"
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
+          <div className="cube-volume">
+            <canvas
+              ref={motionCanvas}
+              className="motion-canvas"
               aria-hidden="true"
-            >
-              {edges.map(([a, b], i) => {
-                const segment = projectSegment(
-                  cameraPoints[a],
-                  cameraPoints[b],
-                );
-                return (
-                  segment && <line key={i} {...segment} className="cage-line" />
-                );
-              })}
-            </svg>
-            <svg
-              className="cube-lines connection-overlay"
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              {lastSelected !== undefined &&
-                [...neighbors].map((id) =>
-                  connection(
-                    lastSelected,
-                    id,
-                    `neighbor-${id}`,
-                    'neighbor-line',
-                  ),
-                )}
-              {[
-                ...game.puzzle.words
-                  .filter((w) => game.found.includes(w.text))
-                  .map((w) => ({
-                    key: w.text,
-                    path: w.path,
-                    kind: 'word-line',
-                  })),
-                {
-                  key: 'selection',
-                  path: game.selection,
-                  kind: 'selection-line',
-                },
-              ].flatMap((trace) =>
-                trace.path
-                  .slice(1)
-                  .map((id, index) =>
-                    connection(
-                      trace.path[index],
-                      id,
-                      `${trace.key}-${index}`,
-                      trace.kind,
-                    ),
-                  ),
-              )}
-            </svg>
-
+            />
             {game.puzzle.cells.map((cell, i) => {
               const p = points[i];
               if (
                 !p ||
                 p.fade < 0.05 ||
-                p.x < -5 ||
-                p.x > 105 ||
-                p.y < -5 ||
-                p.y > 105
+                p.x < -extentX - 12 ||
+                p.x > 100 + extentX + 12 ||
+                p.y < -extentY - 12 ||
+                p.y > 100 + extentY + 12
               )
                 return null;
               const selected = game.selection.includes(i);
@@ -564,12 +466,8 @@ export default function Game() {
                   className={`letter ${selected ? 'selected' : ''} ${found ? 'found' : ''}`}
                   style={
                     {
-                      '--x': `${(p.x * frame.size) / 100}px`,
-                      '--y': `${(p.y * frame.size) / 100}px`,
-                      zIndex: Math.max(1, Math.round(95 - p.depth * 4)),
-                      '--depth': Math.max(0, Math.min(1, 1 - p.depth / 15)),
-                      '--scale': p.scale,
-                      '--fade': p.fade,
+                      transform: `translate(${offsetX + (p.x * frame.size) / 100}px, ${offsetY + (p.y * frame.size) / 100}px) translate(-50%, -50%) scale(${p.scale})`,
+                      zIndex: Math.max(1, Math.round(100000 - p.depth * 1000)),
                     } as React.CSSProperties
                   }
                   onClick={(e) => {

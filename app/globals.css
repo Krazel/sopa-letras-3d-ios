@@ -79,6 +79,7 @@ select:focus-visible,
   border: 0;
 }
 .game-shell {
+  position: relative;
   height: calc(
     100svh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
   );
@@ -89,6 +90,30 @@ select:focus-visible,
   padding: 12px;
   margin: 0 auto;
   max-width: 1440px;
+}
+.game-controls {
+  width: 100%;
+  flex-shrink: 0;
+  padding: 0 22px;
+}
+.game-controls[hidden] {
+  display: none;
+}
+.controls-toggle {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  z-index: 200000;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+  font-size: 25px;
+}
+.controls-toggle:hover {
+  background: var(--tile);
 }
 .game-help {
   flex-shrink: 0;
@@ -171,8 +196,8 @@ select:focus-visible,
 }
 .cube-volume {
   position: relative;
-  width: min(100%, calc(100svh - 250px), 800px);
-  aspect-ratio: 1;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
 }
 .cube-lines {
@@ -188,15 +213,19 @@ select:focus-visible,
   inset: 0;
   width: 100%;
   height: 100%;
-  display: none;
+  display: block;
   pointer-events: none;
 }
-.moving .motion-canvas {
-  display: block;
-}
-.moving .letter,
-.moving .cube-lines {
-  visibility: hidden;
+/* Semantic hit targets remain native buttons; only the canvas paints tiles. */
+.canvas-ready .letter,
+.canvas-ready .letter.selected,
+.canvas-ready .letter.found {
+  background: transparent;
+  color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  opacity: 1;
+  transition: none;
 }
 .cage-line {
   stroke: #668ab1;
@@ -263,7 +292,6 @@ select:focus-visible,
 .letter:hover {
   background: var(--tile-hover);
   border-color: var(--muted);
-  z-index: 105 !important;
 }
 /* Avoid 1,000 simultaneous tile animations when changing the large-cube theme.
    Camera depth is projected in JS; individual GPU layers are unnecessary. */
@@ -348,7 +376,7 @@ select:focus-visible,
     height: 100%;
   }
   .cube-volume {
-    width: min(100%, calc(100svh - 48px), 800px);
+    width: 100%;
   }
   .word-list {
     width: 140px;

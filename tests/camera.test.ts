@@ -1,12 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Vector3 } from 'three';
+import { Vector3, Euler } from 'three';
 import {
   HOME_VIEW,
   homeView,
   MAX_DISTANCE,
   NEAR,
   cameraPoint,
+  cameraProjector,
   projectPoint,
   projectSegment,
   dolly,
@@ -14,6 +15,42 @@ import {
   pinch,
   isInside,
 } from '../lib/camera.ts';
+void test('batched camera matches independent 3D rotation and rectangular clipping reveals extra height', () => {
+  for (const size of [3, 6, 10])
+    for (const angle of [-3, -0.4, 0, 1.7, 6]) {
+      const view = {
+        rotation: [angle, angle * 0.6] as [number, number],
+        distance: 4,
+      };
+      const project = cameraProjector(view, size);
+      for (const p of [
+        [0, 0, 0],
+        [1, 2, 1],
+        [size - 1, size - 1, size - 1],
+      ]) {
+        const half = (size - 1) / 2;
+        const expected = new Vector3(
+          p[0] - half,
+          p[1] - half,
+          p[2] - half,
+        ).applyEuler(new Euler(angle, angle * 0.6, 0, 'YXZ'));
+        expected.z = view.distance - expected.z;
+        assert(project(p).distanceTo(expected) < 1e-10);
+      }
+    }
+  const a = new Vector3(0, -4, 4),
+    b = new Vector3(0, 4, 4);
+  const square = projectSegment(a, b)!;
+  const tall = projectSegment(a, b, {
+    left: 0,
+    right: 100,
+    top: -50,
+    bottom: 150,
+  })!;
+  assert.equal(square.y1, 0);
+  assert.equal(square.y2, 100);
+  assert(tall.y1 < square.y1 && tall.y2 > square.y2);
+});
 void test('all six sizes are centered and framed with navigable interiors', () => {
   for (const size of [3, 4, 5, 6, 8, 10]) {
     const center = (size - 1) / 2;

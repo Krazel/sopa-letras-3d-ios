@@ -4,8 +4,8 @@
   "bundleId": "com.krazel.sopaletras3d",
   "bundleResourceId": "TH8X242N92",
   "teamId": "B2X6D3A9J9",
-  "marketingVersion": "0.6",
-  "buildNumber": 2,
+  "marketingVersion": "0.7",
+  "buildNumber": 1,
   "purpose": "TestFlight",
   "locale": "es-ES",
   "sku": "krazel-sopa-letras-3d-ios"
