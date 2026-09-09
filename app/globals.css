@@ -218,6 +218,7 @@ select:focus-visible,
 }
 /* Semantic hit targets remain native buttons; only the canvas paints tiles. */
 .canvas-ready .letter,
+.canvas-ready .letter:hover,
 .canvas-ready .letter.selected,
 .canvas-ready .letter.found {
   background: transparent;
