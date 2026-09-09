@@ -9,7 +9,51 @@ import {
   selectCell,
   selectionText,
   WORDS,
+  PUZZLES,
+  startPuzzle,
+  idAt,
 } from '../lib/game.ts';
+void test('all 14 collection puzzles are deterministic, valid, solvable both ways and restartable', () => {
+  assert.equal(PUZZLES.length, 14);
+  for (const choice of PUZZLES) {
+    let s = startPuzzle(choice.id);
+    const original = structuredClone(s);
+    assert.equal(s.puzzle.cells.length, choice.size ** 3);
+    assert.deepEqual(s, startPuzzle(choice.id));
+    assert.equal(
+      PUZZLES.filter((p) => p.size === choice.size).length,
+      choice.size <= 6 ? 3 : 1,
+    );
+    for (const cell of s.puzzle.cells)
+      assert.equal(idAt(pointAt(cell.id, choice.size), choice.size), cell.id);
+    for (const [index, w] of s.puzzle.words.entries()) {
+      assert.equal(new Set(w.path).size, w.text.length);
+      assert.equal(
+        w.path.map((id) => s.puzzle.cells[id].letter).join(''),
+        w.text,
+      );
+      assert(
+        w.path
+          .slice(1)
+          .every((id, i) => areNeighbors(w.path[i], id, choice.size)),
+      );
+      if (index < 3)
+        assert(
+          new Set(w.path.map((id) => pointAt(id, choice.size)[2])).size > 1,
+        );
+      for (const id of index % 2 ? [...w.path].reverse() : w.path)
+        s = selectCell(s, id);
+      assert(s.found.includes(w.text), `${choice.id}: ${w.text}`);
+    }
+    assert(isWon(s));
+    assert.deepEqual(startPuzzle(choice.id), original);
+    let restarted = startPuzzle(choice.id);
+    restarted = selectCell(restarted, 0);
+    restarted = selectCell(restarted, choice.size ** 3 - 1);
+    assert.deepEqual(restarted.selection, []);
+    assert(!areNeighbors(choice.size - 1, choice.size, choice.size));
+  }
+});
 void test('300 cubes contain six contiguous paths without repeated cells and with depth', () => {
   for (let seed = 1; seed <= 300; seed++) {
     const p = createPuzzle(seed);

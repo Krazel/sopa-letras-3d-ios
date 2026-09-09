@@ -9,7 +9,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'Sopa de letras 3D',
   description:
-    'Toca letras vecinas, gira libremente y acércate al cubo para descubrir seis palabras en tres dimensiones.',
+    'Catorce sopas de letras en tres dimensiones, de 3×3×3 a 10×10×10. Gira, haz zoom y encuentra las palabras con tema claro u oscuro.',
 };
 export default function RootLayout({
   children,

@@ -10,11 +10,23 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type PointerEvent,
 } from 'react';
-import { initialState, isWon, selectCell, areNeighbors } from '@/lib/game';
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import {
+  startPuzzle,
+  PUZZLES,
+  DEFAULT_PUZZLE,
+  isWon,
+  selectCell,
+  areNeighbors,
+  type GameState,
+} from '@/lib/game';
 import {
   HOME_VIEW,
+  homeView,
   cameraPoint,
   projectPoint,
   projectSegment,
@@ -26,11 +38,58 @@ import {
   type TouchPoint,
 } from '@/lib/camera';
 
+let fallbackTheme: 'dark' | 'light' = 'dark';
+function readTheme(): 'dark' | 'light' {
+  try {
+    return localStorage.getItem('sopa-theme') === 'light' ? 'light' : 'dark';
+  } catch {
+    return fallbackTheme;
+  }
+}
+function subscribeTheme(update: () => void) {
+  window.addEventListener('storage', update);
+  window.addEventListener('sopa-theme', update);
+  return () => {
+    window.removeEventListener('storage', update);
+    window.removeEventListener('sopa-theme', update);
+  };
+}
+
 export default function Game() {
-  const [game, setGame] = useState(() => initialState());
-  const [highlightNeighbors, setHighlightNeighbors] = useState(false);
+  const [puzzleId, setPuzzleId] = useState(DEFAULT_PUZZLE);
+  const [game, setGame] = useState(() => startPuzzle(DEFAULT_PUZZLE));
+  const games = useRef(new Map<string, GameState>());
+  const theme = useSyncExternalStore(subscribeTheme, readTheme, () => 'dark');
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', theme === 'light' ? '#ffffff' : '#0b1120');
+    if (Capacitor.isNativePlatform())
+      void StatusBar.setStyle({
+        style: theme === 'light' ? Style.Light : Style.Dark,
+      });
+  }, [theme]);
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    fallbackTheme = next;
+    try {
+      localStorage.setItem('sopa-theme', next);
+    } catch {
+      /* Keep the current session usable. */
+    }
+    window.dispatchEvent(new Event('sopa-theme'));
+  }
   const [view, setView] = useState<CameraView>(HOME_VIEW);
   const viewRef = useRef(view);
+  const cameraFrame = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (cameraFrame.current !== null)
+        cancelAnimationFrame(cameraFrame.current);
+    },
+    [],
+  );
   const connectionMaskId = useId();
   const [frame, setFrame] = useState({ size: 0, tile: 38, radius: 9 });
   const stageRef = useRef<HTMLDivElement>(null);
@@ -39,7 +98,23 @@ export default function Game() {
   const suppressPick = useRef(false);
   function moveCamera(next: CameraView) {
     viewRef.current = next;
-    setView(next);
+    if (cameraFrame.current === null)
+      cameraFrame.current = requestAnimationFrame(() => {
+        cameraFrame.current = null;
+        setView(viewRef.current);
+      });
+  }
+  function changePuzzle(id: string, replay = false) {
+    games.current.set(puzzleId, game);
+    const next = replay
+      ? startPuzzle(id)
+      : (games.current.get(id) ?? startPuzzle(id));
+    setPuzzleId(id);
+    setGame(next);
+    pointers.current.clear();
+    pressOrigin.current = null;
+    suppressPick.current = true;
+    moveCamera(homeView(next.puzzle.size));
   }
   useEffect(() => {
     const stage = stageRef.current;
@@ -106,17 +181,22 @@ export default function Game() {
     };
   }, []);
   const won = isWon(game);
+  const size = game.puzzle.size;
   const lastSelected = game.selection.at(-1);
-  const neighbors = new Set(
-    lastSelected === undefined
-      ? []
-      : game.puzzle.cells
-          .filter(
-            (c) =>
-              areNeighbors(lastSelected, c.id) &&
-              !game.selection.includes(c.id),
-          )
-          .map((c) => c.id),
+  const neighbors = useMemo(
+    () =>
+      new Set(
+        lastSelected === undefined
+          ? []
+          : game.puzzle.cells
+              .filter(
+                (c) =>
+                  areNeighbors(lastSelected, c.id, size) &&
+                  !game.selection.includes(c.id),
+              )
+              .map((c) => c.id),
+      ),
+    [game, lastSelected, size],
   );
   const foundCells = useMemo(
     () =>
@@ -128,21 +208,25 @@ export default function Game() {
     [game],
   );
   // Move the viewpoint through the volume, rather than magnifying a flat board.
-  const cameraPoints = game.puzzle.cells.map((c) =>
-    cameraPoint(c.position, view),
+  const cameraPoints = useMemo(
+    () => game.puzzle.cells.map((c) => cameraPoint(c.position, view, size)),
+    [game.puzzle.cells, view, size],
   );
   const points = cameraPoints.map(projectPoint);
   const edges: [number, number][] = [];
-  for (let z = 0; z < 4; z++) {
-    const base = z * 16;
+  const far = size * size - 1,
+    row = size * (size - 1);
+  for (let z = 0; z < size; z++) {
+    const base = z * size * size;
     edges.push(
-      [base, base + 3],
-      [base + 3, base + 15],
-      [base + 15, base + 12],
-      [base + 12, base],
+      [base, base + size - 1],
+      [base + size - 1, base + far],
+      [base + far, base + row],
+      [base + row, base],
     );
   }
-  for (const corner of [0, 3, 12, 15]) edges.push([corner, corner + 48]);
+  for (const corner of [0, size - 1, row, far])
+    edges.push([corner, corner + size * size * (size - 1)]);
   function connection(a: number, b: number, key: string, kind: string) {
     const segment = projectSegment(cameraPoints[a], cameraPoints[b]);
     if (!segment || frame.size <= 0) return null;
@@ -247,20 +331,40 @@ export default function Game() {
   return (
     <main className="game-shell" aria-label="Sopa de letras 3D">
       <p className="game-help">
-        <span>Une letras vecinas y encuentra las 6 palabras.</span>
+        <span>
+          Une letras vecinas y encuentra las {game.puzzle.words.length}{' '}
+          palabras.
+        </span>
         <span>
           Toca para elegir · Arrastra para girar · Pellizca o usa la rueda para
           el zoom.
         </span>
       </p>
-      <label className="neighbor-option">
-        <input
-          type="checkbox"
-          checked={highlightNeighbors}
-          onChange={(e) => setHighlightNeighbors(e.target.checked)}
-        />
-        Resaltar letras vecinas
-      </label>
+      <div className="game-options">
+        <select
+          aria-label="Sopa"
+          value={puzzleId}
+          onChange={(e) => changePuzzle(e.target.value)}
+        >
+          {[3, 4, 5, 6, 8, 10].map((n) => (
+            <optgroup key={n} label={`${n}×${n}×${n} · ${n ** 3} letras`}>
+              {PUZZLES.filter((p) => p.size === n).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {n}×{n}×{n} · {p.name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={toggleTheme}
+          aria-label={`Cambiar a tema ${theme === 'dark' ? 'claro' : 'oscuro'}`}
+        >
+          {theme === 'dark' ? '◐ Claro' : '◑ Oscuro'}
+        </button>
+      </div>
       <p id="gesture-help" className="sr-only">
         Toca y suelta letras vecinas para formar palabras. Arrastra para girar
         sin límites; pellizca o usa la rueda para acercarte y alejarte. Toca la
@@ -278,7 +382,8 @@ export default function Game() {
           tabIndex={0}
           data-distance={view.distance.toFixed(3)}
           data-rotation={view.rotation.join(',')}
-          data-inside={isInside(view)}
+          data-inside={isInside(view, size)}
+          data-size={size}
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
@@ -388,12 +493,12 @@ export default function Game() {
                 <button
                   key={i}
                   data-cell={i}
-                  className={`letter ${selected ? 'selected' : ''} ${found ? 'found' : ''} ${highlightNeighbors && neighbors.has(i) ? 'neighbor' : ''}`}
+                  className={`letter ${selected ? 'selected' : ''} ${found ? 'found' : ''}`}
                   style={
                     {
                       left: `${p.x}%`,
                       top: `${p.y}%`,
-                      zIndex: Math.round(95 - p.depth * 4),
+                      zIndex: Math.max(1, Math.round(95 - p.depth * 4)),
                       '--depth': Math.max(0, Math.min(1, 1 - p.depth / 15)),
                       '--scale': p.scale,
                       '--fade': p.fade,
@@ -404,7 +509,7 @@ export default function Game() {
                       setGame((s) => selectCell(s, i));
                   }}
                   aria-pressed={selected}
-                  aria-label={`${cell.letter}, columna ${cell.position[0] + 1}, fila ${cell.position[1] + 1}, capa ${cell.position[2] + 1}${selected ? ', seleccionada' : ''}${found ? ', encontrada' : ''}${highlightNeighbors && neighbors.has(i) ? ', vecina resaltada' : ''}`}
+                  aria-label={`${cell.letter}, columna ${cell.position[0] + 1}, fila ${cell.position[1] + 1}, capa ${cell.position[2] + 1}${selected ? ', seleccionada' : ''}${found ? ', encontrada' : ''}`}
                 >
                   {cell.letter}
                 </button>
@@ -414,6 +519,7 @@ export default function Game() {
         </div>
         <ul
           className={`word-list ${won ? 'solved' : ''}`}
+          data-long={size >= 8}
           aria-label="Palabras por encontrar"
         >
           {game.puzzle.words.map((word) => (
@@ -427,6 +533,26 @@ export default function Game() {
           ))}
         </ul>
       </div>
+      {won && (
+        <output className="victory">
+          <span>¡Sopa completada!</span>
+          <button onClick={() => changePuzzle(puzzleId, true)}>
+            Volver a jugar
+          </button>
+          <button
+            onClick={() =>
+              changePuzzle(
+                PUZZLES[
+                  (PUZZLES.findIndex((p) => p.id === puzzleId) + 1) %
+                    PUZZLES.length
+                ].id,
+              )
+            }
+          >
+            Otra sopa
+          </button>
+        </output>
+      )}
       <output className="sr-only" aria-live="polite">
         {game.message}
       </output>

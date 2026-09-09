@@ -2,7 +2,11 @@ import { Euler, Quaternion, Vector3 } from 'three';
 
 export type CameraView = { rotation: [number, number]; distance: number };
 export const HOME_VIEW: CameraView = { rotation: [-0.32, 0.52], distance: 8 };
-export const MAX_DISTANCE = 14;
+export const MAX_DISTANCE = 28;
+export const homeView = (size: number): CameraView => ({
+  ...HOME_VIEW,
+  distance: size === 3 ? 6.5 : (8 * (size - 1)) / 3,
+});
 export const NEAR = 0.22;
 const FOCAL = HOME_VIEW.distance * 17;
 export const clampDistance = (distance: number) =>
@@ -19,8 +23,9 @@ export const dolly = (view: CameraView, delta: number): CameraView => ({
   distance: clampDistance(view.distance + delta),
 });
 
-export function cameraPoint(p: readonly number[], view: CameraView) {
-  const v = new Vector3(p[0] - 1.5, p[1] - 1.5, p[2] - 1.5).applyEuler(
+export function cameraPoint(p: readonly number[], view: CameraView, size = 4) {
+  const center = (size - 1) / 2;
+  const v = new Vector3(p[0] - center, p[1] - center, p[2] - center).applyEuler(
     new Euler(view.rotation[0], view.rotation[1], 0, 'YXZ'),
   );
   return new Vector3(v.x, v.y, view.distance - v.z);
@@ -81,7 +86,7 @@ export function projectSegment(start: Vector3, end: Vector3) {
   };
 }
 
-export function isInside(view: CameraView) {
+export function isInside(view: CameraView, size = 4) {
   const orientation = new Quaternion().setFromEuler(
     new Euler(view.rotation[0], view.rotation[1], 0, 'YXZ'),
   );
@@ -90,7 +95,7 @@ export function isInside(view: CameraView) {
   );
   return (
     Math.max(Math.abs(position.x), Math.abs(position.y), Math.abs(position.z)) <
-    1.5
+    (size - 1) / 2
   );
 }
 

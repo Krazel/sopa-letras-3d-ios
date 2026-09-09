@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { Vector3 } from 'three';
 import {
   HOME_VIEW,
+  homeView,
   MAX_DISTANCE,
   NEAR,
   cameraPoint,
@@ -13,6 +14,20 @@ import {
   pinch,
   isInside,
 } from '../lib/camera.ts';
+void test('all six sizes are centered and framed with navigable interiors', () => {
+  for (const size of [3, 4, 5, 6, 8, 10]) {
+    const center = (size - 1) / 2;
+    const view = homeView(size);
+    assert.equal(cameraPoint([center, center, center], view, size).x, 0);
+    assert(isInside({ ...view, distance: 0 }, size));
+    for (let x = 0; x < size; x++)
+      for (let y = 0; y < size; y++)
+        for (let z = 0; z < size; z++) {
+          const p = projectPoint(cameraPoint([x, y, z], view, size));
+          assert(p && p.x > 0 && p.x < 100 && p.y > 0 && p.y < 100);
+        }
+  }
+});
 
 void test('dolly changes perspective and can travel inside, with no mirrored letters behind camera', () => {
   const outside = { rotation: [0, 0] as [number, number], distance: 8 };
@@ -43,15 +58,29 @@ void test('vertical and horizontal drags can complete repeated revolutions witho
     for (const direction of [-1, 1]) {
       let view = HOME_VIEW;
       let previous = original;
-      const pixels = direction * Math.PI / 180 / 0.008;
+      const pixels = (direction * Math.PI) / 180 / 0.008;
       for (let step = 0; step < 1080; step++) {
-        view = turn(view, axis === 'horizontal' ? pixels : 0, axis === 'vertical' ? pixels : 0);
+        view = turn(
+          view,
+          axis === 'horizontal' ? pixels : 0,
+          axis === 'vertical' ? pixels : 0,
+        );
         const point = cameraPoint([0, 0, 0], view);
-        assert.ok(point.distanceTo(previous) > 0.001, `${axis} stalled at step ${step}`);
-        assert.ok(view.rotation.every(value => Number.isFinite(value) && Math.abs(value) <= Math.PI * 2));
+        assert.ok(
+          point.distanceTo(previous) > 0.001,
+          `${axis} stalled at step ${step}`,
+        );
+        assert.ok(
+          view.rotation.every(
+            (value) => Number.isFinite(value) && Math.abs(value) <= Math.PI * 2,
+          ),
+        );
         previous = point;
       }
-      assert.ok(previous.distanceTo(original) < 1e-9, 'three full turns return to the same view');
+      assert.ok(
+        previous.distanceTo(original) < 1e-9,
+        'three full turns return to the same view',
+      );
       assert.equal(view.distance, HOME_VIEW.distance);
     }
   }

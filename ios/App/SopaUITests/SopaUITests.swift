@@ -1,6 +1,29 @@
 import XCTest
 
 final class SopaUITests: XCTestCase {
+    func capture(_ name: String) {
+        let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        image.name = name
+        image.lifetime = .keepAlways
+        add(image)
+    }
+
+    func chooseSoup(_ app: XCUIApplication, _ value: String) {
+        let menu = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Sopa")).firstMatch
+        XCTAssertTrue(menu.exists, app.debugDescription)
+        menu.tap()
+        let wheel = app.pickerWheels.firstMatch
+        if wheel.waitForExistence(timeout: 3) {
+            wheel.adjust(toPickerWheelValue: value)
+            let done = app.buttons.matching(NSPredicate(format: "label IN {'Done', 'OK', 'Listo', 'Aceptar'}")).firstMatch
+            if done.exists { done.tap() }
+            else { app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Une letras vecinas")).firstMatch.tap() }
+        } else {
+            let option = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", value)).firstMatch
+            XCTAssertTrue(option.waitForExistence(timeout: 5), app.debugDescription)
+            option.tap()
+        }
+    }
     func testOfflineMinimalGameAndGestures() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -18,9 +41,9 @@ final class SopaUITests: XCTestCase {
         for control in ["Entrar", "Salir", "Acercar", "Alejar", "Restaurar vista inicial", "Girar a la derecha", "Elegir", "Girar"] {
             XCTAssertFalse(app.buttons[control].exists, "Obsolete controls must be removed")
         }
-        let highlight = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@ AND value IN {'0', '1'}", "Resaltar letras vecinas")).firstMatch
-        XCTAssertTrue(highlight.exists)
-        XCTAssertEqual(highlight.value as? String, "0", "Neighbor highlighting starts off")
+        XCTAssertFalse(app.staticTexts["Resaltar letras vecinas"].exists)
+        let light = app.buttons["Cambiar a tema claro"]
+        XCTAssertTrue(light.waitForExistence(timeout: 5))
         let launch = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         launch.name = "Sopa3D-help-launch"
         launch.lifetime = .keepAlways
@@ -48,18 +71,13 @@ final class SopaUITests: XCTestCase {
         screenshot.name = "Sopa3D-translucent-connections"
         screenshot.lifetime = .keepAlways
         add(screenshot)
-        let highlighted = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", vecina resaltada"))
-        XCTAssertEqual(highlighted.count, 0)
-        highlight.tap()
-        XCTAssertEqual(highlight.value as? String, "1")
-        XCTAssertGreaterThan(highlighted.count, 0)
+        light.tap()
+        XCTAssertTrue(app.buttons["Cambiar a tema oscuro"].exists)
         XCTAssertEqual(selected.count, 1, "The option must preserve the current path")
         let hints = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        hints.name = "Sopa3D-neighbor-highlight-on"
+        hints.name = "Sopa3D-light-4"
         hints.lifetime = .keepAlways
         add(hints)
-        highlight.tap()
-        XCTAssertEqual(highlighted.count, 0)
         let invalid = letters.matching(NSPredicate(format: "label CONTAINS %@", ", columna 4, fila 4, capa 4")).firstMatch
         XCTAssertTrue(invalid.isHittable)
         invalid.tap()
@@ -76,5 +94,49 @@ final class SopaUITests: XCTestCase {
         landscape.name = "Sopa3D-help-landscape"
         landscape.lifetime = .keepAlways
         add(landscape)
+        XCUIDevice.shared.orientation = .portrait
+        chooseSoup(app, "3×3×3 · Cielo")
+        XCTAssertTrue(app.staticTexts["Une letras vecinas y encuentra las 4 palabras."].waitForExistence(timeout: 5))
+        XCTAssertEqual(letters.count, 27)
+        capture("Sopa3D-light-3")
+        chooseSoup(app, "5×5×5 · Bosque")
+        XCTAssertTrue(app.staticTexts["ARBOL"].waitForExistence(timeout: 5))
+        XCTAssertEqual(letters.count, 125)
+        capture("Sopa3D-light-5")
+        chooseSoup(app, "6×6×6 · Universo")
+        XCTAssertTrue(app.staticTexts["GALAXIA"].waitForExistence(timeout: 5))
+        XCTAssertEqual(letters.count, 216)
+        capture("Sopa3D-light-6")
+        app.buttons["Cambiar a tema oscuro"].tap()
+        capture("Sopa3D-dark-6")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        for word in ["PLANETA", "ESTRELLA", "GALAXIA", "COMETA", "ORBITA", "SATURNO", "METEORO", "COSMOS"] {
+            XCTAssertTrue(app.staticTexts[word].isHittable)
+        }
+        capture("Sopa3D-dark-6-landscape")
+        XCUIDevice.shared.orientation = .portrait
+        chooseSoup(app, "8×8×8 · Planeta")
+        XCTAssertTrue(app.staticTexts["GLACIAR"].waitForExistence(timeout: 5))
+        XCTAssertEqual(letters.count, 512)
+        capture("Sopa3D-dark-8")
+        chooseSoup(app, "10×10×10 · Exploración")
+        XCTAssertTrue(app.staticTexts["TELESCOPIO"].waitForExistence(timeout: 5))
+        XCTAssertEqual(letters.count, 1000)
+        capture("Sopa3D-dark-10")
+        let large = try XCTUnwrap(letters.allElementsBoundByIndex.first(where: { $0.isHittable }))
+        let largeFrame = large.frame
+        let origin = large.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        origin.press(forDuration: 0.1, thenDragTo: origin.withOffset(CGVector(dx: 50, dy: 30)))
+        XCTAssertTrue(!large.exists || large.frame != largeFrame)
+        XCTAssertEqual(selected.count, 0)
+        app.webViews.firstMatch.pinch(withScale: 1.2, velocity: 0.5)
+        capture("Sopa3D-dark-10-zoom")
+        app.buttons["Cambiar a tema claro"].tap()
+        XCUIDevice.shared.orientation = .landscapeLeft
+        capture("Sopa3D-light-10-landscape")
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.buttons["Cambiar a tema oscuro"].waitForExistence(timeout: 30), "Theme persists after relaunch")
+        capture("Sopa3D-light-persisted")
     }
 }
