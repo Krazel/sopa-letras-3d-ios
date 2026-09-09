@@ -1,23 +1,52 @@
 import { Euler, Quaternion, Vector3 } from 'three';
 
-export type CameraView = { rotation: [number, number]; distance: number };
-export const HOME_VIEW: CameraView = { rotation: [-0.32, 0.52], distance: 8 };
-export const MAX_DISTANCE = 28;
-export const homeView = (size: number): CameraView => ({
-  ...HOME_VIEW,
-  distance: size === 3 ? 6.5 : (8 * (size - 1)) / 3,
-});
+export type CameraView = {
+  rotation: [number, number] | [number, number, number, number];
+  distance: number;
+};
+const orientationOf = (view: CameraView) =>
+  view.rotation.length === 4
+    ? new Quaternion(...view.rotation)
+    : new Quaternion().setFromEuler(
+        new Euler(view.rotation[0], view.rotation[1], 0, 'YXZ'),
+      );
+export const HOME_VIEW: CameraView = {
+  rotation: new Quaternion()
+    .setFromEuler(new Euler(-0.32, 0.52, 0, 'YXZ'))
+    .toArray(),
+  distance: 8,
+};
+export const MAX_DISTANCE = 48;
+export const homeView = (size: number, shape = 'cube'): CameraView =>
+  shape === 'star'
+    ? {
+        rotation: new Quaternion()
+          .setFromEuler(new Euler(-0.12, 0.18, 0, 'YXZ'))
+          .toArray(),
+        distance: size * 1.6,
+      }
+    : {
+        ...HOME_VIEW,
+        distance: size === 3 ? 6.5 : (8 * (size - 1)) / 3,
+      };
 export const NEAR = 0.22;
 const FOCAL = HOME_VIEW.distance * 17;
 export const clampDistance = (distance: number) =>
   Math.max(0, Math.min(MAX_DISTANCE, distance));
-export const turn = (view: CameraView, dx: number, dy: number): CameraView => ({
-  ...view,
-  rotation: [
-    (view.rotation[0] - dy * 0.008) % (Math.PI * 2),
-    (view.rotation[1] + dx * 0.008) % (Math.PI * 2),
-  ],
-});
+export function turn(view: CameraView, dx: number, dy: number): CameraView {
+  const distance = Math.hypot(dx, dy);
+  if (!distance) return view;
+  // Compose in screen space: vertical dragging always tumbles toward/away
+  // from the viewer, including after yaw, roll and passing the former poles.
+  const delta = new Quaternion().setFromAxisAngle(
+    new Vector3(-dy / distance, dx / distance, 0),
+    distance * 0.008,
+  );
+  return {
+    ...view,
+    rotation: orientationOf(view).premultiply(delta).normalize().toArray(),
+  };
+}
 export const dolly = (view: CameraView, delta: number): CameraView => ({
   ...view,
   distance: clampDistance(view.distance + delta),
@@ -30,29 +59,31 @@ export function cameraPoint(p: readonly number[], view: CameraView, size = 4) {
 // Compute the orientation once per frame, rather than once per letter.
 export function cameraProjector(view: CameraView, size = 4) {
   const center = (size - 1) / 2;
-  const orientation = new Quaternion().setFromEuler(
-    new Euler(view.rotation[0], view.rotation[1], 0, 'YXZ'),
-  );
-  return (p: readonly number[]) => {
-    const v = new Vector3(
-      p[0] - center,
-      p[1] - center,
-      p[2] - center,
-    ).applyQuaternion(orientation);
+  const orientation = orientationOf(view);
+  return (p: readonly number[], target = new Vector3()) => {
+    const v = target
+      .set(p[0] - center, p[1] - center, p[2] - center)
+      .applyQuaternion(orientation);
     v.z = view.distance - v.z;
     return v;
   };
 }
 
-export function projectPoint(v: Vector3) {
+export type ProjectedPoint = {
+  x: number;
+  y: number;
+  depth: number;
+  scale: number;
+  fade: number;
+};
+export function projectPoint(v: Vector3, target = {} as ProjectedPoint) {
   if (v.z < NEAR) return null;
-  return {
-    x: 50 + (v.x * FOCAL) / v.z,
-    y: 50 + (v.y * FOCAL) / v.z,
-    depth: v.z,
-    scale: Math.max(0.6, Math.min(2.4, HOME_VIEW.distance / v.z)),
-    fade: Math.min(1, Math.max(0, (v.z - NEAR) / 0.55)),
-  };
+  target.x = 50 + (v.x * FOCAL) / v.z;
+  target.y = 50 + (v.y * FOCAL) / v.z;
+  target.depth = v.z;
+  target.scale = Math.max(0.6, Math.min(2.4, HOME_VIEW.distance / v.z));
+  target.fade = Math.min(1, Math.max(0, (v.z - NEAR) / 0.55));
+  return target;
 }
 
 // Clip in camera space before dividing by depth. A word crossing the camera
@@ -104,9 +135,7 @@ export function projectSegment(
 }
 
 export function isInside(view: CameraView, size = 4) {
-  const orientation = new Quaternion().setFromEuler(
-    new Euler(view.rotation[0], view.rotation[1], 0, 'YXZ'),
-  );
+  const orientation = orientationOf(view);
   const position = new Vector3(0, 0, view.distance).applyQuaternion(
     orientation.invert(),
   );
@@ -130,8 +159,22 @@ export function pinch(
   });
   const a = center(before),
     b = center(after);
-  return dolly(
+  const next = dolly(
     turn(view, b.x - a.x, b.y - a.y),
     (span(before) - span(after)) * 0.018,
   );
+  const angle =
+    Math.atan2(after[1].y - after[0].y, after[1].x - after[0].x) -
+    Math.atan2(before[1].y - before[0].y, before[1].x - before[0].x);
+  return angle === 0
+    ? next
+    : {
+        ...next,
+        rotation: orientationOf(next)
+          .premultiply(
+            new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), angle),
+          )
+          .normalize()
+          .toArray(),
+      };
 }

@@ -158,6 +158,23 @@ final class SopaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["TELESCOPIO"].isHittable)
         capture("Sopa3D-controls-hidden-10-landscape")
         app.buttons["Mostrar controles"].tap()
+        XCUIDevice.shared.orientation = .portrait
+        chooseSoup(app, "Estrella 3D · 213 letras")
+        XCTAssertTrue(app.staticTexts["DESTELLO"].waitForExistence(timeout: 5))
+        XCTAssertEqual(letters.count, 213)
+        capture("Sopa3D-star-light-portrait")
+        app.buttons["Cambiar a tema oscuro"].tap()
+        let board = app.webViews.firstMatch
+        let center = board.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        for offset in [CGVector(dx: 130, dy: 0), CGVector(dx: 0, dy: -150), CGVector(dx: -100, dy: 90), CGVector(dx: 0, dy: -150)] {
+            center.press(forDuration: 0.1, thenDragTo: center.withOffset(offset))
+        }
+        XCTAssertEqual(selected.count, 0, "Free tumbling does not pick letters")
+        capture("Sopa3D-star-dark-tumbled")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(app.staticTexts["DESTELLO"].isHittable)
+        capture("Sopa3D-star-dark-landscape")
+        app.buttons["Cambiar a tema claro"].tap()
         app.terminate()
         app.launch()
         XCTAssertTrue(app.buttons["Cambiar a tema oscuro"].waitForExistence(timeout: 30), "Theme persists after relaunch")

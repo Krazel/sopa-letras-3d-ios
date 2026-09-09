@@ -6,6 +6,8 @@
 
 import {
   useEffect,
+  memo,
+  useCallback,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -15,7 +17,7 @@ import {
 } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { drawMotion } from '@/lib/motion';
+import { drawMotion, motionPoints, hitMotion } from '@/lib/motion';
 import {
   startPuzzle,
   PUZZLES,
@@ -23,12 +25,11 @@ import {
   isWon,
   selectCell,
   type GameState,
+  type Cell,
 } from '@/lib/game';
 import {
   HOME_VIEW,
   homeView,
-  cameraProjector,
-  projectPoint,
   isInside,
   turn,
   dolly,
@@ -53,6 +54,40 @@ function subscribeTheme(update: () => void) {
     window.removeEventListener('sopa-theme', update);
   };
 }
+
+const Letter = memo(function Letter({
+  cell,
+  selected,
+  found,
+  register,
+  choose,
+}: {
+  cell: Cell;
+  selected: boolean;
+  found: boolean;
+  register: (id: number, node: HTMLButtonElement | null) => void;
+  choose: (id: number) => void;
+}) {
+  const attach = useCallback(
+    (node: HTMLButtonElement | null) => register(cell.id, node),
+    [cell.id, register],
+  );
+  return (
+    <button
+      ref={attach}
+      data-cell={cell.id}
+      className={`letter ${selected ? 'selected' : ''} ${found ? 'found' : ''}`}
+      onClick={(e) => {
+        if (e.detail === 0) {
+          e.stopPropagation();
+          choose(cell.id);
+        }
+      }}
+      aria-pressed={selected}
+      aria-label={`${cell.letter}, columna ${cell.position[0] + 1}, fila ${cell.position[1] + 1}, capa ${cell.position[2] + 1}${selected ? ', seleccionada' : ''}${found ? ', encontrada' : ''}`}
+    ></button>
+  );
+});
 
 export default function Game() {
   const [puzzleId, setPuzzleId] = useState(DEFAULT_PUZZLE);
@@ -80,14 +115,28 @@ export default function Game() {
     }
     window.dispatchEvent(new Event('sopa-theme'));
   }
-  const [view, setView] = useState<CameraView>(HOME_VIEW);
-  const viewRef = useRef(view);
+  const viewRef = useRef<CameraView>(HOME_VIEW);
+  const letterNodes = useRef<(HTMLButtonElement | null)[]>([]);
+  const targetFrame = useRef<number | null>(null);
+  const targetSync = useRef<() => void>(() => {});
+  const registerLetter = useCallback(
+    (id: number, node: HTMLButtonElement | null) => {
+      letterNodes.current[id] = node;
+    },
+    [],
+  );
+  const chooseLetter = useCallback(
+    (id: number) => setGame((s) => selectCell(s, id)),
+    [],
+  );
   const cameraFrame = useRef<number | null>(null);
   const settleFrame = useRef<ReturnType<typeof setTimeout> | null>(null);
   const motionCanvas = useRef<HTMLCanvasElement>(null);
   const motionRenderer = useRef<((view: CameraView) => void) | null>(null);
   useEffect(
     () => () => {
+      if (targetFrame.current !== null)
+        cancelAnimationFrame(targetFrame.current);
       if (cameraFrame.current !== null)
         cancelAnimationFrame(cameraFrame.current);
       if (settleFrame.current !== null) clearTimeout(settleFrame.current);
@@ -108,6 +157,8 @@ export default function Game() {
   const suppressPick = useRef(false);
   function moveCamera(next: CameraView) {
     viewRef.current = next;
+    if (targetFrame.current !== null) cancelAnimationFrame(targetFrame.current);
+    targetFrame.current = null;
     if (settleFrame.current !== null) clearTimeout(settleFrame.current);
     settleFrame.current =
       pointers.current.size === 0 ? setTimeout(commitCamera, 140) : null;
@@ -127,11 +178,49 @@ export default function Game() {
     cameraFrame.current = null;
     if (settleFrame.current !== null) clearTimeout(settleFrame.current);
     settleFrame.current = null;
-    setView(viewRef.current);
+    motionRenderer.current?.(viewRef.current);
+    targetSync.current();
   }
-  useLayoutEffect(() => {
-    stageRef.current?.classList.remove('moving');
-  }, [view, game, frame]);
+  function syncTargets() {
+    if (targetFrame.current !== null) cancelAnimationFrame(targetFrame.current);
+    const stage = stageRef.current,
+      canvas = motionCanvas.current;
+    if (!stage || !canvas) return;
+    const g = motionPoints(canvas);
+    if (!g) return;
+    stage.dataset.distance = viewRef.current.distance.toFixed(3);
+    stage.dataset.rotation = viewRef.current.rotation.join(',');
+    stage.dataset.inside = String(isInside(viewRef.current, game.puzzle.size));
+    stage.dataset.ready = 'false';
+    stage.classList.remove('moving');
+    const ox = (frame.width - frame.size) / 2,
+      oy = (frame.height - frame.size) / 2;
+    let index = 0;
+    const update = () => {
+      const end = Math.min(index + 32, g.points.length);
+      for (; index < end; index++) {
+        const node = letterNodes.current[index];
+        if (!node) continue;
+        const hidden = !g.valid[index];
+        if (node.hidden !== hidden) node.hidden = hidden;
+        if (hidden) continue;
+        const p = g.points[index];
+        const transform = `translate(${(ox + (p.x * frame.size) / 100).toFixed(2)}px, ${(oy + (p.y * frame.size) / 100).toFixed(2)}px) translate(-50%, -50%) scale(${p.scale.toFixed(4)})`;
+        if (node.style.transform !== transform)
+          node.style.transform = transform;
+        const depth = String(Math.max(1, Math.round(100000 - p.depth * 1000)));
+        if (node.style.zIndex !== depth) node.style.zIndex = depth;
+      }
+      if (index < g.points.length)
+        targetFrame.current = requestAnimationFrame(update);
+      else {
+        targetFrame.current = null;
+        stage.dataset.ready = 'true';
+      }
+    };
+    update();
+  }
+  targetSync.current = syncTargets;
   function changePuzzle(id: string, replay = false) {
     games.current.set(puzzleId, game);
     const next = replay
@@ -142,7 +231,7 @@ export default function Game() {
     pointers.current.clear();
     pressOrigin.current = null;
     suppressPick.current = true;
-    moveCamera(homeView(next.puzzle.size));
+    moveCamera(homeView(next.puzzle.size, next.puzzle.shape));
     commitCamera();
   }
   useEffect(() => {
@@ -227,33 +316,7 @@ export default function Game() {
       ),
     [game],
   );
-  // Move the viewpoint through the volume, rather than magnifying a flat board.
-  const cameraPoints = useMemo(() => {
-    const project = cameraProjector(view, size);
-    return game.puzzle.cells.map((c) => project(c.position));
-  }, [game.puzzle.cells, view, size]);
-  const points = cameraPoints.map(projectPoint);
-  const offsetX = (frame.width - frame.size) / 2,
-    offsetY = (frame.height - frame.size) / 2;
-  const extentX = frame.size ? (offsetX / frame.size) * 100 : 0,
-    extentY = frame.size ? (offsetY / frame.size) * 100 : 0;
-  const edges = useMemo(() => {
-    const edges: [number, number][] = [];
-    const far = size * size - 1,
-      row = size * (size - 1);
-    for (let z = 0; z < size; z++) {
-      const base = z * size * size;
-      edges.push(
-        [base, base + size - 1],
-        [base + size - 1, base + far],
-        [base + far, base + row],
-        [base + row, base],
-      );
-    }
-    for (const corner of [0, size - 1, row, far])
-      edges.push([corner, corner + size * size * (size - 1)]);
-    return edges;
-  }, [size]);
+  const edges = game.puzzle.edges;
   const paintColors = useRef<Record<string, string>>({});
   useLayoutEffect(() => {
     const css = getComputedStyle(document.documentElement);
@@ -291,12 +354,12 @@ export default function Game() {
       }
     };
     motionRenderer.current(viewRef.current);
-  }, [game, size, frame, edges, theme, view]);
+    targetSync.current();
+  }, [game, size, frame, edges, theme]);
   function onDown(e: PointerEvent<HTMLDivElement>) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (pointers.current.size === 0) {
-      suppressPick.current =
-        stageRef.current?.classList.contains('moving') ?? false;
+      suppressPick.current = false;
       pressOrigin.current = { x: e.clientX, y: e.clientY };
     }
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -380,6 +443,9 @@ export default function Game() {
                 ))}
               </optgroup>
             ))}
+            <optgroup label="Otras formas">
+              <option value="estrella">Estrella 3D · 213 letras</option>
+            </optgroup>
           </select>
           <button
             type="button"
@@ -394,7 +460,7 @@ export default function Game() {
       <p id="gesture-help" className="sr-only">
         Toca y suelta letras vecinas para formar palabras. Arrastra para girar
         sin límites; pellizca o usa la rueda para acercarte y alejarte. Toca la
-        última letra para deshacer. Con el cubo enfocado, usa las flechas para
+        última letra para deshacer. Con la figura enfocada, usa las flechas para
         girar y más o menos para el zoom. Tocar una letra no vecina borra la
         selección.
       </p>
@@ -403,13 +469,27 @@ export default function Game() {
           ref={stageRef}
           className="cube-stage"
           role="application"
-          aria-label="Cubo de letras"
+          aria-label={
+            game.puzzle.shape === 'star'
+              ? 'Estrella de letras'
+              : 'Cubo de letras'
+          }
           aria-describedby="gesture-help"
           tabIndex={0}
-          data-distance={view.distance.toFixed(3)}
-          data-rotation={view.rotation.join(',')}
-          data-inside={isInside(view, size)}
           data-size={size}
+          data-shape={game.puzzle.shape}
+          onClick={(e) => {
+            if (e.detail === 0 || suppressPick.current || !motionCanvas.current)
+              return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const id = hitMotion(
+              motionCanvas.current,
+              e.clientX - rect.left,
+              e.clientY - rect.top,
+              frame,
+            );
+            if (id !== null) chooseLetter(id);
+          }}
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
@@ -446,41 +526,16 @@ export default function Game() {
               className="motion-canvas"
               aria-hidden="true"
             />
-            {game.puzzle.cells.map((cell, i) => {
-              const p = points[i];
-              if (
-                !p ||
-                p.fade < 0.05 ||
-                p.x < -extentX - 12 ||
-                p.x > 100 + extentX + 12 ||
-                p.y < -extentY - 12 ||
-                p.y > 100 + extentY + 12
-              )
-                return null;
-              const selected = game.selection.includes(i);
-              const found = foundCells.has(i);
-              return (
-                <button
-                  key={i}
-                  data-cell={i}
-                  className={`letter ${selected ? 'selected' : ''} ${found ? 'found' : ''}`}
-                  style={
-                    {
-                      transform: `translate(${offsetX + (p.x * frame.size) / 100}px, ${offsetY + (p.y * frame.size) / 100}px) translate(-50%, -50%) scale(${p.scale})`,
-                      zIndex: Math.max(1, Math.round(100000 - p.depth * 1000)),
-                    } as React.CSSProperties
-                  }
-                  onClick={(e) => {
-                    if (e.detail === 0 || !suppressPick.current)
-                      setGame((s) => selectCell(s, i));
-                  }}
-                  aria-pressed={selected}
-                  aria-label={`${cell.letter}, columna ${cell.position[0] + 1}, fila ${cell.position[1] + 1}, capa ${cell.position[2] + 1}${selected ? ', seleccionada' : ''}${found ? ', encontrada' : ''}`}
-                >
-                  {cell.letter}
-                </button>
-              );
-            })}
+            {game.puzzle.cells.map((cell) => (
+              <Letter
+                key={cell.id}
+                cell={cell}
+                selected={game.selection.includes(cell.id)}
+                found={foundCells.has(cell.id)}
+                register={registerLetter}
+                choose={chooseLetter}
+              />
+            ))}
           </div>
         </div>
         <ul

@@ -13,18 +13,21 @@ import {
   startPuzzle,
   idAt,
 } from '../lib/game.ts';
-void test('all 14 collection puzzles are deterministic, valid, solvable both ways and restartable', () => {
-  assert.equal(PUZZLES.length, 14);
+void test('all 15 collection puzzles are deterministic, valid, solvable both ways and restartable', () => {
+  assert.equal(PUZZLES.length, 15);
   for (const choice of PUZZLES) {
     let s = startPuzzle(choice.id);
     const original = structuredClone(s);
-    assert.equal(s.puzzle.cells.length, choice.size ** 3);
+    assert.equal(
+      s.puzzle.cells.length,
+      choice.shape === 'star' ? 213 : choice.size ** 3,
+    );
     assert.deepEqual(s, startPuzzle(choice.id));
     assert.equal(
       PUZZLES.filter((p) => p.size === choice.size).length,
       choice.size <= 6 ? 3 : 1,
     );
-    for (const cell of s.puzzle.cells)
+    for (const cell of s.puzzle.cells.filter(() => choice.shape !== 'star'))
       assert.equal(idAt(pointAt(cell.id, choice.size), choice.size), cell.id);
     for (const [index, w] of s.puzzle.words.entries()) {
       assert.equal(new Set(w.path).size, w.text.length);
@@ -35,11 +38,16 @@ void test('all 14 collection puzzles are deterministic, valid, solvable both way
       assert(
         w.path
           .slice(1)
-          .every((id, i) => areNeighbors(w.path[i], id, choice.size)),
+          .every((id, i) =>
+            s.puzzle.cells[id].position.every(
+              (n, axis) =>
+                Math.abs(n - s.puzzle.cells[w.path[i]].position[axis]) <= 1,
+            ),
+          ),
       );
       if (index < 3)
         assert(
-          new Set(w.path.map((id) => pointAt(id, choice.size)[2])).size > 1,
+          new Set(w.path.map((id) => s.puzzle.cells[id].position[2])).size > 1,
         );
       for (const id of index % 2 ? [...w.path].reverse() : w.path)
         s = selectCell(s, id);
@@ -49,7 +57,7 @@ void test('all 14 collection puzzles are deterministic, valid, solvable both way
     assert.deepEqual(startPuzzle(choice.id), original);
     let restarted = startPuzzle(choice.id);
     restarted = selectCell(restarted, 0);
-    restarted = selectCell(restarted, choice.size ** 3 - 1);
+    restarted = selectCell(restarted, restarted.puzzle.cells.length - 1);
     assert.deepEqual(restarted.selection, []);
     assert(!areNeighbors(choice.size - 1, choice.size, choice.size));
   }
@@ -177,4 +185,32 @@ void test('all words work in both directions and victory/restart behave correctl
     initialState(s.puzzle.seed + 7919).puzzle.cells,
     s.puzzle.cells,
   );
+});
+
+void test('star is a connected, sparse volume and adjacency never jumps its empty space', () => {
+  const p = startPuzzle('estrella').puzzle;
+  assert.equal(new Set(p.cells.map((c) => c.position[2])).size, 5);
+  assert(p.cells.length < p.size ** 3);
+  const visited = new Set([0]),
+    queue = [0];
+  for (let i = 0; i < queue.length; i++)
+    for (const id of p.neighbors[queue[i]])
+      if (!visited.has(id)) {
+        visited.add(id);
+        queue.push(id);
+      }
+  assert.equal(visited.size, p.cells.length);
+  for (const cell of p.cells) {
+    const expected = p.cells
+      .filter(
+        (other) =>
+          other.id !== cell.id &&
+          other.position.every(
+            (n, axis) => Math.abs(n - cell.position[axis]) <= 1,
+          ),
+      )
+      .map((c) => c.id);
+    assert.deepEqual(p.neighbors[cell.id], expected);
+  }
+  for (const [a, b] of p.edges) assert(p.cells[a] && p.cells[b] && a !== b);
 });

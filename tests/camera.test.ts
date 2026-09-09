@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Vector3, Euler } from 'three';
+import { Vector3, Euler, Quaternion } from 'three';
 import {
   HOME_VIEW,
   homeView,
@@ -170,4 +170,45 @@ void test('all home letters fit the view and sampled navigation never yields inv
                 assert.ok(Number.isFinite(value));
           }
       }
+});
+
+void test('vertical gestures use the screen axis after sideways and rolled orientations', () => {
+  for (const angles of [
+    [0, Math.PI / 2, 0],
+    [Math.PI / 2, 0, 0],
+    [1.7, -2.1, 2.4],
+  ]) {
+    const q = new Quaternion().setFromEuler(
+      new Euler(angles[0], angles[1], angles[2], 'YXZ'),
+    );
+    const view = { distance: 8, rotation: q.toArray() };
+    const next = turn(view, 0, 17);
+    const expected = new Vector3(0.4, 0.7, 1.1)
+      .applyQuaternion(q)
+      .applyAxisAngle(new Vector3(1, 0, 0), -17 * 0.008);
+    const actual = cameraPoint([1.9, 2.2, 2.6], next);
+    actual.z = 8 - actual.z;
+    assert(actual.distanceTo(expected) < 1e-10);
+  }
+  let view = HOME_VIEW;
+  for (let i = 0; i < 10000; i++)
+    view = turn(view, Math.sin(i) * 30, Math.cos(i) * 30);
+  assert(Math.abs(Math.hypot(...view.rotation) - 1) < 1e-12);
+});
+void test('two-finger twist rolls the view without changing distance', () => {
+  const view = pinch(
+    HOME_VIEW,
+    [
+      { x: -50, y: 0 },
+      { x: 50, y: 0 },
+    ],
+    [
+      { x: 0, y: -50 },
+      { x: 0, y: 50 },
+    ],
+  );
+  assert.equal(view.distance, HOME_VIEW.distance);
+  const a = cameraPoint([0, 0, 0], HOME_VIEW),
+    b = cameraPoint([0, 0, 0], view);
+  assert(Math.abs(b.x + a.y) < 1e-10 && Math.abs(b.y - a.x) < 1e-10);
 });
