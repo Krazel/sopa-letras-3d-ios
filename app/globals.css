@@ -330,6 +330,7 @@ select:focus-visible,
     gap: 26px;
     padding: 16px;
   }
+  .word-list[data-long='true'] { width: 190px; }
 }
 @media (orientation: landscape) and (max-height: 450px) {
   .word-list {
@@ -341,6 +342,8 @@ select:focus-visible,
   .word-list li {
     font-size: 15px;
   }
+  .word-list[data-long='true'] { width: 270px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .word-list[data-long='true'] li { font-size: 14px; letter-spacing: 0.025em; }
 }
 @media (max-width: 380px) {
   .word-list li {
