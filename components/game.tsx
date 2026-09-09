@@ -6,6 +6,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useId,
   useMemo,
   useRef,
@@ -15,6 +16,7 @@ import {
 } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { drawMotion } from '@/lib/motion';
 import {
   startPuzzle,
   PUZZLES,
@@ -83,27 +85,51 @@ export default function Game() {
   const [view, setView] = useState<CameraView>(HOME_VIEW);
   const viewRef = useRef(view);
   const cameraFrame = useRef<number | null>(null);
+  const settleFrame = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const motionCanvas = useRef<HTMLCanvasElement>(null);
+  const motionRenderer = useRef<((view: CameraView) => void) | null>(null);
   useEffect(
     () => () => {
       if (cameraFrame.current !== null)
         cancelAnimationFrame(cameraFrame.current);
+      if (settleFrame.current !== null) clearTimeout(settleFrame.current);
     },
     [],
   );
   const connectionMaskId = useId();
-  const [frame, setFrame] = useState({ size: 0, tile: 38, radius: 9 });
+  const [frame, setFrame] = useState({
+    size: 0,
+    tile: 38,
+    radius: 9,
+    font: 21,
+  });
   const stageRef = useRef<HTMLDivElement>(null);
   const pointers = useRef(new Map<number, TouchPoint>());
   const pressOrigin = useRef<TouchPoint | null>(null);
   const suppressPick = useRef(false);
   function moveCamera(next: CameraView) {
     viewRef.current = next;
+    if (settleFrame.current !== null) clearTimeout(settleFrame.current);
+    settleFrame.current = setTimeout(commitCamera, 140);
     if (cameraFrame.current === null)
       cameraFrame.current = requestAnimationFrame(() => {
         cameraFrame.current = null;
-        setView(viewRef.current);
+        if (motionRenderer.current) {
+          motionRenderer.current(viewRef.current);
+          stageRef.current?.classList.add('moving');
+        } else setView(viewRef.current);
       });
   }
+  function commitCamera() {
+    if (cameraFrame.current !== null) cancelAnimationFrame(cameraFrame.current);
+    cameraFrame.current = null;
+    if (settleFrame.current !== null) clearTimeout(settleFrame.current);
+    settleFrame.current = null;
+    setView(viewRef.current);
+  }
+  useLayoutEffect(() => {
+    stageRef.current?.classList.remove('moving');
+  }, [view, game, frame]);
   function changePuzzle(id: string, replay = false) {
     games.current.set(puzzleId, game);
     const next = replay
@@ -115,6 +141,7 @@ export default function Game() {
     pressOrigin.current = null;
     suppressPick.current = true;
     moveCamera(homeView(next.puzzle.size));
+    commitCamera();
   }
   useEffect(() => {
     const stage = stageRef.current;
@@ -138,6 +165,7 @@ export default function Game() {
       pointers.current.clear();
       pressOrigin.current = null;
       suppressPick.current = true;
+      commitCamera();
     };
     // A selection gesture can leave the board before release. Clear it even
     // outside the stage so the next press cannot become a phantom pinch.
@@ -154,11 +182,13 @@ export default function Game() {
         size: Math.max(0, Math.min(bounds.width, bounds.height, 800)),
         tile: parseFloat(css.getPropertyValue('--letter-size')),
         radius: parseFloat(css.getPropertyValue('--letter-radius')),
+        font: parseFloat(css.getPropertyValue('--letter-font-size')),
       };
       setFrame((old) =>
         old.size === next.size &&
         old.tile === next.tile &&
-        old.radius === next.radius
+        old.radius === next.radius &&
+        old.font === next.font
           ? old
           : next,
       );
@@ -213,20 +243,50 @@ export default function Game() {
     [game.puzzle.cells, view, size],
   );
   const points = cameraPoints.map(projectPoint);
-  const edges: [number, number][] = [];
-  const far = size * size - 1,
-    row = size * (size - 1);
-  for (let z = 0; z < size; z++) {
-    const base = z * size * size;
-    edges.push(
-      [base, base + size - 1],
-      [base + size - 1, base + far],
-      [base + far, base + row],
-      [base + row, base],
+  const edges = useMemo(() => {
+    const edges: [number, number][] = [];
+    const far = size * size - 1,
+      row = size * (size - 1);
+    for (let z = 0; z < size; z++) {
+      const base = z * size * size;
+      edges.push(
+        [base, base + size - 1],
+        [base + size - 1, base + far],
+        [base + far, base + row],
+        [base + row, base],
+      );
+    }
+    for (const corner of [0, size - 1, row, far])
+      edges.push([corner, corner + size * size * (size - 1)]);
+    return edges;
+  }, [size]);
+  useEffect(() => {
+    if (size < 8) {
+      motionRenderer.current = null;
+      return;
+    }
+    const css = getComputedStyle(document.documentElement);
+    const colors = Object.fromEntries(
+      [
+        'foreground',
+        'tile',
+        'tile-border',
+        'selected',
+        'selected-text',
+        'selected-border',
+        'found',
+        'found-text',
+        'found-border',
+        'halo',
+        'connection',
+        'primary',
+      ].map((key) => [key, css.getPropertyValue(`--${key}`).trim()]),
     );
-  }
-  for (const corner of [0, size - 1, row, far])
-    edges.push([corner, corner + size * size * (size - 1)]);
+    motionRenderer.current = (next) => {
+      if (motionCanvas.current)
+        drawMotion(motionCanvas.current, game, next, frame, edges, colors);
+    };
+  }, [game, size, frame, edges, theme]);
   function connection(a: number, b: number, key: string, kind: string) {
     const segment = projectSegment(cameraPoints[a], cameraPoints[b]);
     if (!segment || frame.size <= 0) return null;
@@ -286,7 +346,8 @@ export default function Game() {
   function onDown(e: PointerEvent<HTMLDivElement>) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (pointers.current.size === 0) {
-      suppressPick.current = false;
+      suppressPick.current =
+        stageRef.current?.classList.contains('moving') ?? false;
       pressOrigin.current = { x: e.clientX, y: e.clientY };
     }
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -327,6 +388,7 @@ export default function Game() {
       e.currentTarget.releasePointerCapture(e.pointerId);
     if (e.type === 'pointercancel') suppressPick.current = true;
     pressOrigin.current = pointers.current.values().next().value ?? null;
+    if (pointers.current.size === 0) commitCamera();
   }
   return (
     <main className="game-shell" aria-label="Sopa de letras 3D">
@@ -418,6 +480,13 @@ export default function Game() {
             className="cube-volume"
             style={frame.size ? { width: frame.size } : undefined}
           >
+            {size >= 8 && (
+              <canvas
+                ref={motionCanvas}
+                className="motion-canvas"
+                aria-hidden="true"
+              />
+            )}
             <svg
               className="cube-lines"
               viewBox="0 0 100 100"
@@ -496,8 +565,8 @@ export default function Game() {
                   className={`letter ${selected ? 'selected' : ''} ${found ? 'found' : ''}`}
                   style={
                     {
-                      left: `${p.x}%`,
-                      top: `${p.y}%`,
+                      '--x': `${(p.x * frame.size) / 100}px`,
+                      '--y': `${(p.y * frame.size) / 100}px`,
                       zIndex: Math.max(1, Math.round(95 - p.depth * 4)),
                       '--depth': Math.max(0, Math.min(1, 1 - p.depth / 15)),
                       '--scale': p.scale,
