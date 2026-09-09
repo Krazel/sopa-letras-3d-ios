@@ -241,7 +241,7 @@ select:focus-visible,
   position: absolute;
   left: 0;
   top: 0;
-  transform: translate3d(var(--x), var(--y), 0) translate(-50%, -50%)
+  transform: translate(var(--x), var(--y)) translate(-50%, -50%)
     scale(var(--scale, 1));
   width: var(--letter-size);
   height: var(--letter-size);
@@ -264,6 +264,12 @@ select:focus-visible,
   background: var(--tile-hover);
   border-color: var(--muted);
   z-index: 105 !important;
+}
+/* Avoid 1,000 simultaneous tile animations when changing the large-cube theme.
+   Camera depth is projected in JS; individual GPU layers are unnecessary. */
+.cube-stage[data-size='8'] .letter,
+.cube-stage[data-size='10'] .letter {
+  transition: none;
 }
 .letter.selected {
   background: var(--selected);

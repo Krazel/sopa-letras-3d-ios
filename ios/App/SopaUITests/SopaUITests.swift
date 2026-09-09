@@ -136,7 +136,11 @@ final class SopaUITests: XCTestCase {
         app.webViews.firstMatch.pinch(withScale: 1.2, velocity: 0.5)
         capture("Sopa3D-dark-10-zoom")
         app.buttons["Cambiar a tema claro"].tap()
+        XCTAssertTrue(app.buttons["Cambiar a tema oscuro"].waitForExistence(timeout: 10))
         XCUIDevice.shared.orientation = .landscapeLeft
+        for word in ["TELESCOPIO", "ASTRONAUTA", "SATELITE", "LABORATORIO", "MICROSCOPIO", "INVENTO", "ENERGIA", "CIENCIA"] {
+            XCTAssertTrue(app.staticTexts[word].isHittable, "Large-cube words remain visible after theme and orientation change")
+        }
         capture("Sopa3D-light-10-landscape")
         app.terminate()
         app.launch()
