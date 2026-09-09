@@ -124,12 +124,14 @@ export function drawMotion(
       const a = trace.path[i - 1],
         b = trace.path[i];
       ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, frame.size, frame.size);
       for (const id of [a, b]) {
         const p = projected[id];
         if (!p || p.fade < 0.05) continue;
         const side = frame.tile * p.scale;
+        // Intersect the two exclusions separately: a single even-odd path
+        // would incorrectly reveal the overlap between the endpoint holes.
+        ctx.beginPath();
+        ctx.rect(0, 0, frame.size, frame.size);
         ctx.roundRect(
           (p.x * frame.size) / 100 - side / 2,
           (p.y * frame.size) / 100 - side / 2,
@@ -137,8 +139,8 @@ export function drawMotion(
           side,
           frame.radius * p.scale,
         );
+        ctx.clip('evenodd');
       }
-      ctx.clip('evenodd');
       const active = trace.kind === 'selection',
         alpha = active ? 0.58 : 0.38;
       line(a, b, colors.halo, active ? 5 : 4, alpha * 0.4);
