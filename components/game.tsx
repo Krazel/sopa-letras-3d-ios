@@ -394,8 +394,7 @@ export default function Game() {
     <main className="game-shell" aria-label="Sopa de letras 3D">
       <p className="game-help">
         <span>
-          Une letras vecinas y encuentra las {game.puzzle.words.length}{' '}
-          palabras.
+          {`Une letras vecinas y encuentra las ${game.puzzle.words.length} palabras.`}
         </span>
         <span>
           Toca para elegir · Arrastra para girar · Pellizca o usa la rueda para
