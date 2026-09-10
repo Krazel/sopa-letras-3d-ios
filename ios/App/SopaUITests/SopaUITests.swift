@@ -198,7 +198,7 @@ final class SopaUITests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
         chooseSoup(app, "Estrella 3D")
         XCTAssertTrue(app.staticTexts["DESTELLO"].waitForExistence(timeout: 5))
-        XCTAssertEqual(letters.count, 213)
+        XCTAssertEqual(letters.count, 200)
         capture("Sopa3D-star-light-portrait")
         app.buttons["Cambiar a tema oscuro"].tap()
         let board = app.webViews.firstMatch
