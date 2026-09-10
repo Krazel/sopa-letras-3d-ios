@@ -55,6 +55,7 @@ final class SopaUITests: XCTestCase {
         create.tap()
         XCTAssertTrue(app.staticTexts["Une letras vecinas y encuentra las 3 palabras."].waitForExistence(timeout: 10))
         capture("Sopa3D-custom-created")
+        XCTAssertGreaterThan(app.staticTexts["Une letras vecinas y encuentra las 3 palabras."].frame.minY, 30, "Opening from the scrolled creator respects the iPhone top safe area")
         app.buttons["Volver al menú"].tap()
         app.terminate()
         app.launch()
