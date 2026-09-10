@@ -32,6 +32,43 @@ final class SopaUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 30))
+        let startLevel = app.buttons["Jugar nivel 1"]
+        XCTAssertTrue(startLevel.waitForExistence(timeout: 60), app.debugDescription)
+        capture("Sopa3D-level-map")
+        XCTAssertFalse(app.buttons["Bloqueado nivel 2: Agua"].isEnabled)
+        startLevel.tap()
+        XCTAssertTrue(app.staticTexts["Une letras vecinas y encuentra las 4 palabras."].waitForExistence(timeout: 10))
+        capture("Sopa3D-level-one")
+        app.buttons["Volver al menú"].tap()
+        app.buttons["Crear una sopa"].tap()
+        let customName = app.textFields["Nombre de la sopa"]
+        XCTAssertTrue(customName.waitForExistence(timeout: 5), app.debugDescription)
+        customName.tap()
+        customName.typeText("Mi prueba")
+        let customWords = app.textViews["Palabras"]
+        XCTAssertTrue(customWords.exists, app.debugDescription)
+        customWords.tap()
+        customWords.typeText("SOL, LUNA, MAR")
+        let create = app.buttons["Crear y jugar"]
+        for _ in 0..<5 { if create.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(create.isHittable, app.debugDescription)
+        create.tap()
+        XCTAssertTrue(app.staticTexts["Une letras vecinas y encuentra las 3 palabras."].waitForExistence(timeout: 10))
+        capture("Sopa3D-custom-created")
+        app.buttons["Volver al menú"].tap()
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.buttons["Crear una sopa"].waitForExistence(timeout: 30))
+        app.buttons["Crear una sopa"].tap()
+        let savedCustom = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Mi prueba")).firstMatch
+        for _ in 0..<5 { if savedCustom.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(savedCustom.isHittable, app.debugDescription)
+        capture("Sopa3D-custom-saved")
+        savedCustom.tap()
+        XCTAssertTrue(app.staticTexts["Une letras vecinas y encuentra las 3 palabras."].waitForExistence(timeout: 10))
+        app.buttons["Volver al menú"].tap()
+        for _ in 0..<5 { if app.buttons["Juego libre"].isHittable { break }; app.swipeDown() }
+        app.buttons["Juego libre"].tap()
         // WKWebView exposes aria-pressed letter buttons as Switch on iOS.
         let letters = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", columna "))
         let rendered = letters.firstMatch.waitForExistence(timeout: 60)
@@ -159,7 +196,7 @@ final class SopaUITests: XCTestCase {
         capture("Sopa3D-controls-hidden-10-landscape")
         app.buttons["Mostrar controles"].tap()
         XCUIDevice.shared.orientation = .portrait
-        chooseSoup(app, "Estrella 3D · 213 letras")
+        chooseSoup(app, "Estrella 3D")
         XCTAssertTrue(app.staticTexts["DESTELLO"].waitForExistence(timeout: 5))
         XCTAssertEqual(letters.count, 213)
         capture("Sopa3D-star-light-portrait")

@@ -9,6 +9,7 @@ export type Puzzle = {
   shape: 'cube' | 'star';
   neighbors: number[][];
   edges: [number, number][];
+  outline?: [Point, Point][];
 };
 export type GameState = {
   puzzle: Puzzle;
@@ -221,7 +222,7 @@ export const PUZZLES: PuzzleChoice[] = [
 export const DEFAULT_PUZZLE = 'naturaleza';
 export function starOutline(size: number, z: number): Point[] {
   const center = (size - 1) / 2;
-  const taper = 1 - Math.abs(z - center) * 0.055;
+  const taper = 1;
   return Array.from({ length: 10 }, (_, i) => {
     const angle = -Math.PI / 2 + (i * Math.PI) / 5,
       radius = center * (i % 2 ? 0.46 : 1) * taper;
@@ -232,7 +233,7 @@ export function starOutline(size: number, z: number): Point[] {
     ];
   });
 }
-function inPolygon(x: number, y: number, polygon: Point[]) {
+export function inPolygon(x: number, y: number, polygon: Point[]) {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
     const a = polygon[i],
@@ -254,8 +255,9 @@ export function createPuzzle(
   if (
     !(shape === 'star' ? size === 13 : [3, 4, 5, 6, 8, 10].includes(size)) ||
     terms.length === 0 ||
+    terms.length > 12 ||
     new Set(terms).size !== terms.length ||
-    terms.some((w) => !/^[A-Z]{3,11}$/.test(w))
+    terms.some((w) => !/^[A-ZÑ]{3,11}$/.test(w))
   )
     throw new Error('Configuración de sopa no válida');
   const rng = random(seed);
@@ -264,16 +266,7 @@ export function createPuzzle(
     position: pointAt(id, size),
     letter: '',
   }))
-    .filter(
-      (c) =>
-        shape === 'cube' ||
-        (Math.abs(c.position[2] - (size - 1) / 2) <= 2 &&
-          inPolygon(
-            c.position[0],
-            c.position[1] + 0.001,
-            starOutline(size, c.position[2]),
-          )),
-    )
+    .filter((c) => shape === 'cube' || starContains(c.position, size))
     .map((c, id) => ({ ...c, id }));
   const lookup = new Map(cells.map((c) => [c.position.join(','), c.id]));
   const neighbors = cells.map((c) => {
@@ -303,26 +296,17 @@ export function createPuzzle(
     }
     for (const c of [0, size - 1, row, far])
       edges.push([c, c + size * size * (size - 1)]);
-  } else {
-    const layers = [...new Set(cells.map((c) => c.position[2]))];
-    const rings = layers.map((z) =>
-      starOutline(size, z).map(
-        (p) =>
-          cells
-            .filter((c) => c.position[2] === z)
-            .reduce((a, b) =>
-              Math.hypot(a.position[0] - p[0], a.position[1] - p[1]) <
-              Math.hypot(b.position[0] - p[0], b.position[1] - p[1])
-                ? a
-                : b,
-            ).id,
-      ),
-    );
-    for (const ring of rings)
-      for (let i = 0; i < 10; i++)
-        if (ring[i] !== ring[(i + 1) % 10])
-          edges.push([ring[i], ring[(i + 1) % 10]]);
-    for (let i = 0; i < 10; i++) edges.push([rings[0][i], rings.at(-1)![i]]);
+  }
+  const outline: [Point, Point][] = [];
+  if (shape === 'star') {
+    const center = (size - 1) / 2;
+    for (let z = center - 2; z <= center + 2; z++) {
+      const ring = starOutline(size, z);
+      for (let i = 0; i < 10; i++) outline.push([ring[i], ring[(i + 1) % 10]]);
+    }
+    const front = starOutline(size, center - 2),
+      back = starOutline(size, center + 2);
+    for (let i = 0; i < 10; i++) outline.push([front[i], back[i]]);
   }
   const words: Word[] = [];
   for (const [index, text] of terms.entries()) {
@@ -363,7 +347,7 @@ export function createPuzzle(
     if (!cell.letter)
       cell.letter = alphabet[Math.floor(rng() * alphabet.length)];
   });
-  return { seed, size, cells, words, shape, neighbors, edges };
+  return { seed, size, cells, words, shape, neighbors, edges, outline };
 }
 export function lineBetween(a: number, b: number): number[] | null {
   if (
@@ -401,7 +385,7 @@ export function startPuzzle(id: string): GameState {
   if (!p) throw new Error('Sopa desconocida');
   return { ...initialStateForChoice(p) };
 }
-function initialStateForChoice(p: PuzzleChoice): GameState {
+export function initialStateForChoice(p: PuzzleChoice): GameState {
   return {
     puzzle: createPuzzle(p.seed, p.size, p.words, p.shape),
     found: [],
@@ -471,4 +455,14 @@ export function selectCell(state: GameState, id: number): GameState {
     found: [...state.found, word.text],
     message: `¡${word.text} encontrada!`,
   };
+}
+
+// A consistent cross-section and margin keep every letter within the true outline.
+export function starContains([x, y, z]: Point, size = 13) {
+  const c = (size - 1) / 2;
+  if (Math.abs(z - c) > 2) return false;
+  const ring = starOutline(size, z);
+  return [-0.2, 0.2].every((dx) =>
+    [-0.2, 0.2].every((dy) => inPolygon(x + dx, y + dy, ring)),
+  );
 }

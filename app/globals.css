@@ -427,3 +427,327 @@ select:focus-visible,
     transition: none !important;
   }
 }
+
+/* Level map and creator share the game's restrained dark/light palette. */
+.journey {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+  min-height: 100svh;
+}
+.journey-header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.75rem;
+}
+.eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  margin: 0 0 0.65rem;
+}
+.journey h1 {
+  font-size: clamp(1.6rem, 4vw, 2.5rem);
+  letter-spacing: -0.04em;
+  margin: 0;
+  font-weight: 600;
+}
+.journey h2 {
+  font-size: 1.45rem;
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+.journey p {
+  line-height: 1.5;
+}
+.menu-theme {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  border: 1px solid var(--tile-border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 1.4rem;
+}
+.journey-nav {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--tile-border);
+  margin-bottom: 1.75rem;
+}
+.journey-nav button {
+  flex: 1;
+  padding: 0.9rem 0.2rem;
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font-size: 0.95rem;
+}
+.journey-nav button[aria-current='page'] {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+.journey-intro {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+.journey-intro p:not(.eyebrow),
+.creator-intro p:not(.eyebrow) {
+  color: var(--muted);
+  max-width: 34rem;
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+.primary-action {
+  border: 0;
+  border-radius: 0.65rem;
+  color: var(--selected-text);
+  background: var(--selected);
+  font: inherit;
+  font-weight: 600;
+  min-height: 3rem;
+  padding: 0.85rem 1.2rem;
+  white-space: nowrap;
+}
+.primary-action:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.journey-progress {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 1.6rem 0 1rem;
+}
+.journey-progress progress {
+  flex: 1;
+  min-width: 1rem;
+  height: 0.3rem;
+  border: 0;
+  border-radius: 1rem;
+  background: var(--tile);
+  accent-color: var(--primary);
+}
+.journey-progress progress::-webkit-progress-bar {
+  background: var(--tile);
+  border-radius: 1rem;
+}
+.journey-progress progress::-webkit-progress-value {
+  background: var(--primary);
+  border-radius: 1rem;
+}
+.level-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+.level-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: 0.8rem;
+  min-height: 5rem;
+  padding: 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--tile-border);
+  background: transparent;
+  color: var(--foreground);
+}
+.level-card:not(:disabled):hover {
+  background: var(--tile);
+}
+.level-card:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.level-number {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--tile);
+  color: var(--muted);
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+.level-done .level-number {
+  background: var(--found);
+  color: var(--found-text);
+}
+.level-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
+}
+.level-copy strong {
+  font-size: 1rem;
+  font-weight: 500;
+}
+.level-copy small,
+.level-state {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.local-note {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 1.5rem;
+}
+.creator-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 40rem;
+  margin: 1.5rem 0 2.5rem;
+}
+.creator-form label {
+  display: grid;
+  gap: 0.5rem;
+  color: var(--foreground);
+  font-size: 0.9rem;
+}
+.creator-form input,
+.creator-form select,
+.creator-form textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 3rem;
+  border: 1px solid var(--tile-border);
+  border-radius: 0.6rem;
+  padding: 0.85rem;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 1rem;
+}
+.creator-form textarea {
+  resize: vertical;
+  line-height: 1.6;
+}
+.creator-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: end;
+}
+.shape-detail {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0;
+}
+.field-help {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: -0.4rem 0 0;
+}
+.form-error {
+  color: var(--foreground);
+  border-left: 3px solid var(--primary);
+  padding: 0.5rem 0.8rem;
+  margin: 0;
+}
+.saved-soups h2 span {
+  color: var(--muted);
+  font-size: 1rem;
+  margin-left: 0.4rem;
+}
+.saved-soups ul {
+  list-style: none;
+  padding: 0;
+}
+.saved-soups li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--tile-border);
+}
+.saved-play {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-align: left;
+  padding: 0.6rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.saved-play small {
+  color: var(--muted);
+}
+.remove-soup,
+.remove-confirm button {
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+  min-height: 2.75rem;
+  padding: 0.5rem;
+}
+.remove-confirm {
+  width: 100%;
+}
+.remove-confirm p {
+  margin: 0.3rem 0;
+}
+.play-title {
+  color: var(--foreground);
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 16rem;
+}
+.save-warning {
+  position: fixed;
+  bottom: 0;
+  background: var(--background);
+  color: var(--foreground);
+  padding: 0.6rem;
+  z-index: 200001;
+  font-size: 0.85rem;
+}
+@media (max-width: 600px) {
+  .level-list {
+    grid-template-columns: 1fr;
+  }
+  .journey-intro {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.7rem;
+  }
+  .journey-header {
+    margin-bottom: 1rem;
+  }
+  .journey h2 {
+    font-size: 1.3rem;
+  }
+  .play-title {
+    max-width: 10rem;
+  }
+}
+
+.back-menu {
+  white-space: nowrap;
+  flex-shrink: 0;
+}

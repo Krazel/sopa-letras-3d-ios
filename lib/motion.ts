@@ -228,6 +228,17 @@ export function drawMotion(
     ctx.stroke();
   };
   for (const [a, b] of edges) line(a, b, '#668ab1', frame.size * 0.002, 0.24);
+  for (const [a, b] of game.puzzle.outline ?? []) {
+    const p = projectSegment(projector(a), projector(b), bounds);
+    if (!p) continue;
+    ctx.globalAlpha = 0.24;
+    ctx.strokeStyle = '#668ab1';
+    ctx.lineWidth = frame.size * 0.002;
+    ctx.beginPath();
+    ctx.moveTo(ox + (p.x1 * frame.size) / 100, oy + (p.y1 * frame.size) / 100);
+    ctx.lineTo(ox + (p.x2 * frame.size) / 100, oy + (p.y2 * frame.size) / 100);
+    ctx.stroke();
+  }
   const { found, selected: selection, traces } = drawingState(game);
   for (const id of visible) {
     const p = projected[id],

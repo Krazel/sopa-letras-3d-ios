@@ -20,7 +20,7 @@ void test('all 15 collection puzzles are deterministic, valid, solvable both way
     const original = structuredClone(s);
     assert.equal(
       s.puzzle.cells.length,
-      choice.shape === 'star' ? 213 : choice.size ** 3,
+      choice.shape === 'star' ? 200 : choice.size ** 3,
     );
     assert.deepEqual(s, startPuzzle(choice.id));
     assert.equal(

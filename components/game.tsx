@@ -15,8 +15,7 @@ import {
   useSyncExternalStore,
   type PointerEvent,
 } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { StatusBar, Style } from '@capacitor/status-bar';
+import { applyTheme } from '@/lib/theme';
 import { drawMotion, motionPoints, hitMotion } from '@/lib/motion';
 import {
   startPuzzle,
@@ -89,21 +88,34 @@ const Letter = memo(function Letter({
   );
 });
 
-export default function Game() {
+export default function Game({
+  initial,
+  title,
+  onExit,
+  onProgress,
+  onNext,
+  nextLabel,
+}: {
+  initial?: GameState;
+  title?: string;
+  onExit?: () => void;
+  onProgress?: (game: GameState) => void;
+  onNext?: () => void;
+  nextLabel?: string;
+} = {}) {
   const [puzzleId, setPuzzleId] = useState(DEFAULT_PUZZLE);
-  const [game, setGame] = useState(() => startPuzzle(DEFAULT_PUZZLE));
+  const [game, setGame] = useState(
+    () => initial ?? startPuzzle(DEFAULT_PUZZLE),
+  );
   const games = useRef(new Map<string, GameState>());
   const [controlsHidden, setControlsHidden] = useState(false);
-  const theme = useSyncExternalStore(subscribeTheme, readTheme, () => 'dark');
+  const theme = useSyncExternalStore<'dark' | 'light'>(
+    subscribeTheme,
+    readTheme,
+    () => 'dark',
+  );
   useLayoutEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    document
-      .querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', theme === 'light' ? '#ffffff' : '#0b1120');
-    if (Capacitor.isNativePlatform())
-      void StatusBar.setStyle({
-        style: theme === 'light' ? Style.Light : Style.Dark,
-      });
+    applyTheme(theme);
   }, [theme]);
   function toggleTheme() {
     const next = theme === 'dark' ? 'light' : 'dark';
@@ -115,7 +127,12 @@ export default function Game() {
     }
     window.dispatchEvent(new Event('sopa-theme'));
   }
-  const viewRef = useRef<CameraView>(HOME_VIEW);
+  const viewRef = useRef<CameraView>(
+    initial ? homeView(initial.puzzle.size, initial.puzzle.shape) : HOME_VIEW,
+  );
+  useEffect(() => {
+    onProgress?.(game);
+  }, [game, onProgress]);
   const letterNodes = useRef<(HTMLButtonElement | null)[]>([]);
   const targetFrame = useRef<number | null>(null);
   const targetSync = useRef<() => void>(() => {});
@@ -429,24 +446,33 @@ export default function Game() {
           </span>
         </p>
         <div className="game-options">
-          <select
-            aria-label="Sopa"
-            value={puzzleId}
-            onChange={(e) => changePuzzle(e.target.value)}
-          >
-            {[3, 4, 5, 6, 8, 10].map((n) => (
-              <optgroup key={n} label={`${n}×${n}×${n} · ${n ** 3} letras`}>
-                {PUZZLES.filter((p) => p.size === n).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {n}×{n}×{n} · {p.name}
-                  </option>
-                ))}
+          {onExit && (
+            <button type="button" onClick={onExit} aria-label="Volver al menú">
+              ‹ Menú
+            </button>
+          )}
+          {initial ? (
+            <span className="play-title">{title}</span>
+          ) : (
+            <select
+              aria-label="Sopa"
+              value={puzzleId}
+              onChange={(e) => changePuzzle(e.target.value)}
+            >
+              {[3, 4, 5, 6, 8, 10].map((n) => (
+                <optgroup key={n} label={`${n}×${n}×${n} · ${n ** 3} letras`}>
+                  {PUZZLES.filter((p) => p.size === n).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {n}×{n}×{n} · {p.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+              <optgroup label="Otras formas">
+                <option value="estrella">Estrella 3D</option>
               </optgroup>
-            ))}
-            <optgroup label="Otras formas">
-              <option value="estrella">Estrella 3D · 213 letras</option>
-            </optgroup>
-          </select>
+            </select>
+          )}
           <button
             type="button"
             className="theme-toggle"
@@ -557,20 +583,33 @@ export default function Game() {
       {won && (
         <output className="victory">
           <span>¡Sopa completada!</span>
-          <button onClick={() => changePuzzle(puzzleId, true)}>
+          <button
+            onClick={() =>
+              initial
+                ? setGame({
+                    ...initial,
+                    found: [],
+                    selection: [],
+                    message: 'Empieza de nuevo.',
+                  })
+                : changePuzzle(puzzleId, true)
+            }
+          >
             Volver a jugar
           </button>
           <button
-            onClick={() =>
-              changePuzzle(
-                PUZZLES[
-                  (PUZZLES.findIndex((p) => p.id === puzzleId) + 1) %
-                    PUZZLES.length
-                ].id,
-              )
+            onClick={
+              onNext ??
+              (() =>
+                changePuzzle(
+                  PUZZLES[
+                    (PUZZLES.findIndex((p) => p.id === puzzleId) + 1) %
+                      PUZZLES.length
+                  ].id,
+                ))
             }
           >
-            Otra sopa
+            {nextLabel ?? 'Otra sopa'}
           </button>
         </output>
       )}
