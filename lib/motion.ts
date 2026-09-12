@@ -7,6 +7,7 @@ import {
 } from './camera';
 import { type GameState } from './game';
 import { Vector3 } from 'three';
+import { drawDice, excludeDie } from './dice';
 
 export type Frame = {
   size: number;
@@ -117,7 +118,7 @@ function letterSprite(
   ctx.stroke();
   ctx.shadowBlur = 0;
   ctx.fillStyle = colors[kind === 'normal' ? 'foreground' : kind + '-text'];
-  ctx.font = `600 ${frame.font}px Arial`;
+  ctx.font = `500 ${frame.font}px Georgia`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(
@@ -139,6 +140,7 @@ export function drawMotion(
   frame: Frame,
   edges: [number, number][],
   colors: Record<string, string>,
+  dice = false,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx || !frame.size) return;
@@ -240,7 +242,8 @@ export function drawMotion(
     ctx.stroke();
   }
   const { found, selected: selection, traces } = drawingState(game);
-  for (const id of visible) {
+  if (dice) drawDice(ctx, canvas, game, view, frame, colors, selection, found);
+  for (const id of dice ? [] : visible) {
     const p = projected[id],
       selected = selection.has(id),
       hit = found.has(id);
@@ -274,6 +277,10 @@ export function drawMotion(
         b = trace.path[i];
       ctx.save();
       for (const id of [a, b]) {
+        if (dice) {
+          excludeDie(ctx, canvas, id, width, height);
+          continue;
+        }
         const p = projected[id];
         if (camera[id].z < 0.22 || p.fade < 0.05) continue;
         const side = frame.tile * p.scale;

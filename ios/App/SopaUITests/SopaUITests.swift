@@ -86,6 +86,7 @@ final class SopaUITests: XCTestCase {
             XCTAssertFalse(app.buttons[control].exists, "Obsolete controls must be removed")
         }
         XCTAssertFalse(app.staticTexts["Resaltar letras vecinas"].exists)
+        app.buttons["Cambiar a tema oscuro"].tap()
         let light = app.buttons["Cambiar a tema claro"]
         XCTAssertTrue(light.waitForExistence(timeout: 5))
         let launch = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
@@ -217,5 +218,18 @@ final class SopaUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["Cambiar a tema oscuro"].waitForExistence(timeout: 30), "Theme persists after relaunch")
         capture("Sopa3D-light-persisted")
+        XCUIDevice.shared.orientation = .portrait
+        app.buttons["Probar dados"].tap()
+        XCTAssertTrue(app.staticTexts["Prueba de dados"].waitForExistence(timeout: 10))
+        XCTAssertEqual(letters.count, 64, "Dice occupy the same 4 by 4 by 4 lattice")
+        capture("Sopa3D-dice-4")
+        let die = try XCTUnwrap(letters.allElementsBoundByIndex.first(where: { $0.isHittable }))
+        die.tap()
+        XCTAssertTrue(selected.firstMatch.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertEqual(selected.count, 1)
+        let diceCenter = app.webViews.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        diceCenter.press(forDuration: 0.1, thenDragTo: diceCenter.withOffset(CGVector(dx: 90, dy: -80)))
+        XCTAssertEqual(selected.count, 1, "Rotating dice preserves the chosen face letter")
+        capture("Sopa3D-dice-rotated")
     }
 }

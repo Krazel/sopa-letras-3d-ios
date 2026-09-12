@@ -15,6 +15,7 @@ export type GameState = {
   puzzle: Puzzle;
   found: string[];
   selection: number[];
+  selectionLetters?: string[];
   message: string;
 };
 export const SIZE = 4;
@@ -37,7 +38,44 @@ export function areNeighbors(a: number, b: number, size = SIZE): boolean {
   return p.every((value, axis) => Math.abs(value - q[axis]) <= 1);
 }
 export const selectionText = (s: GameState) =>
-  s.selection.map((id) => s.puzzle.cells[id].letter).join('');
+  (
+    s.selectionLetters ?? s.selection.map((id) => s.puzzle.cells[id].letter)
+  ).join('');
+
+// Face zero preserves every authored solution. The other five faces are stable,
+// distinct alternatives; rotating the camera never rerolls a die.
+const dieCache = new WeakMap<Cell, { seed: number; letters: string[] }>();
+export function dieLetters(cell: Cell, seed: number): string[] {
+  const cached = dieCache.get(cell);
+  if (cached?.seed === seed) return cached.letters;
+  const letters = [cell.letter];
+  const alphabet = shuffle(
+    Array.from('ABCDEFGHIJKLMNÑOPQRSTUVWXYZ'),
+    random(seed ^ Math.imul(cell.id + 1, 2654435761)),
+  );
+  for (const letter of alphabet) {
+    if (!letters.includes(letter)) letters.push(letter);
+    if (letters.length === 6) break;
+  }
+  dieCache.set(cell, { seed, letters });
+  return letters;
+}
+export function selectDie(
+  state: GameState,
+  id: number,
+  face: number,
+): GameState {
+  const cell = state.puzzle.cells[id];
+  if (
+    !cell ||
+    !Number.isInteger(id) ||
+    !Number.isInteger(face) ||
+    face < 0 ||
+    face > 5
+  )
+    return state;
+  return selectCell(state, id, dieLetters(cell, state.puzzle.seed)[face]);
+}
 function random(seed: number) {
   let s = seed >>> 0;
   return () => {
@@ -395,7 +433,11 @@ export function initialStateForChoice(p: PuzzleChoice): GameState {
   };
 }
 export const isWon = (s: GameState) => s.found.length === s.puzzle.words.length;
-export function selectCell(state: GameState, id: number): GameState {
+export function selectCell(
+  state: GameState,
+  id: number,
+  faceLetter?: string,
+): GameState {
   if (isWon(state) || !state.puzzle.cells[id]) return state;
   if (!Number.isInteger(id)) return state;
   const previousIndex = state.selection.indexOf(id);
@@ -409,6 +451,11 @@ export function selectCell(state: GameState, id: number): GameState {
     return {
       ...state,
       selection,
+      ...(state.selectionLetters
+        ? {
+            selectionLetters: state.selectionLetters.slice(0, selection.length),
+          }
+        : {}),
       message: selection.length
         ? 'Has retrocedido. Sigue por una letra vecina.'
         : 'Selección cancelada. Elige una letra.',
@@ -419,11 +466,25 @@ export function selectCell(state: GameState, id: number): GameState {
     return {
       ...state,
       selection: [],
+      ...(state.selectionLetters ? { selectionLetters: [] } : {}),
       message:
         'Esa letra no es vecina. Selección borrada; elige una letra para empezar.',
     };
   const path = [...state.selection, id];
-  const text = path.map((id) => state.puzzle.cells[id].letter).join('');
+  const letters = [
+    ...(state.selectionLetters ??
+      state.selection.map((i) => state.puzzle.cells[i].letter)),
+    faceLetter ?? state.puzzle.cells[id].letter,
+  ];
+  const extra =
+    faceLetter !== undefined || state.selectionLetters
+      ? { selectionLetters: letters }
+      : {};
+  const cleared =
+    faceLetter !== undefined || state.selectionLetters
+      ? { selectionLetters: [] }
+      : {};
+  const text = letters.join('');
   const word = state.puzzle.words.find(
     (w) => w.text === text || w.text === text.split('').reverse().join(''),
   );
@@ -431,6 +492,7 @@ export function selectCell(state: GameState, id: number): GameState {
     return {
       ...state,
       selection: path,
+      ...extra,
       message:
         text.length >= Math.max(...state.puzzle.words.map((w) => w.text.length))
           ? `${text} no está en la lista. Toca una letra seleccionada para retroceder o cancela.`
@@ -441,6 +503,7 @@ export function selectCell(state: GameState, id: number): GameState {
       ...state,
       selection: [],
       message: `${word.text} ya estaba encontrada.`,
+      ...cleared,
     };
   const puzzle = {
     ...state.puzzle,
@@ -452,6 +515,7 @@ export function selectCell(state: GameState, id: number): GameState {
     ...state,
     puzzle,
     selection: [],
+    ...cleared,
     found: [...state.found, word.text],
     message: `¡${word.text} encontrada!`,
   };

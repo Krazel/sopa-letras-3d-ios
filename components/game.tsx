@@ -17,12 +17,16 @@ import {
 } from 'react';
 import { applyTheme } from '@/lib/theme';
 import { drawMotion, motionPoints, hitMotion } from '@/lib/motion';
+import { hitDie } from '@/lib/dice';
 import {
   startPuzzle,
   PUZZLES,
   DEFAULT_PUZZLE,
   isWon,
   selectCell,
+  selectDie,
+  dieLetters,
+  selectionText,
   type GameState,
   type Cell,
 } from '@/lib/game';
@@ -37,10 +41,10 @@ import {
   type TouchPoint,
 } from '@/lib/camera';
 
-let fallbackTheme: 'dark' | 'light' = 'dark';
+let fallbackTheme: 'dark' | 'light' = 'light';
 function readTheme(): 'dark' | 'light' {
   try {
-    return localStorage.getItem('sopa-theme') === 'light' ? 'light' : 'dark';
+    return localStorage.getItem('sopa-theme') === 'dark' ? 'dark' : 'light';
   } catch {
     return fallbackTheme;
   }
@@ -60,12 +64,14 @@ const Letter = memo(function Letter({
   found,
   register,
   choose,
+  faces,
 }: {
   cell: Cell;
   selected: boolean;
   found: boolean;
   register: (id: number, node: HTMLButtonElement | null) => void;
   choose: (id: number) => void;
+  faces?: string[];
 }) {
   const attach = useCallback(
     (node: HTMLButtonElement | null) => register(cell.id, node),
@@ -83,7 +89,7 @@ const Letter = memo(function Letter({
         }
       }}
       aria-pressed={selected}
-      aria-label={`${cell.letter}, columna ${cell.position[0] + 1}, fila ${cell.position[1] + 1}, capa ${cell.position[2] + 1}${selected ? ', seleccionada' : ''}${found ? ', encontrada' : ''}`}
+      aria-label={`${faces ? `Dado ${faces.join(', ')}` : cell.letter}, columna ${cell.position[0] + 1}, fila ${cell.position[1] + 1}, capa ${cell.position[2] + 1}${selected ? ', seleccionada' : ''}${found ? ', encontrada' : ''}`}
     ></button>
   );
 });
@@ -95,6 +101,8 @@ export default function Game({
   onProgress,
   onNext,
   nextLabel,
+  dice = false,
+  pageNumber,
 }: {
   initial?: GameState;
   title?: string;
@@ -102,6 +110,8 @@ export default function Game({
   onProgress?: (game: GameState) => void;
   onNext?: () => void;
   nextLabel?: string;
+  dice?: boolean;
+  pageNumber?: number;
 } = {}) {
   const [puzzleId, setPuzzleId] = useState(DEFAULT_PUZZLE);
   const [game, setGame] = useState(
@@ -109,10 +119,11 @@ export default function Game({
   );
   const games = useRef(new Map<string, GameState>());
   const [controlsHidden, setControlsHidden] = useState(false);
+  const [dieFocus, setDieFocus] = useState<number | null>(null);
   const theme = useSyncExternalStore<'dark' | 'light'>(
     subscribeTheme,
     readTheme,
-    () => 'dark',
+    () => 'light',
   );
   useLayoutEffect(() => {
     applyTheme(theme);
@@ -143,8 +154,9 @@ export default function Game({
     [],
   );
   const chooseLetter = useCallback(
-    (id: number) => setGame((s) => selectCell(s, id)),
-    [],
+    (id: number) =>
+      dice ? setDieFocus(id) : setGame((s) => selectCell(s, id)),
+    [dice],
   );
   const cameraFrame = useRef<number | null>(null);
   const settleFrame = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -364,6 +376,7 @@ export default function Game({
           frame,
           edges,
           paintColors.current,
+          dice,
         );
         const stage = stageRef.current;
         if (stage && !stage.classList.contains('canvas-ready'))
@@ -372,7 +385,7 @@ export default function Game({
     };
     motionRenderer.current(viewRef.current);
     targetSync.current();
-  }, [game, size, frame, edges, theme]);
+  }, [game, size, frame, edges, theme, dice]);
   function onDown(e: PointerEvent<HTMLDivElement>) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (pointers.current.size === 0) {
@@ -421,7 +434,8 @@ export default function Game({
   }
   return (
     <main
-      className="game-shell"
+      className="game-shell book-page"
+      data-mode={dice ? 'dice' : 'letters'}
       data-controls-hidden={controlsHidden}
       aria-label="Sopa de letras 3D"
     >
@@ -436,24 +450,32 @@ export default function Game({
         <span aria-hidden="true">{controlsHidden ? '⌄' : '⌃'}</span>
       </button>
       <div id="game-controls" className="game-controls" hidden={controlsHidden}>
+        <div className="book-game-heading">
+          {onExit && (
+            <button
+              className="book-back"
+              onClick={onExit}
+              aria-label="Volver al menú"
+            >
+              ‹
+            </button>
+          )}
+          <h1>{title ?? 'Mi sopa de letras'}</h1>
+          <span className="book-ribbon" aria-hidden="true">
+            {dice ? '⚄' : '≋'}
+          </span>
+        </div>
         <p className="game-help">
           <span>
             {`Une letras vecinas y encuentra las ${game.puzzle.words.length} palabras.`}
           </span>
           <span>
-            Toca para elegir · Arrastra para girar · Pellizca o usa la rueda
-            para el zoom.
+            {dice ? 'Toca una cara' : 'Toca letras'} · Arrastra para girar ·
+            Pellizca para acercar
           </span>
         </p>
         <div className="game-options">
-          {onExit && (
-            <button type="button" onClick={onExit} aria-label="Volver al menú">
-              ‹ Menú
-            </button>
-          )}
-          {initial ? (
-            <span className="play-title">{title}</span>
-          ) : (
+          {!initial && (
             <select
               aria-label="Sopa"
               value={puzzleId}
@@ -504,10 +526,20 @@ export default function Game({
           tabIndex={0}
           data-size={size}
           data-shape={game.puzzle.shape}
+          data-dice={dice}
           onClick={(e) => {
             if (e.detail === 0 || suppressPick.current || !motionCanvas.current)
               return;
             const rect = e.currentTarget.getBoundingClientRect();
+            if (dice) {
+              const face = hitDie(
+                motionCanvas.current,
+                e.clientX - rect.left,
+                e.clientY - rect.top,
+              );
+              if (face) setGame((s) => selectDie(s, face.id, face.face));
+              return;
+            }
             const id = hitMotion(
               motionCanvas.current,
               e.clientX - rect.left,
@@ -560,6 +592,7 @@ export default function Game({
                 found={foundCells.has(cell.id)}
                 register={registerLetter}
                 choose={chooseLetter}
+                faces={dice ? dieLetters(cell, game.puzzle.seed) : undefined}
               />
             ))}
           </div>
@@ -580,7 +613,52 @@ export default function Game({
           ))}
         </ul>
       </div>
-      {won && (
+      {dice && game.selection.length > 0 && (
+        <output className="dice-selection" aria-live="polite">
+          {selectionText(game)}
+        </output>
+      )}
+      {dice && dieFocus !== null && (
+        <fieldset
+          className="die-face-picker"
+          aria-label="Elige una cara del dado"
+        >
+          <legend>Elige una cara</legend>
+          {dieLetters(game.puzzle.cells[dieFocus], game.puzzle.seed).map(
+            (letter, face) => (
+              <button
+                key={face}
+                aria-label={`Cara ${face + 1}: ${letter}`}
+                onClick={() => {
+                  setGame((s) => selectDie(s, dieFocus, face));
+                  setDieFocus(null);
+                }}
+              >
+                {letter}
+              </button>
+            ),
+          )}
+          <button aria-label="Cerrar caras" onClick={() => setDieFocus(null)}>
+            ×
+          </button>
+        </fieldset>
+      )}
+      {pageNumber && (
+        <footer className="book-game-footer">
+          <span>— &nbsp; {pageNumber} / 15 &nbsp; —</span>
+          <button disabled={!won} onClick={onNext} aria-label={nextLabel}>
+            {won
+              ? pageNumber === 15
+                ? 'Cerrar el libro'
+                : 'Pasar página'
+              : 'Completa la sopa'}{' '}
+            <span aria-hidden="true">›</span>
+          </button>
+          {won && <output className="sr-only">¡Sopa completada!</output>}
+          <span className="book-corner" aria-hidden="true" />
+        </footer>
+      )}
+      {won && !pageNumber && (
         <output className="victory">
           <span>¡Sopa completada!</span>
           <button

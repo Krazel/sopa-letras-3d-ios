@@ -1,6 +1,6 @@
 {
   "name": "sopa-de-letras-3d",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -11,7 +11,7 @@
     "start": "node scripts/serve.mjs",
     "lint": "oxlint",
     "format": "oxfmt",
-    "test": "node --experimental-strip-types --test tests/game.test.ts tests/camera.test.ts tests/player.test.ts",
+    "test": "node --experimental-strip-types --test tests/game.test.ts tests/camera.test.ts tests/player.test.ts tests/dice.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

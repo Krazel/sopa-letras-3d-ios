@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Game from './game';
+import { LockKeyhole } from 'lucide-react';
 import { applyTheme } from '@/lib/theme';
 import { type GameState, type PuzzleChoice } from '@/lib/game';
 import {
@@ -18,7 +19,7 @@ import {
 
 type Play = {
   id: string;
-  mode: 'level' | 'custom' | 'free';
+  mode: 'level' | 'custom' | 'free' | 'dice';
   title: string;
   game?: GameState;
 };
@@ -27,7 +28,8 @@ export default function Experience() {
   const [ready, setReady] = useState(false);
   const [section, setSection] = useState<'levels' | 'create'>('levels');
   const [active, setActive] = useState<Play | null>(null);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  const [chapter, setChapter] = useState(0);
   const [saveError, setSaveError] = useState('');
   const [name, setName] = useState('');
   const [words, setWords] = useState('');
@@ -48,7 +50,7 @@ export default function Experience() {
     }
     try {
       const t =
-        localStorage.getItem('sopa-theme') === 'light' ? 'light' : 'dark';
+        localStorage.getItem('sopa-theme') === 'dark' ? 'dark' : 'light';
       setTheme(t);
       applyTheme(t);
     } catch {
@@ -87,7 +89,7 @@ export default function Experience() {
         mode,
         title:
           mode === 'level'
-            ? `Nivel ${LEVELS.find((l) => l.id === choice.id)!.number} · ${choice.name}`
+            ? `Página ${LEVELS.find((l) => l.id === choice.id)!.number} · ${choice.name}`
             : choice.name,
         game: restore(choice, data.progress[choice.id]),
       });
@@ -98,7 +100,7 @@ export default function Experience() {
   }
   const onProgress = useCallback(
     (game: GameState) => {
-      if (active && active.mode !== 'free')
+      if (active && (active.mode === 'level' || active.mode === 'custom'))
         setData((old) => saveGame(old, active.id, game));
     },
     [active],
@@ -165,6 +167,12 @@ export default function Experience() {
           key={active.id}
           initial={active.game}
           title={active.title}
+          dice={active.mode === 'dice'}
+          pageNumber={
+            active.mode === 'level'
+              ? LEVELS.findIndex((l) => l.id === active.id) + 1
+              : undefined
+          }
           onExit={exit}
           onProgress={onProgress}
           onNext={next}
@@ -184,11 +192,14 @@ export default function Experience() {
   const nextLevel =
     LEVELS.find((l) => !data.completed.includes(l.id)) ?? LEVELS[0];
   return (
-    <main className="journey" aria-label="Menú del juego">
+    <main className="journey book-page" aria-label="Menú del juego">
       <header className="journey-header">
         <div>
-          <p className="eyebrow">PALABRAS EN TRES DIMENSIONES</p>
-          <h1>Sopa de letras 3D</h1>
+          <h1>Mi libro de sopas</h1>
+          <span className="book-ornament" aria-hidden="true">
+            ── ◆ ──
+          </span>
+          <p className="book-subtitle">Una página, un reto</p>
         </div>
         <button
           className="menu-theme"
@@ -222,84 +233,110 @@ export default function Experience() {
         >
           Juego libre
         </button>
+        <button
+          onClick={() =>
+            setActive({ id: 'dice', mode: 'dice', title: 'Prueba de dados' })
+          }
+        >
+          Probar dados
+        </button>
       </nav>
       {saveError && <p role="alert">{saveError}</p>}
       {!ready ? (
         <output>Cargando tu avance…</output>
       ) : section === 'levels' ? (
         <>
-          <section className="journey-intro">
-            <div>
-              <p className="eyebrow">
-                {data.completed.length === LEVELS.length
-                  ? 'RECORRIDO COMPLETADO'
-                  : 'PASO A PASO'}
-              </p>
-              <h2>
-                {data.completed.length === LEVELS.length
-                  ? '¡Has completado todos los niveles!'
-                  : 'Empieza fácil. Explora más lejos.'}
-              </h2>
-              <p>
-                Une letras vecinas, gira la figura y encuentra todas las
-                palabras para abrir el siguiente nivel.
-              </p>
+          <section className="book-index" aria-label="Índice de niveles">
+            <div className="chapter-heading">
+              <span>Capítulo {chapter + 1}</span>
+              <span>
+                {
+                  [
+                    'Primeras palabras',
+                    'Entre árboles',
+                    'Más allá',
+                    'Grandes descubrimientos',
+                  ][chapter]
+                }
+              </span>
             </div>
+            <ol className="level-list" start={chapter * 4 + 1}>
+              {LEVELS.slice(chapter * 4, chapter * 4 + 4).map((level) => {
+                const i = level.number - 1;
+                const done = data.completed.includes(level.id),
+                  unlocked = isUnlocked(data, i);
+                return (
+                  <li key={level.id}>
+                    <button
+                      disabled={!unlocked}
+                      className={`level-card ${done ? 'level-done' : ''} ${level.id === nextLevel.id ? 'level-current' : ''}`}
+                      aria-label={`${unlocked ? 'Jugar' : 'Bloqueado'} nivel ${i + 1}: ${level.name}${done ? ', completado' : ''}`}
+                      onClick={() => open(level, 'level')}
+                    >
+                      <span className="level-number">{i + 1}</span>
+                      <span className="level-copy">
+                        <strong>{level.name}</strong>
+                        <small>
+                          {level.shape === 'star'
+                            ? 'Estrella 3D'
+                            : `${level.size} × ${level.size} × ${level.size}`}{' '}
+                        </small>
+                      </span>
+                      <span
+                        className={`chapter-art art-${i % 4}`}
+                        aria-hidden="true"
+                      />
+                      <span
+                        className={`level-state ${unlocked ? 'open' : ''}`}
+                        aria-hidden="true"
+                      >
+                        {done ? (
+                          '✓'
+                        ) : unlocked ? (
+                          '›'
+                        ) : (
+                          <LockKeyhole size={19} strokeWidth={1.5} />
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+            <div className="chapter-paging">
+              <button
+                aria-label="Capítulo anterior"
+                disabled={chapter === 0}
+                onClick={() => setChapter((c) => c - 1)}
+              >
+                ‹
+              </button>
+              <span>{chapter + 1} / 4</span>
+              <button
+                aria-label="Capítulo siguiente"
+                disabled={chapter === 3}
+                onClick={() => setChapter((c) => c + 1)}
+              >
+                ›
+              </button>
+            </div>
+          </section>
+          <footer className="book-index-footer">
             <button
               className="primary-action"
+              aria-label={data.completed.length ? 'Continuar' : 'Jugar nivel 1'}
               onClick={() => open(nextLevel, 'level')}
             >
               {data.completed.length === LEVELS.length
-                ? 'Volver al nivel 1'
-                : data.completed.length
-                  ? 'Continuar'
-                  : 'Jugar nivel 1'}
+                ? 'Volver a empezar'
+                : `Continuar · Página ${nextLevel.number}`}
+              <span aria-hidden="true">›</span>
             </button>
-          </section>
-          <div className="journey-progress">
-            <span>
-              {data.completed.length} de {LEVELS.length} niveles completados
-            </span>
-            <progress
-              aria-label="Progreso de niveles"
-              value={data.completed.length}
-              max={LEVELS.length}
-            />
-          </div>
-          <ol className="level-list">
-            {LEVELS.map((level, i) => {
-              const done = data.completed.includes(level.id),
-                unlocked = isUnlocked(data, i);
-              return (
-                <li key={level.id}>
-                  <button
-                    disabled={!unlocked}
-                    className={`level-card ${done ? 'level-done' : ''}`}
-                    aria-label={`${unlocked ? 'Jugar' : 'Bloqueado'} nivel ${i + 1}: ${level.name}${done ? ', completado' : ''}`}
-                    onClick={() => open(level, 'level')}
-                  >
-                    <span className="level-number">{done ? '✓' : i + 1}</span>
-                    <span className="level-copy">
-                      <strong>{level.name}</strong>
-                      <small>
-                        {level.shape === 'star'
-                          ? 'Estrella 3D'
-                          : `${level.size} × ${level.size} × ${level.size}`}{' '}
-                        · {level.words.length} palabras
-                      </small>
-                    </span>
-                    <span className="level-state">
-                      {unlocked ? level.difficulty : 'Cerrado'}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-          <p className="local-note">
-            Tu avance se guarda en este dispositivo. Puedes volver a jugar los
-            niveles completados.
-          </p>
+            <p>
+              {data.completed.length} de {LEVELS.length} páginas completadas
+            </p>
+            <span className="book-corner" aria-hidden="true" />
+          </footer>
         </>
       ) : (
         <>
