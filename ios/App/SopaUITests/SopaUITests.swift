@@ -49,6 +49,12 @@ final class SopaUITests: XCTestCase {
         XCTAssertTrue(customWords.exists, app.debugDescription)
         customWords.tap()
         customWords.typeText("SOL, LUNA, MAR")
+        // The book is taller than the old menu. Close the real iOS keyboard
+        // before scrolling to the submit button; swiping over its keys does
+        // not scroll the creator and is not a game failure.
+        let keyboardDone = app.buttons.matching(NSPredicate(format: "label IN {'Done', 'OK', 'Listo', 'Aceptar'}")).firstMatch
+        XCTAssertTrue(keyboardDone.waitForExistence(timeout: 5), app.debugDescription)
+        keyboardDone.tap()
         let create = app.buttons["Crear y jugar"]
         for _ in 0..<5 { if create.isHittable { break }; app.swipeUp() }
         XCTAssertTrue(create.isHittable, app.debugDescription)
