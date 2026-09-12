@@ -1,6 +1,17 @@
 import XCTest
 
 final class SopaUITests: XCTestCase {
+    func orient(_ app: XCUIApplication, _ orientation: UIDeviceOrientation) {
+        XCUIDevice.shared.orientation = orientation
+        let landscape = orientation.isLandscape
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let bounds = app.frame
+            return landscape ? bounds.width > bounds.height : bounds.height > bounds.width
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 10), .completed)
+        // UIKit rotates before WebKit publishes its new accessibility hit points.
+        RunLoop.current.run(until: Date().addingTimeInterval(2))
+    }
     func capture(_ name: String) {
         // WebKit accessibility updates before the simulator presents its pixels.
         // Allow its compositor to finish theme/rotation and large-cube redraws.
@@ -168,7 +179,7 @@ final class SopaUITests: XCTestCase {
         capture("Sopa3D-invalid-cleared")
         invalidPoint.tap()
         XCTAssertEqual(selected.count, 1, "A subsequent tap starts a fresh path")
-        XCUIDevice.shared.orientation = .landscapeLeft
+        orient(app, .landscapeLeft)
         defer { XCUIDevice.shared.orientation = .portrait }
         XCTAssertTrue(objective.isHittable, "Instructions remain visible in landscape")
         for word in ["LUNA", "NUBE", "AIRE", "SOL", "MAR", "RIO"] {
@@ -178,7 +189,7 @@ final class SopaUITests: XCTestCase {
         landscape.name = "Sopa3D-help-landscape"
         landscape.lifetime = .keepAlways
         add(landscape)
-        XCUIDevice.shared.orientation = .portrait
+        orient(app, .portrait)
         chooseSoup(app, "3×3×3 · Cielo")
         XCTAssertTrue(app.staticTexts["Une letras vecinas y encuentra las 4 palabras."].waitForExistence(timeout: 5))
         XCTAssertEqual(letters.count, 27)
@@ -193,12 +204,12 @@ final class SopaUITests: XCTestCase {
         capture("Sopa3D-light-6")
         app.buttons["Cambiar a tema oscuro"].tap()
         capture("Sopa3D-dark-6")
-        XCUIDevice.shared.orientation = .landscapeLeft
+        orient(app, .landscapeLeft)
         for word in ["PLANETA", "ESTRELLA", "GALAXIA", "COMETA", "ORBITA", "SATURNO", "METEORO", "COSMOS"] {
             XCTAssertTrue(app.staticTexts[word].isHittable)
         }
         capture("Sopa3D-dark-6-landscape")
-        XCUIDevice.shared.orientation = .portrait
+        orient(app, .portrait)
         chooseSoup(app, "8×8×8 · Planeta")
         XCTAssertTrue(app.staticTexts["GLACIAR"].waitForExistence(timeout: 5))
         XCTAssertEqual(letters.count, 512)
@@ -217,7 +228,7 @@ final class SopaUITests: XCTestCase {
         capture("Sopa3D-dark-10-zoom")
         app.buttons["Cambiar a tema claro"].tap()
         XCTAssertTrue(app.buttons["Cambiar a tema oscuro"].waitForExistence(timeout: 10))
-        XCUIDevice.shared.orientation = .landscapeLeft
+        orient(app, .landscapeLeft)
         for word in ["TELESCOPIO", "ASTRONAUTA", "SATELITE", "LABORATORIO", "MICROSCOPIO", "INVENTO", "ENERGIA", "CIENCIA"] {
             XCTAssertTrue(app.staticTexts[word].isHittable, "Large-cube words remain visible after theme and orientation change")
         }
@@ -227,7 +238,7 @@ final class SopaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["TELESCOPIO"].isHittable)
         capture("Sopa3D-controls-hidden-10-landscape")
         app.buttons["Mostrar controles"].tap()
-        XCUIDevice.shared.orientation = .portrait
+        orient(app, .portrait)
         chooseSoup(app, "Estrella 3D")
         XCTAssertTrue(app.staticTexts["DESTELLO"].waitForExistence(timeout: 5))
         XCTAssertEqual(letters.count, 200)
@@ -240,7 +251,7 @@ final class SopaUITests: XCTestCase {
         }
         XCTAssertEqual(selected.count, 0, "Free tumbling does not pick letters")
         capture("Sopa3D-star-dark-tumbled")
-        XCUIDevice.shared.orientation = .landscapeLeft
+        orient(app, .landscapeLeft)
         XCTAssertTrue(app.staticTexts["DESTELLO"].isHittable)
         capture("Sopa3D-star-dark-landscape")
         app.buttons["Cambiar a tema claro"].tap()
@@ -248,7 +259,7 @@ final class SopaUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["Cambiar a tema oscuro"].waitForExistence(timeout: 30), "Theme persists after relaunch")
         capture("Sopa3D-light-persisted")
-        XCUIDevice.shared.orientation = .portrait
+        orient(app, .portrait)
         app.buttons["Probar dados"].tap()
         XCTAssertTrue(app.staticTexts["Prueba de dados"].waitForExistence(timeout: 10))
         XCTAssertEqual(letters.count, 64, "Dice occupy the same 4 by 4 by 4 lattice")
