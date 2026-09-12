@@ -162,6 +162,31 @@ export function hitDie(canvas: HTMLCanvasElement, x: number, y: number) {
 export function diceFaces(canvas: HTMLCanvasElement) {
   return facesByCanvas.get(canvas) ?? [];
 }
+export function drawSameDieLink(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  id: number,
+  a: number,
+  b: number,
+  color: string,
+) {
+  const faces = diceFaces(canvas);
+  const first = faces.find((f) => f.id === id && f.face === a);
+  const second = faces.find((f) => f.id === id && f.face === b);
+  if (!first || !second) return;
+  const edge = first.polygon.filter((p) =>
+    second.polygon.some((q) => Math.hypot(p.x - q.x, p.y - q.y) < 0.01),
+  );
+  if (edge.length !== 2) return;
+  // The shared edge connects the chosen faces without crossing either glyph.
+  ctx.globalAlpha = 0.85;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(edge[0].x, edge[0].y);
+  ctx.lineTo(edge[1].x, edge[1].y);
+  ctx.stroke();
+}
 function trace(ctx: CanvasRenderingContext2D, p: XY[]) {
   ctx.moveTo(p[0].x, p[0].y);
   for (let i = 1; i < p.length; i++) ctx.lineTo(p[i].x, p[i].y);
@@ -189,15 +214,22 @@ export function drawDice(
   view: CameraView,
   frame: Frame,
   colors: Record<string, string>,
-  selected: Set<number>,
-  found: Set<number>,
 ) {
   const faces = projectDice(game, view, frame);
+  const selected = new Set(
+    game.selection.map((id, i) => `${id}:${game.selectionFaces?.[i] ?? 0}`),
+  );
+  const found = new Set(
+    game.puzzle.words
+      .filter((w) => game.found.includes(w.text))
+      .flatMap((w) => w.path.map((id, i) => `${id}:${w.faces?.[i] ?? 0}`)),
+  );
   facesByCanvas.set(canvas, faces);
   for (const f of faces) {
-    const kind = selected.has(f.id)
+    const keyFace = `${f.id}:${f.face}`;
+    const kind = selected.has(keyFace)
       ? 'selected'
-      : found.has(f.id)
+      : found.has(keyFace)
         ? 'found'
         : 'normal';
     ctx.globalAlpha = 1;

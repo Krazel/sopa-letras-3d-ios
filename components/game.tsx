@@ -26,7 +26,6 @@ import {
   selectCell,
   selectDie,
   dieLetters,
-  selectionText,
   type GameState,
   type Cell,
 } from '@/lib/game';
@@ -467,11 +466,13 @@ export default function Game({
         </div>
         <p className="game-help">
           <span>
-            {`Une letras vecinas y encuentra las ${game.puzzle.words.length} palabras.`}
+            {dice
+              ? 'Une caras del mismo dado que compartan borde, o letras de dados vecinos.'
+              : `Une letras vecinas y encuentra las ${game.puzzle.words.length} palabras.`}
           </span>
           <span>
-            {dice ? 'Toca una cara' : 'Toca letras'} · Arrastra para girar ·
-            Pellizca para acercar
+            {dice ? 'Toca una letra por cara' : 'Toca letras'} · Arrastra para
+            girar · Pellizca para acercar
           </span>
         </p>
         <div className="game-options">
@@ -613,9 +614,17 @@ export default function Game({
           ))}
         </ul>
       </div>
-      {dice && game.selection.length > 0 && (
+      {dice && (
         <output className="dice-selection" aria-live="polite">
-          {selectionText(game)}
+          {game.selection.map((id, i) => (
+            <span
+              key={`${id}:${game.selectionFaces?.[i]}`}
+              data-die={id}
+              data-face={game.selectionFaces?.[i]}
+            >
+              {game.selectionLetters?.[i]}
+            </span>
+          ))}
         </output>
       )}
       {dice && dieFocus !== null && (
@@ -628,6 +637,10 @@ export default function Game({
             (letter, face) => (
               <button
                 key={face}
+                aria-pressed={game.selection.some(
+                  (id, i) =>
+                    id === dieFocus && game.selectionFaces?.[i] === face,
+                )}
                 aria-label={`Cara ${face + 1}: ${letter}`}
                 onClick={() => {
                   setGame((s) => selectDie(s, dieFocus, face));

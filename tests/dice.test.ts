@@ -44,13 +44,49 @@ void test('selection spells the tapped faces, backtracks and clears an invalid j
   game = selectDie(game, first, 2);
   game = selectDie(game, second, 4);
   assert.equal(selectionText(game), a + b);
-  game = selectDie(game, second, 1);
+  game = selectDie(game, second, 4);
   assert.equal(selectionText(game), a);
   game = selectDie(game, 26, 0);
   assert.equal(selectionText(game), '');
   assert.deepEqual(game.selection, []);
+  assert.deepEqual(game.selectionFaces, []);
   assert.equal(selectDie(game, 0, 6), game);
   assert.equal(selectDie(game, -1, 0), game);
+});
+void test('same die connects adjacent faces, tracks each face, and never repeats a face', () => {
+  let game = startPuzzle('cielo');
+  const labels = dieLetters(game.puzzle.cells[0], game.puzzle.seed);
+  game = selectDie(game, 0, 0);
+  game = selectDie(game, 0, 2);
+  assert.deepEqual(game.selection, [0, 0]);
+  assert.deepEqual(game.selectionFaces, [0, 2]);
+  assert.equal(selectionText(game), labels[0] + labels[2]);
+  game = selectDie(game, 1, 4);
+  assert.deepEqual(game.selection, [0, 0, 1]);
+  game = selectDie(game, 0, 2);
+  assert.deepEqual(game.selectionFaces, [0, 2]);
+  game = selectDie(game, 0, 2);
+  assert.deepEqual(game.selectionFaces, [0]);
+  game = selectDie(game, 0, 1);
+  assert.deepEqual(game.selection, []);
+  assert.deepEqual(game.selectionFaces, []);
+  assert.equal(selectionText(game), '');
+});
+void test('a word can use several adjacent faces of one die and preserves found face identity', () => {
+  let game = startPuzzle('cielo');
+  const faces = [0, 2, 4];
+  const text = faces
+    .map((f) => dieLetters(game.puzzle.cells[0], game.puzzle.seed)[f])
+    .join('');
+  game = {
+    ...game,
+    puzzle: { ...game.puzzle, words: [{ text, path: [0, 1, 2] }] },
+  };
+  for (const face of faces) game = selectDie(game, 0, face);
+  assert(isWon(game));
+  assert.deepEqual(game.puzzle.words[0].path, [0, 0, 0]);
+  assert.deepEqual(game.puzzle.words[0].faces, faces);
+  assert.deepEqual(game.selectionFaces, []);
 });
 void test('an alternative face sequence can complete a target, independent of canonical letters', () => {
   let g = startPuzzle('cielo');

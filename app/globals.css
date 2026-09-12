@@ -1177,6 +1177,9 @@ body {
 .dice-selection {
   flex-shrink: 0;
   min-height: 22px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow-x: auto;
   color: var(--primary);
   font-size: 18px;
   letter-spacing: 3px;

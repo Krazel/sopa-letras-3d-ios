@@ -1,6 +1,6 @@
 export type Point = [number, number, number];
 export type Cell = { id: number; position: Point; letter: string };
-export type Word = { text: string; path: number[] };
+export type Word = { text: string; path: number[]; faces?: number[] };
 export type Puzzle = {
   seed: number;
   size: number;
@@ -16,6 +16,7 @@ export type GameState = {
   found: string[];
   selection: number[];
   selectionLetters?: string[];
+  selectionFaces?: number[];
   message: string;
 };
 export const SIZE = 4;
@@ -74,8 +75,11 @@ export function selectDie(
     face > 5
   )
     return state;
-  return selectCell(state, id, dieLetters(cell, state.puzzle.seed)[face]);
+  return selectCell(state, id, dieLetters(cell, state.puzzle.seed)[face], face);
 }
+// Opposite faces are paired: front/back, right/left, top/bottom.
+export const adjacentDieFaces = (a: number, b: number) =>
+  a !== b && Math.floor(a / 2) !== Math.floor(b / 2);
 function random(seed: number) {
   let s = seed >>> 0;
   return () => {
@@ -437,10 +441,15 @@ export function selectCell(
   state: GameState,
   id: number,
   faceLetter?: string,
+  face?: number,
 ): GameState {
   if (isWon(state) || !state.puzzle.cells[id]) return state;
   if (!Number.isInteger(id)) return state;
-  const previousIndex = state.selection.indexOf(id);
+  const previousIndex = state.selection.findIndex(
+    (selected, i) =>
+      selected === id &&
+      (face === undefined || state.selectionFaces?.[i] === face),
+  );
   if (previousIndex >= 0) {
     const selection = state.selection.slice(
       0,
@@ -451,6 +460,9 @@ export function selectCell(
     return {
       ...state,
       selection,
+      ...(state.selectionFaces
+        ? { selectionFaces: state.selectionFaces.slice(0, selection.length) }
+        : {}),
       ...(state.selectionLetters
         ? {
             selectionLetters: state.selectionLetters.slice(0, selection.length),
@@ -462,15 +474,22 @@ export function selectCell(
     };
   }
   const last = state.selection.at(-1);
-  if (last !== undefined && !state.puzzle.neighbors[last].includes(id))
+  const connected =
+    last === id && face !== undefined
+      ? adjacentDieFaces(state.selectionFaces?.at(-1) ?? face, face)
+      : last === undefined || state.puzzle.neighbors[last].includes(id);
+  if (!connected)
     return {
       ...state,
       selection: [],
+      ...(state.selectionFaces ? { selectionFaces: [] } : {}),
       ...(state.selectionLetters ? { selectionLetters: [] } : {}),
       message:
         'Esa letra no es vecina. Selección borrada; elige una letra para empezar.',
     };
   const path = [...state.selection, id];
+  const faces =
+    face === undefined ? undefined : [...(state.selectionFaces ?? []), face];
   const letters = [
     ...(state.selectionLetters ??
       state.selection.map((i) => state.puzzle.cells[i].letter)),
@@ -478,11 +497,14 @@ export function selectCell(
   ];
   const extra =
     faceLetter !== undefined || state.selectionLetters
-      ? { selectionLetters: letters }
+      ? {
+          selectionLetters: letters,
+          ...(faces ? { selectionFaces: faces } : {}),
+        }
       : {};
   const cleared =
     faceLetter !== undefined || state.selectionLetters
-      ? { selectionLetters: [] }
+      ? { selectionLetters: [], ...(faces ? { selectionFaces: [] } : {}) }
       : {};
   const text = letters.join('');
   const word = state.puzzle.words.find(
@@ -508,7 +530,7 @@ export function selectCell(
   const puzzle = {
     ...state.puzzle,
     words: state.puzzle.words.map((w) =>
-      w.text === word.text ? { ...w, path } : w,
+      w.text === word.text ? { ...w, path, ...(faces ? { faces } : {}) } : w,
     ),
   };
   return {

@@ -7,7 +7,7 @@ import {
 } from './camera';
 import { type GameState } from './game';
 import { Vector3 } from 'three';
-import { drawDice, excludeDie } from './dice';
+import { drawDice, excludeDie, drawSameDieLink } from './dice';
 
 export type Frame = {
   size: number;
@@ -65,7 +65,7 @@ const states = new WeakMap<
   {
     found: Set<number>;
     selected: Set<number>;
-    traces: { path: number[]; kind: string }[];
+    traces: { path: number[]; faces?: number[]; kind: string }[];
   }
 >();
 function drawingState(game: GameState) {
@@ -74,8 +74,13 @@ function drawingState(game: GameState) {
   const words = game.puzzle.words.filter((w) => game.found.includes(w.text));
   const found = new Set(words.flatMap((w) => w.path)),
     selected = new Set(game.selection);
-  const traces = words.map((w) => ({ path: w.path, kind: 'word' }));
-  traces.push({ path: game.selection, kind: 'selection' });
+  const traces: { path: number[]; faces?: number[]; kind: string }[] =
+    words.map((w) => ({ path: w.path, faces: w.faces, kind: 'word' }));
+  traces.push({
+    path: game.selection,
+    faces: game.selectionFaces,
+    kind: 'selection',
+  });
   const last = game.selection.at(-1);
   if (last !== undefined) {
     for (const id of game.puzzle.neighbors[last]) {
@@ -242,7 +247,7 @@ export function drawMotion(
     ctx.stroke();
   }
   const { found, selected: selection, traces } = drawingState(game);
-  if (dice) drawDice(ctx, canvas, game, view, frame, colors, selection, found);
+  if (dice) drawDice(ctx, canvas, game, view, frame, colors);
   for (const id of dice ? [] : visible) {
     const p = projected[id],
       selected = selection.has(id),
@@ -275,6 +280,17 @@ export function drawMotion(
     for (let i = 1; i < trace.path.length; i++) {
       const a = trace.path[i - 1],
         b = trace.path[i];
+      if (dice && a === b && trace.faces) {
+        drawSameDieLink(
+          ctx,
+          canvas,
+          a,
+          trace.faces[i - 1],
+          trace.faces[i],
+          colors.primary,
+        );
+        continue;
+      }
       ctx.save();
       for (const id of [a, b]) {
         if (dice) {
