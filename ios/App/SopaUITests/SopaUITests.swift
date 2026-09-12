@@ -279,10 +279,17 @@ final class SopaUITests: XCTestCase {
         diceCenter.press(forDuration: 0.1, thenDragTo: diceCenter.withOffset(CGVector(dx: 90, dy: -80)))
         XCTAssertEqual(selected.count, 1, "Rotating dice preserves the chosen face letter")
         capture("Sopa3D-dice-rotated")
-        app.buttons["Sobre la cara"].tap()
+        // WebKit exposes aria-pressed controls as toggles, not XCUI buttons.
+        let onFace = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Sobre la cara")).firstMatch
+        XCTAssertTrue(onFace.waitForExistence(timeout: 10))
+        onFace.tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '1'"), object: onFace)], timeout: 5), .completed)
         XCTAssertEqual(selected.count, 1, "Changing letter orientation preserves selection")
         capture("Sopa3D-dice-face-oriented")
-        app.buttons["Mirándote"].tap()
+        let towardViewer = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Mirándote")).firstMatch
+        XCTAssertTrue(towardViewer.exists)
+        towardViewer.tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '1'"), object: towardViewer)], timeout: 5), .completed)
         XCTAssertEqual(selected.count, 1)
         capture("Sopa3D-dice-viewer-oriented")
     }
