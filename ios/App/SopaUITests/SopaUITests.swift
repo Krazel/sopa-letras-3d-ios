@@ -35,6 +35,7 @@ final class SopaUITests: XCTestCase {
         let startLevel = app.buttons["Jugar nivel 1"]
         XCTAssertTrue(startLevel.waitForExistence(timeout: 60), app.debugDescription)
         capture("Sopa3D-level-map")
+        XCTAssertLessThan(startLevel.frame.maxY, app.frame.height - 30, "Continue fits above the iPhone bottom safe area without scrolling")
         XCTAssertFalse(app.buttons["Bloqueado nivel 2: Agua"].isEnabled)
         startLevel.tap()
         XCTAssertTrue(app.staticTexts["Une letras vecinas y encuentra las 4 palabras."].waitForExistence(timeout: 10))

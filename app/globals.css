@@ -894,10 +894,10 @@ body {
 }
 .level-card {
   position: relative;
-  min-height: 100px;
+  min-height: 86px;
   border: 1px solid transparent;
   border-radius: 3px;
-  padding: 12px 9px;
+  padding: 6px 9px;
   gap: 12px;
 }
 .level-card:disabled {
@@ -947,7 +947,7 @@ body {
 }
 .chapter-art {
   width: 94px;
-  height: 80px;
+  height: 72px;
   background: url('/art/chapter-engravings.png') no-repeat;
   background-size: 200% 200%;
   opacity: 0.58;
@@ -1320,3 +1320,4 @@ body {
     animation: none;
   }
 }
+
