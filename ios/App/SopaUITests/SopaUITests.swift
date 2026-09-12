@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 final class SopaUITests: XCTestCase {
     func orient(_ app: XCUIApplication, _ orientation: UIDeviceOrientation) {
