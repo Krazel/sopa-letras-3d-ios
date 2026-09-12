@@ -155,6 +155,40 @@ export function projectDice(
   return result.sort((a, b) => b.depth - a.depth);
 }
 const facesByCanvas = new WeakMap<HTMLCanvasElement, DieFace[]>();
+export function dieGlyphTransform(
+  f: DieFace,
+  facingViewer: boolean,
+): [number, number, number, number, number, number] {
+  if (!facingViewer)
+    return [
+      (f.u.x - f.center.x) / 48,
+      (f.u.y - f.center.y) / 48,
+      (f.v.x - f.center.x) / 48,
+      (f.v.y - f.center.y) / 48,
+      f.center.x,
+      f.center.y,
+    ];
+  // Fit an upright square inside the real face so its letter cannot suggest
+  // a different tap target. Edge-on faces naturally become smaller.
+  let radius = 0;
+  if (pointInFace(f.center, f.polygon)) {
+    radius = Infinity;
+    for (let i = 0; i < f.polygon.length; i++) {
+      const a = f.polygon[i],
+        b = f.polygon[(i + 1) % f.polygon.length];
+      const dx = b.x - a.x,
+        dy = b.y - a.y;
+      const span = Math.abs(dx) + Math.abs(dy);
+      if (span > 0)
+        radius = Math.min(
+          radius,
+          Math.abs(dx * (f.center.y - a.y) - dy * (f.center.x - a.x)) / span,
+        );
+    }
+  }
+  const scale = Number.isFinite(radius) ? (radius * 0.8) / 48 : 0;
+  return [scale, 0, 0, scale, f.center.x, f.center.y];
+}
 const glyphs = new Map<string, HTMLCanvasElement>();
 export function hitDie(canvas: HTMLCanvasElement, x: number, y: number) {
   return pickDie(facesByCanvas.get(canvas) ?? [], x, y);
@@ -214,6 +248,7 @@ export function drawDice(
   view: CameraView,
   frame: Frame,
   colors: Record<string, string>,
+  facingViewer = false,
 ) {
   const faces = projectDice(game, view, frame);
   const selected = new Set(
@@ -259,14 +294,7 @@ export function drawDice(
     }
     ctx.save();
     ctx.clip();
-    ctx.transform(
-      (f.u.x - f.center.x) / 48,
-      (f.u.y - f.center.y) / 48,
-      (f.v.x - f.center.x) / 48,
-      (f.v.y - f.center.y) / 48,
-      f.center.x,
-      f.center.y,
-    );
+    ctx.transform(...dieGlyphTransform(f, facingViewer));
     ctx.drawImage(glyph, -48, -48);
     ctx.restore();
   }

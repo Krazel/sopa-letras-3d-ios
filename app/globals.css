@@ -1184,6 +1184,35 @@ body {
   font-size: 18px;
   letter-spacing: 3px;
 }
+.dice-orientation {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.dice-orientation > span {
+  margin-right: 5px;
+}
+.dice-orientation button {
+  font: inherit;
+  min-height: 44px;
+  padding: 6px 11px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--foreground);
+  background: transparent;
+}
+.dice-orientation button[aria-pressed='true'] {
+  color: var(--primary);
+  border-color: var(--tile-border);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
 .die-face-picker {
   position: absolute;
   bottom: 100px;
@@ -1323,4 +1352,3 @@ body {
     animation: none;
   }
 }
-

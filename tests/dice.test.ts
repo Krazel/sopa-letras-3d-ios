@@ -8,7 +8,12 @@ import {
   isWon,
   PUZZLES,
 } from '../lib/game.ts';
-import { projectDice, pickDie, pointInFace } from '../lib/dice.ts';
+import {
+  projectDice,
+  pickDie,
+  pointInFace,
+  dieGlyphTransform,
+} from '../lib/dice.ts';
 import { homeView, turn, dolly } from '../lib/camera.ts';
 const frame = {
   size: 390,
@@ -18,6 +23,45 @@ const frame = {
   radius: 7,
   font: 18,
 };
+void test('viewer-facing glyphs stay upright inside their own face through tumbling and interior zoom', () => {
+  const game = startPuzzle('cielo');
+  let view = homeView(3);
+  let checked = 0;
+  for (let i = 0; i < 100; i++) {
+    view = turn(view, 47, 29);
+    if (i > 60) view = dolly(view, -0.15);
+    for (const f of projectDice(game, view, frame)) {
+      const [a, b, c, d, x, y] = dieGlyphTransform(f, true);
+      assert([a, b, c, d, x, y].every(Number.isFinite));
+      assert(a >= 0);
+      assert.equal(a, d);
+      assert.equal(b, 0);
+      assert.equal(c, 0);
+      assert.equal(x, f.center.x);
+      assert.equal(y, f.center.y);
+      if (a > 0) {
+        for (const sx of [-1, 1])
+          for (const sy of [-1, 1])
+            assert(
+              pointInFace(
+                { x: x + sx * a * 48, y: y + sy * d * 48 },
+                f.polygon,
+              ),
+            );
+        checked++;
+      }
+      assert.deepEqual(dieGlyphTransform(f, false), [
+        (f.u.x - x) / 48,
+        (f.u.y - y) / 48,
+        (f.v.x - x) / 48,
+        (f.v.y - y) / 48,
+        x,
+        y,
+      ]);
+    }
+  }
+  assert(checked > 100);
+});
 void test('dice preserve the volume and every authored solution, with six different stable faces', () => {
   for (const choice of PUZZLES) {
     let game = startPuzzle(choice.id);

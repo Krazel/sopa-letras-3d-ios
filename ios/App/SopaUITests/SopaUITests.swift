@@ -273,6 +273,12 @@ final class SopaUITests: XCTestCase {
         diceCenter.press(forDuration: 0.1, thenDragTo: diceCenter.withOffset(CGVector(dx: 90, dy: -80)))
         XCTAssertEqual(selected.count, 1, "Rotating dice preserves the chosen face letter")
         capture("Sopa3D-dice-rotated")
+        app.buttons["Sobre la cara"].tap()
+        XCTAssertEqual(selected.count, 1, "Changing letter orientation preserves selection")
+        capture("Sopa3D-dice-face-oriented")
+        app.buttons["Mirándote"].tap()
+        XCTAssertEqual(selected.count, 1)
+        capture("Sopa3D-dice-viewer-oriented")
     }
 }
 

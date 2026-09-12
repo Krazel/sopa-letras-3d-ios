@@ -41,6 +41,22 @@ import {
 } from '@/lib/camera';
 
 let fallbackTheme: 'dark' | 'light' = 'light';
+let fallbackFacingViewer = true;
+function readFacingViewer() {
+  try {
+    return localStorage.getItem('sopa-dice-orientation') !== 'face';
+  } catch {
+    return fallbackFacingViewer;
+  }
+}
+function subscribeOrientation(update: () => void) {
+  window.addEventListener('storage', update);
+  window.addEventListener('sopa-dice-orientation', update);
+  return () => {
+    window.removeEventListener('storage', update);
+    window.removeEventListener('sopa-dice-orientation', update);
+  };
+}
 function readTheme(): 'dark' | 'light' {
   try {
     return localStorage.getItem('sopa-theme') === 'dark' ? 'dark' : 'light';
@@ -119,6 +135,20 @@ export default function Game({
   const games = useRef(new Map<string, GameState>());
   const [controlsHidden, setControlsHidden] = useState(false);
   const [dieFocus, setDieFocus] = useState<number | null>(null);
+  const facingViewer = useSyncExternalStore(
+    subscribeOrientation,
+    readFacingViewer,
+    () => true,
+  );
+  function setFacingViewer(next: boolean) {
+    fallbackFacingViewer = next;
+    try {
+      localStorage.setItem('sopa-dice-orientation', next ? 'viewer' : 'face');
+    } catch {
+      /* Keep the preference for this session when storage is unavailable. */
+    }
+    window.dispatchEvent(new Event('sopa-dice-orientation'));
+  }
   const theme = useSyncExternalStore<'dark' | 'light'>(
     subscribeTheme,
     readTheme,
@@ -376,6 +406,7 @@ export default function Game({
           edges,
           paintColors.current,
           dice,
+          facingViewer,
         );
         const stage = stageRef.current;
         if (stage && !stage.classList.contains('canvas-ready'))
@@ -384,7 +415,7 @@ export default function Game({
     };
     motionRenderer.current(viewRef.current);
     targetSync.current();
-  }, [game, size, frame, edges, theme, dice]);
+  }, [game, size, frame, edges, theme, dice, facingViewer]);
   function onDown(e: PointerEvent<HTMLDivElement>) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (pointers.current.size === 0) {
@@ -505,6 +536,28 @@ export default function Game({
             {theme === 'dark' ? '◐ Claro' : '◑ Oscuro'}
           </button>
         </div>
+        {dice && (
+          <fieldset
+            className="dice-orientation"
+            aria-label="Orientación de letras"
+          >
+            <span>Letras</span>
+            <button
+              type="button"
+              aria-pressed={facingViewer}
+              onClick={() => setFacingViewer(true)}
+            >
+              Mirándote
+            </button>
+            <button
+              type="button"
+              aria-pressed={!facingViewer}
+              onClick={() => setFacingViewer(false)}
+            >
+              Sobre la cara
+            </button>
+          </fieldset>
+        )}
       </div>
       <p id="gesture-help" className="sr-only">
         Toca y suelta letras vecinas para formar palabras. Arrastra para girar
@@ -528,6 +581,9 @@ export default function Game({
           data-size={size}
           data-shape={game.puzzle.shape}
           data-dice={dice}
+          data-letter-orientation={
+            dice ? (facingViewer ? 'viewer' : 'face') : undefined
+          }
           onClick={(e) => {
             if (e.detail === 0 || suppressPick.current || !motionCanvas.current)
               return;

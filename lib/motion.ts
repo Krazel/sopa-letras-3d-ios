@@ -146,6 +146,7 @@ export function drawMotion(
   edges: [number, number][],
   colors: Record<string, string>,
   dice = false,
+  facingViewer = false,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx || !frame.size) return;
@@ -247,7 +248,7 @@ export function drawMotion(
     ctx.stroke();
   }
   const { found, selected: selection, traces } = drawingState(game);
-  if (dice) drawDice(ctx, canvas, game, view, frame, colors);
+  if (dice) drawDice(ctx, canvas, game, view, frame, colors, facingViewer);
   for (const id of dice ? [] : visible) {
     const p = projected[id],
       selected = selection.has(id),
