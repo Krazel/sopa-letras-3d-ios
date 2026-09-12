@@ -153,7 +153,7 @@ final class SopaUITests: XCTestCase {
         let targets = letters.allElementsBoundByIndex.map { (element: $0, frame: $0.frame, label: $0.label) }
         let exposed = targets.first { target in
             let p = position(target.label)
-            guard p.count == 3, zip(p, selectedPosition).contains(where: { abs($0 - $1) > 1 }) else { return false }
+            guard p.count == 3, zip(p, selectedPosition).contains(where: { pair in abs(pair.0 - pair.1) > 1 }) else { return false }
             let center = CGPoint(x: target.frame.midX, y: target.frame.midY)
             return center.y > objective.frame.maxY + 60 && center.y < app.frame.height - 150 &&
                 !targets.contains(where: { $0.label != target.label && $0.frame.contains(center) }) && target.element.isHittable
@@ -261,3 +261,4 @@ final class SopaUITests: XCTestCase {
         capture("Sopa3D-dice-rotated")
     }
 }
+
