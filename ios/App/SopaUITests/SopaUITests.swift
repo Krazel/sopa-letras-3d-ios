@@ -33,7 +33,9 @@ final class SopaUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 30))
         let startLevel = app.buttons["Jugar nivel 1"]
-        XCTAssertTrue(startLevel.waitForExistence(timeout: 60), app.debugDescription)
+        // A cold hosted simulator can finish its first WebKit load after 70s.
+        // This is a CI readiness bound, not a device startup performance target.
+        XCTAssertTrue(startLevel.waitForExistence(timeout: 120), app.debugDescription)
         capture("Sopa3D-level-map")
         XCTAssertLessThan(startLevel.frame.maxY, app.frame.height - 30, "Continue fits above the iPhone bottom safe area without scrolling")
         XCTAssertFalse(app.buttons["Bloqueado nivel 2: Agua"].isEnabled)
