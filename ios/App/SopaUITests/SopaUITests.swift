@@ -139,11 +139,32 @@ final class SopaUITests: XCTestCase {
         capture("Sopa3D-controls-hidden-4")
         app.buttons["Mostrar controles"].tap()
         XCTAssertTrue(objective.waitForExistence(timeout: 5))
-        let invalid = letters.matching(NSPredicate(format: "label CONTAINS %@", ", columna 4, fila 4, capa 4")).firstMatch
-        XCTAssertTrue(invalid.isHittable)
-        invalid.tap()
-        XCTAssertEqual(selected.count, 0, "Tapping a non-neighbor clears the whole selection")
-        invalid.tap()
+        // A fixed cell can overlap other letters after free rotation. Choose
+        // a non-neighbor whose center is visibly exposed, then touch that
+        // physical point without XCTest's automatic accessibility scrolling.
+        func position(_ label: String) -> [Int] {
+            let regex = try! NSRegularExpression(pattern: "columna ([0-9]+), fila ([0-9]+), capa ([0-9]+)")
+            let text = label as NSString
+            guard let match = regex.firstMatch(in: label, range: NSRange(location: 0, length: text.length)) else { return [] }
+            return (1...3).map { Int(text.substring(with: match.range(at: $0)))! }
+        }
+        let selectedPosition = position(selected.firstMatch.label)
+        XCTAssertEqual(selectedPosition.count, 3)
+        let targets = letters.allElementsBoundByIndex.map { (element: $0, frame: $0.frame, label: $0.label) }
+        let exposed = targets.first { target in
+            let p = position(target.label)
+            guard p.count == 3, zip(p, selectedPosition).contains(where: { abs($0 - $1) > 1 }) else { return false }
+            let center = CGPoint(x: target.frame.midX, y: target.frame.midY)
+            return center.y > objective.frame.maxY + 60 && center.y < app.frame.height - 150 &&
+                !targets.contains(where: { $0.label != target.label && $0.frame.contains(center) }) && target.element.isHittable
+        }
+        let invalid = try XCTUnwrap(exposed?.element, "An exposed non-neighbor must be available")
+        let invalidPoint = invalid.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        invalidPoint.tap()
+        let cleared = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in selected.count == 0 }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [cleared], timeout: 5), .completed, "Tapping an exposed non-neighbor clears selection")
+        capture("Sopa3D-invalid-cleared")
+        invalidPoint.tap()
         XCTAssertEqual(selected.count, 1, "A subsequent tap starts a fresh path")
         XCUIDevice.shared.orientation = .landscapeLeft
         defer { XCUIDevice.shared.orientation = .portrait }
