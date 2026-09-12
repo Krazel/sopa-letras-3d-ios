@@ -256,9 +256,15 @@ final class SopaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["DESTELLO"].isHittable)
         capture("Sopa3D-star-dark-landscape")
         app.buttons["Cambiar a tema claro"].tap()
+        XCTAssertTrue(app.buttons["Cambiar a tema oscuro"].waitForExistence(timeout: 10), "Theme changes before leaving the app")
+        // Let the WebKit storage process flush through the normal lifecycle;
+        // terminating immediately after the tap races the asynchronous event.
+        XCUIDevice.shared.press(.home)
+        RunLoop.current.run(until: Date().addingTimeInterval(2))
         app.terminate()
         app.launch()
-        XCTAssertTrue(app.buttons["Cambiar a tema oscuro"].waitForExistence(timeout: 30), "Theme persists after relaunch")
+        XCTAssertTrue(app.buttons["Probar dados"].waitForExistence(timeout: 120), "The relaunched WebView finishes loading")
+        XCTAssertTrue(app.buttons["Cambiar a tema oscuro"].exists, "Theme persists after relaunch")
         capture("Sopa3D-light-persisted")
         orient(app, .portrait)
         app.buttons["Probar dados"].tap()
