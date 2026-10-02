@@ -76,7 +76,6 @@ export default function Menu({
 }: Props) {
   const t = translator(language);
   const [difficulty, setDifficulty] = useState('all');
-  const liveHome = language !== 'es' && language !== 'en';
   const LEVELS = campaignFor(language);
   const completedCount = LEVELS.filter((p) =>
     data.completed.includes(p.id),
@@ -117,52 +116,13 @@ export default function Menu({
       aria-label={t('Menú del juego')}
     >
       {section === 'home' && (
-        <>
-          <svg className="home-desk" aria-hidden="true">
-            <defs>
-              <pattern
-                id="sopa-desk"
-                patternUnits="userSpaceOnUse"
-                width="480"
-                height="120"
-              >
-                <svg
-                  id="sopa-wood"
-                  width="240"
-                  height="60"
-                  viewBox="440 165 240 60"
-                  preserveAspectRatio="none"
-                >
-                  <image
-                    href="/art/reference-ui/home-custom-es.png"
-                    width="852"
-                    height="1847"
-                  />
-                </svg>
-                <use
-                  href="#sopa-wood"
-                  transform="translate(480 0) scale(-1 1)"
-                />
-                <use
-                  href="#sopa-wood"
-                  transform="translate(0 120) scale(1 -1)"
-                />
-                <use
-                  href="#sopa-wood"
-                  transform="translate(480 120) scale(-1 -1)"
-                />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#sopa-desk)" />
-          </svg>
-          <button
-            className="home-wide-settings"
-            aria-label={t('Abrir ajustes')}
-            onClick={() => navigate('settings')}
-          >
-            <Settings aria-hidden="true" />
-          </button>
-        </>
+        <button
+          className="home-wide-settings"
+          aria-label={t('Abrir ajustes')}
+          onClick={() => navigate('settings')}
+        >
+          <Settings aria-hidden="true" />
+        </button>
       )}
       <div className="menu-scroll">
         {section !== 'home' && (
@@ -182,72 +142,58 @@ export default function Menu({
           </header>
         )}
         {section === 'home' && (
-          <section
-            className={`straight-home ${liveHome ? 'translated-home' : ''}`}
-            aria-label={t('Portada')}
-          >
-            <img
-              className="straight-home-art"
-              src={
-                liveHome
-                  ? '/art/reference-ui/home-language-neutral.png'
-                  : language === 'en'
-                    ? '/art/reference-ui/home-custom-en.png'
-                    : '/art/reference-ui/home-custom-es.png'
-              }
-              alt=""
-              width={852}
-              height={1847}
-              fetchPriority="high"
-              draggable={false}
-            />
-            {!liveHome && (
+          <section className="straight-home" aria-label={t('Portada')}>
+            <picture>
+              <source
+                media="(max-aspect-ratio: 2/3)"
+                srcSet="/art/reference-ui/home-responsive-portrait-20261002.png"
+              />
               <img
-                className="home-button-art"
-                src="/art/reference-ui/home-language-neutral.png"
+                className="straight-home-art"
+                src="/art/reference-ui/home-responsive-20261002.png"
                 alt=""
-                width={852}
-                height={1847}
+                width={1672}
+                height={941}
+                fetchPriority="high"
                 draggable={false}
               />
-            )}
-            <h1 className={liveHome ? 'live-home-title' : 'sr-only'}>
-              {t('Sopa de letras 3D')}
-            </h1>
-            <p className={liveHome ? 'live-home-subtitle' : 'sr-only'}>
-              {t('Encuentra todas las palabras. En 3D: gira y explora.')}{' '}
-            </p>
-            <button
-              className="home-hotspot home-settings"
-              aria-label={t('Abrir ajustes')}
-              onClick={() => navigate('settings')}
-            >
-              <span className="sr-only">{t('Ajustes')}</span>
-            </button>
-            <button
-              className="home-hotspot home-play"
-              aria-label={t('Jugar')}
-              onClick={() => navigate('modes')}
-            >
-              <span className="live-home-label">{t('Jugar')}</span>
-            </button>
-            <button
-              className="home-hotspot home-modes"
-              onClick={() => navigate('create')}
-            >
-              <span className="live-home-label">
-                {t('Partida personalizada')}
-              </span>
-            </button>
-            <button
-              className="home-hotspot home-progress"
-              onClick={() => navigate('progress')}
-            >
-              <span className="live-home-label">{t('Estadísticas')}</span>
-            </button>
-            <p className={liveHome ? 'live-home-motto' : 'sr-only'}>
-              {t('Pequeños desafíos, grandes mentes')}
-            </p>
+            </picture>
+            <div className="home-notebook-content">
+              <h1 className="live-home-title">{t('Sopa de letras 3D')}</h1>
+              <p className="live-home-subtitle">
+                {t('Encuentra todas las palabras. En 3D: gira y explora.')}{' '}
+              </p>
+              <button
+                className="home-hotspot home-play"
+                aria-label={t('Jugar')}
+                onClick={() => navigate('modes')}
+              >
+                <Play className="home-action-icon" aria-hidden="true" />
+                <span className="live-home-label">{t('Jugar')}</span>
+              </button>
+              <button
+                className="home-hotspot home-modes"
+                onClick={() => navigate('create')}
+              >
+                <Gamepad2 className="home-action-icon" aria-hidden="true" />
+                <span className="live-home-label">
+                  {t('Partida personalizada')}
+                </span>
+              </button>
+              <button
+                className="home-hotspot home-progress"
+                onClick={() => navigate('progress')}
+              >
+                <ChartNoAxesColumnIncreasing
+                  className="home-action-icon"
+                  aria-hidden="true"
+                />
+                <span className="live-home-label">{t('Estadísticas')}</span>
+              </button>
+              <p className="live-home-motto">
+                {t('Pequeños desafíos, grandes mentes')}
+              </p>
+            </div>
           </section>
         )}
         {section === 'modes' && (
