@@ -78,16 +78,21 @@ final class SopaUITests: XCTestCase {
         let free = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Juego libre")).firstMatch
         XCTAssertTrue(free.waitForExistence(timeout: 10))
         free.tap()
-        XCTAssertTrue(app.staticTexts["Dificultad"].waitForExistence(timeout: 10))
-        capture("Sopa3D-0.16-free-filter")
+        // WKWebView exposes this popup as one aggregate accessibility control,
+        // without a separate StaticText child for the visible field caption.
         let difficulty = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Dificultad Todas las dificultades")).firstMatch
         XCTAssertTrue(difficulty.waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(difficulty.isHittable)
+        capture("Sopa3D-0.16.1-free-filter")
         difficulty.tap()
         let easy = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Fácil 3")).firstMatch
         XCTAssertTrue(easy.waitForExistence(timeout: 10), app.debugDescription)
         capture("Sopa3D-0.16.1-visual-difficulty")
         easy.tap()
-        XCTAssertTrue(app.staticTexts["Fácil"].waitForExistence(timeout: 10), app.debugDescription)
+        let filtered = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Dificultad Fácil")).firstMatch
+        XCTAssertTrue(filtered.waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(app.buttons["Cielo"].exists)
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Naturaleza")).firstMatch.exists)
         capture("Sopa3D-0.16.1-easy-filter")
         app.terminate()
         app.launch()
