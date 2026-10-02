@@ -1,5 +1,5 @@
-/* One continuous landscape artwork. The image and notebook controls share
-   one proportional cover canvas; narrower screens crop only its outer desk. */
+/* Each screen shape gets a complete composition. Mobile preserves the original
+   poster; tablet/desktop letter tiles stay inside the visible crop. */
 body:has(.section-home) {
   padding: 0;
   background: #ab703a;
@@ -49,8 +49,8 @@ body:has(.section-home) {
 .home-notebook-content {
   position: absolute;
   top: 0;
-  left: 37.05%;
-  width: 25.9%;
+  left: 34.45%;
+  width: 30.74%;
   height: 100%;
   container-type: inline-size;
 }
@@ -108,16 +108,16 @@ html:not([data-input-mode='pointer']) .studio-menu .home-hotspot:focus-visible {
   width: 100%;
 }
 .home-play {
-  top: 52.6%;
-  height: 9.5%;
+  top: 46%;
+  height: 10.3%;
 }
 .home-modes {
-  top: 63.6%;
-  height: 9.1%;
+  top: 58%;
+  height: 9.8%;
 }
 .home-progress {
-  top: 74.1%;
-  height: 9.3%;
+  top: 69.7%;
+  height: 9.8%;
 }
 .home-action-icon {
   position: absolute;
@@ -386,18 +386,18 @@ html:not([data-input-mode='pointer']) .stage-marks > button:focus-visible {
   overflow-wrap: anywhere;
 }
 .straight-home .live-home-title {
-  top: 19%;
-  height: 17.5%;
+  top: 17%;
+  height: 17%;
   font-family: Lilita, sans-serif;
-  font-size: 14cqw;
+  font-size: 12cqw;
   line-height: 1.04;
   font-weight: 400;
   text-transform: uppercase;
 }
 .straight-home .live-home-subtitle {
-  top: 42%;
-  height: 9%;
-  font-size: 4.8cqw;
+  top: 39.4%;
+  height: 5.2%;
+  font-size: 4.5cqw;
   line-height: 1.25;
   font-weight: 700;
 }
@@ -419,7 +419,7 @@ html:not([data-input-mode='pointer']) .stage-marks > button:focus-visible {
   font-size: 9cqw;
 }
 .straight-home .live-home-motto {
-  top: 85%;
+  top: 82.5%;
   height: 4.5%;
   font-size: 3.8cqw;
   line-height: 1.15;
@@ -455,49 +455,183 @@ html[lang='ko'] body {
   unicode-bidi: plaintext;
 }
 
-@media (max-aspect-ratio: 2/3) {
+.home-title-original,
+.home-subtitle-original {
+  display: none;
+}
+
+@media (min-aspect-ratio: 667/1000) {
+  html[lang='ja'] .straight-home .live-home-subtitle,
+  html[lang='ko'] .straight-home .live-home-subtitle {
+    font-size: 3.4cqw;
+  }
+}
+
+@media (min-aspect-ratio: 1/1) and (max-aspect-ratio: 3/2) {
   .straight-home {
-    width: max(100vw, calc(100svh / 2));
-    aspect-ratio: 1 / 2;
+    width: max(100vw, calc(100svh * 4 / 3));
+    aspect-ratio: 4 / 3;
   }
   .home-notebook-content {
-    left: 19.7%;
-    width: 60.8%;
+    left: 31.77%;
+    width: 36.4%;
   }
   .straight-home .live-home-title {
-    top: 22%;
+    top: 20%;
+    height: 17%;
+    font-size: 14cqw;
+  }
+  .straight-home .live-home-subtitle {
+    top: 42%;
+    height: 5.3%;
+    font-size: 4.5cqw;
+  }
+  .home-play {
+    top: 48.4%;
+    height: 9.3%;
+  }
+  .home-modes {
+    top: 58.9%;
+    height: 8.8%;
+  }
+  .home-progress {
+    top: 68.9%;
+    height: 8.6%;
+  }
+  .straight-home .live-home-motto {
+    top: 80.5%;
+    height: 4.3%;
+  }
+}
+
+@media (min-aspect-ratio: 2/3) and (max-aspect-ratio: 1/1) {
+  .straight-home {
+    width: max(100vw, calc(100svh * 3 / 4));
+    aspect-ratio: 3 / 4;
+  }
+  .home-notebook-content {
+    left: 23.57%;
+    width: 52.85%;
+  }
+  .straight-home .live-home-title {
+    top: 23.5%;
     height: 14%;
-    font-size: 18cqw;
+    font-size: 16cqw;
+  }
+  .straight-home .live-home-subtitle {
+    top: 43%;
+    height: 5.2%;
+    font-size: 5cqw;
+  }
+  .home-play {
+    top: 50.28%;
+    height: 8.28%;
+  }
+  .home-modes {
+    top: 60.29%;
+    height: 7.25%;
+  }
+  .home-progress {
+    top: 69.06%;
+    height: 7.32%;
+  }
+  .straight-home .live-home-motto {
+    top: 80%;
+    height: 3.2%;
+    font-size: 4cqw;
+  }
+}
+
+@media (max-aspect-ratio: 2/3) {
+  .straight-home {
+    width: max(100vw, calc(100svh * 852 / 1847));
+    aspect-ratio: 852 / 1847;
+  }
+  .home-notebook-content {
+    left: 15%;
+    width: 70.3%;
+  }
+  .straight-home .live-home-title {
+    top: 20.2%;
+    height: 16%;
+    font-size: 16cqw;
   }
   html[lang='pt'] .straight-home .live-home-title {
     font-size: 14cqw;
   }
   .straight-home .live-home-subtitle {
-    top: 40%;
-    height: 7.5%;
-    font-size: 6cqw;
+    top: 37%;
+    height: 11%;
+    font-size: 6.8cqw;
   }
   .home-play {
-    top: 48.8%;
-    height: 6.4%;
+    top: 49.1%;
+    height: 7.15%;
   }
   .home-modes {
-    top: 56.4%;
-    height: 6.1%;
+    top: 57.5%;
+    height: 6.4%;
   }
   .home-progress {
-    top: 63.7%;
-    height: 6.2%;
+    top: 65%;
+    height: 6.3%;
   }
   .straight-home .live-home-label {
-    font-size: 7.5cqw;
+    font-size: 7cqw;
   }
   .straight-home .home-play .live-home-label {
-    font-size: 11cqw;
+    font-size: 9.1cqw;
   }
   .straight-home .live-home-motto {
-    top: 73%;
-    height: 4.5%;
-    font-size: 4.8cqw;
+    top: auto;
+    bottom: max(
+      10%,
+      calc((100% - 100svh) / 2 + env(safe-area-inset-bottom) + 20px)
+    );
+    left: 18%;
+    width: 64%;
+    height: 6%;
+    color: #ffdf83;
+    font-size: 5.8cqw;
+    font-style: italic;
+    font-weight: 600;
+  }
+  .home-action-icon {
+    display: none;
+  }
+  .has-original-title .home-title-standard,
+  .has-original-subtitle .home-subtitle-standard {
+    display: none;
+  }
+  .home-title-original {
+    display: flex;
+    flex-direction: column;
+    gap: 3%;
+    width: 100%;
+  }
+  .home-title-original > span:first-child {
+    font-size: 27cqw;
+    line-height: 1;
+  }
+  .home-title-original > span:last-child {
+    font-size: 14.4cqw;
+    line-height: 1.05;
+  }
+  .home-subtitle-original {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+  .home-subtitle-original > span:first-child {
+    width: 84%;
+    font-size: 9.2cqw;
+    line-height: 1.12;
+  }
+  .home-subtitle-original > span:last-child {
+    font-size: 4.2cqw;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
   }
 }

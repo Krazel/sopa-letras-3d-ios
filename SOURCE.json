@@ -1,6 +1,6 @@
 {
-  "productCommit": "1078b8399f5c45797a2b976654a72d456562c21c",
+  "productCommit": "9f954e9600b833513217b0d4b787e195e21cbe8a",
   "version": "0.16.2",
-  "build": 1,
-  "purpose": "TestFlight internal universal iPhone/iPad; continuous responsive home scene through safe areas"
+  "build": 2,
+  "purpose": "TestFlight internal universal iPhone/iPad; original mobile cover and fully visible desktop/tablet letter tiles"
 }

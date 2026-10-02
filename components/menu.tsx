@@ -75,6 +75,10 @@ export default function Menu({
   children,
 }: Props) {
   const t = translator(language);
+  const homeDescription = t(
+    'Encuentra todas las palabras. En 3D: gira y explora.',
+  );
+  const originalTitle = language === 'es' || language === 'en';
   const [difficulty, setDifficulty] = useState('all');
   const LEVELS = campaignFor(language);
   const completedCount = LEVELS.filter((p) =>
@@ -146,11 +150,19 @@ export default function Menu({
             <picture>
               <source
                 media="(max-aspect-ratio: 2/3)"
-                srcSet="/art/reference-ui/home-responsive-portrait-20261002.png"
+                srcSet="/art/reference-ui/home-original-mobile-20261002.png"
+              />
+              <source
+                media="(max-aspect-ratio: 1/1)"
+                srcSet="/art/reference-ui/home-tiles-tablet-portrait-20261002.png"
+              />
+              <source
+                media="(max-aspect-ratio: 3/2)"
+                srcSet="/art/reference-ui/home-tiles-tablet-landscape-20261002.png"
               />
               <img
                 className="straight-home-art"
-                src="/art/reference-ui/home-responsive-20261002.png"
+                src="/art/reference-ui/home-tiles-wide-20261002.png"
                 alt=""
                 width={1672}
                 height={941}
@@ -159,9 +171,36 @@ export default function Menu({
               />
             </picture>
             <div className="home-notebook-content">
-              <h1 className="live-home-title">{t('Sopa de letras 3D')}</h1>
-              <p className="live-home-subtitle">
-                {t('Encuentra todas las palabras. En 3D: gira y explora.')}{' '}
+              <h1
+                className={`live-home-title ${originalTitle ? 'has-original-title' : ''}`}
+                aria-label={t('Sopa de letras 3D')}
+              >
+                <span className="home-title-standard" aria-hidden="true">
+                  {t('Sopa de letras 3D')}
+                </span>
+                {originalTitle && (
+                  <span className="home-title-original" aria-hidden="true">
+                    <span>{language === 'es' ? 'Sopa' : 'Word'}</span>
+                    <span>
+                      {language === 'es' ? 'de letras 3D' : 'Search 3D'}
+                    </span>
+                  </span>
+                )}
+              </h1>
+              <p
+                className={`live-home-subtitle ${originalTitle ? 'has-original-subtitle' : ''}`}
+              >
+                <span className="home-subtitle-standard">
+                  {homeDescription}
+                </span>
+                {originalTitle && (
+                  <span className="home-subtitle-original">
+                    <span>{homeDescription.split('. ')[0]}</span>
+                    <span>
+                      {homeDescription.split('. ')[1]?.replace(/\.$/, '')}
+                    </span>
+                  </span>
+                )}
               </p>
               <button
                 className="home-hotspot home-play"
