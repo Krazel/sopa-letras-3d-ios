@@ -25,11 +25,15 @@ final class SopaUITests: XCTestCase {
     }
     func testBundledCampaignHelpAndGestures() throws {
         continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(es)", "-AppleLocale", "es_ES"]
         app.launch()
         XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 30))
         XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 120), app.debugDescription)
+        let playReady = NSPredicate(format: "hittable == true")
+        expectation(for: playReady, evaluatedWith: app.buttons["Jugar"])
+        waitForExpectations(timeout: 30)
         capture("Sopa3D-0.16-home")
         app.buttons["Jugar"].tap()
         let levels = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Niveles")).firstMatch

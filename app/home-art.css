@@ -128,8 +128,10 @@ body:has(.section-home) {
   border-radius: 5cqw;
   min-height: 44px;
 }
-.studio-menu .home-hotspot:hover {
-  background: #ffffff0c;
+@media (hover: hover) and (pointer: fine) {
+  .studio-menu .home-hotspot:hover {
+    background: #ffffff0c;
+  }
 }
 .studio-menu .home-hotspot:active {
   background: #00000012;
