@@ -10,17 +10,18 @@ final class SopaUITests: XCTestCase {
         add(image)
     }
     func dismissTestConsent(_ app: XCUIApplication) {
-        // Real UMP test-app form on the disposable US-region CI simulator.
-        // Choose opt-out, never accept sale/sharing to make automation pass.
-        let save = app.buttons["Save and close"]
-        if save.waitForExistence(timeout: 20) {
-            let optOut = app.staticTexts["Don't sell or share my data"]
-            XCTAssertTrue(optOut.exists, app.debugDescription)
-            capture("Sopa3D-0.16-UMP-test-form")
-            optOut.tap()
-            save.tap()
-            XCTAssertTrue(app.buttons["Abrir ayuda"].waitForExistence(timeout: 10))
+        // UMP also keeps an offscreen WKWebView in its accessibility tree.
+        // Only act on an actual onscreen form; querying all buttons can tap
+        // the cube using coordinates from that hidden privacy view.
+        let visibleViews = app.webViews.allElementsBoundByIndex.filter {
+            $0.frame.minX >= 0 && $0.frame.minY >= 0 && $0.frame.width > 100
         }
+        guard let form = visibleViews.first(where: { $0.buttons["Save and close"].exists }) else { return }
+        let optOut = form.staticTexts["Don't sell or share my data"]
+        XCTAssertTrue(optOut.exists, app.debugDescription)
+        capture("Sopa3D-0.16-UMP-test-form")
+        optOut.tap()
+        form.buttons["Save and close"].tap()
     }
     func testBundledCampaignHelpAndGestures() throws {
         continueAfterFailure = false
@@ -40,7 +41,7 @@ final class SopaUITests: XCTestCase {
         XCTAssertTrue(start.waitForExistence(timeout: 10), app.debugDescription)
         start.tap()
         dismissTestConsent(app)
-        let help = app.buttons["Abrir ayuda"]
+        let help = app.descendants(matching: .any).matching(identifier: "Abrir ayuda").firstMatch
         XCTAssertTrue(help.waitForExistence(timeout: 30), app.debugDescription)
         let letters = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", columna "))
         XCTAssertTrue(letters.firstMatch.waitForExistence(timeout: 60), app.debugDescription)
