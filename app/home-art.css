@@ -1,12 +1,13 @@
 /* One continuous landscape artwork. The image and notebook controls share
    one proportional cover canvas; narrower screens crop only its outer desk. */
 body:has(.section-home) {
+  padding: 0;
   background: #ab703a;
 }
 .studio-menu.section-home {
   width: 100%;
   max-width: none;
-  height: calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  height: 100svh;
   margin: 0;
   border-radius: 0;
   border: 0;
@@ -29,13 +30,7 @@ body:has(.section-home) {
 .straight-home {
   position: relative;
   isolation: isolate;
-  width: max(
-    100vw,
-    calc(
-      (100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 1672 /
-        941
-    )
-  );
+  width: max(100vw, calc(100svh * 1672 / 941));
   aspect-ratio: 1672 / 941;
 }
 .straight-home-art {
@@ -61,7 +56,7 @@ body:has(.section-home) {
 }
 .studio-menu .home-wide-settings {
   position: absolute;
-  top: 16px;
+  top: calc(env(safe-area-inset-top) + 16px);
   right: calc(env(safe-area-inset-right) + 16px);
   width: 52px;
   height: 52px;
@@ -462,12 +457,7 @@ html[lang='ko'] body {
 
 @media (max-aspect-ratio: 2/3) {
   .straight-home {
-    width: max(
-      100vw,
-      calc(
-        (100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 2
-      )
-    );
+    width: max(100vw, calc(100svh / 2));
     aspect-ratio: 1 / 2;
   }
   .home-notebook-content {

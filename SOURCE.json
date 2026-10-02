@@ -1,6 +1,6 @@
 {
-  "productCommit": "8fcb4d6e96f0770216cdf04468c85cd85374d742",
+  "productCommit": "1078b8399f5c45797a2b976654a72d456562c21c",
   "version": "0.16.2",
   "build": 1,
-  "purpose": "TestFlight internal universal iPhone/iPad; new continuous responsive home scene"
+  "purpose": "TestFlight internal universal iPhone/iPad; continuous responsive home scene through safe areas"
 }
