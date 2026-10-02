@@ -29,6 +29,7 @@ import {
   emptySave,
   readSave,
   saveGame,
+  saveFreeCompletion,
   restore,
   customChoice,
   generateCustom,
@@ -196,6 +197,8 @@ export default function Experience() {
     (game: GameState) => {
       if (active && (active.mode === 'level' || active.mode === 'custom'))
         setData((old) => saveGame(old, active.id, game));
+      else if (active?.mode === 'free')
+        setData((old) => saveFreeCompletion(old, active.id, game));
     },
     [active],
   );

@@ -5,6 +5,7 @@ import {
   verifyHintStorage,
   type HintOffer,
   type RewardReceipt,
+  HINT_PREFIX,
 } from './hints';
 import { TransitionAds } from './ad-policy';
 import { setAudioSuspended } from './audio';
@@ -28,6 +29,34 @@ export const nativeAdsAvailable = () =>
 let busy = false;
 let prepared: Promise<AdStatus> | undefined;
 let policy: TransitionAds | undefined;
+const hintSessions = new Set<string>();
+export function beginHintSession(key: string) {
+  hintSessions.add(key);
+  try {
+    // Also discard ledgers left by an app termination or an older build.
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const saved = localStorage.key(i);
+      if (
+        saved?.startsWith(HINT_PREFIX) &&
+        ![...hintSessions].some(
+          (active) => saved === active || saved === active + ':paths',
+        )
+      )
+        localStorage.removeItem(saved);
+    }
+  } catch {
+    /* Storage availability is checked before requesting an ad. */
+  }
+  return () => {
+    hintSessions.delete(key);
+    try {
+      localStorage.removeItem(key);
+      localStorage.removeItem(key + ':paths');
+    } catch {
+      /* Session keys are never reused. */
+    }
+  };
+}
 export function beginAdSession() {
   policy ??= new TransitionAds(Date.now());
 }
@@ -71,6 +100,12 @@ export async function recoverRewards() {
   if (!nativeAdsAvailable()) return;
   const { receipts } = await native.rewards();
   for (const receipt of receipts) {
+    const key = JSON.parse(receipt.context)?.key;
+    if (!hintSessions.has(key)) {
+      // Leaving/reloading ends the hint session, including delayed SDK receipts.
+      await native.acknowledge({ id: receipt.id });
+      continue;
+    }
     redeemHint(localStorage, receipt);
     await native.acknowledge({ id: receipt.id }); // only after verified durable write
   }
@@ -78,7 +113,13 @@ export async function recoverRewards() {
 export async function requestHint(
   offer: HintOffer,
 ): Promise<'rewarded' | 'cancelled' | 'unavailable' | 'storage'> {
-  if (busy || !nativeAdsAvailable() || !navigator.onLine) return 'unavailable';
+  if (
+    busy ||
+    !hintSessions.has(offer.key) ||
+    !nativeAdsAvailable() ||
+    !navigator.onLine
+  )
+    return 'unavailable';
   busy = true;
   try {
     try {

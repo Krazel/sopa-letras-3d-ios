@@ -13,6 +13,7 @@ import {
   emptySave,
   readSave,
   saveGame,
+  saveFreeCompletion,
   restore,
   isUnlocked,
   recommendedLevel,
@@ -23,6 +24,38 @@ import {
   customChoice,
   generateCustom,
 } from '../lib/player.ts';
+void test('free-play wins persist a separate tick without unlocking campaign levels', () => {
+  const choice = LEVELS.find((p) => p.size === 6)!;
+  let game = initialStateForChoice(choice);
+  const fresh = emptySave();
+  assert.equal(saveFreeCompletion(fresh, choice.id, game), fresh);
+  for (const word of game.puzzle.words)
+    for (const id of word.path) game = selectCell(game, id);
+  const save = readSave(
+    JSON.stringify(saveFreeCompletion(fresh, choice.id, game)),
+  );
+  assert.deepEqual(save.freeCompleted, [choice.id]);
+  assert.deepEqual(save.completed, []);
+  assert.equal(campaignPosition(save), 0);
+  assert.equal(isUnlocked(save, 1), false);
+  assert.deepEqual(saveFreeCompletion(save, choice.id, game).freeCompleted, [
+    choice.id,
+  ]);
+  assert.deepEqual(
+    readSave(JSON.stringify({ version: 1, completed: ['cielo'] }))
+      .freeCompleted,
+    [],
+  );
+  assert.deepEqual(
+    readSave(
+      JSON.stringify({
+        ...save,
+        freeCompleted: [choice.id, choice.id, 'invalid'],
+      }),
+    ).freeCompleted,
+    [choice.id],
+  );
+});
 void test('the campaign has four boards per size and advances exactly one by one', () => {
   for (const { code } of LANGUAGES) {
     const campaign = campaignFor(code);

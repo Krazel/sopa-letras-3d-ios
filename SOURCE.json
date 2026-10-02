@@ -1,6 +1,6 @@
 {
-  "productCommit": "c2e50e20a3dd11770131dffbba2ab36fc2419d77",
-  "version": "0.16",
-  "build": 2,
-  "purpose": "TestFlight internal universal iPhone/iPad; responsive home, pointer focus, hint label"
+  "productCommit": "0bc7011e748e62005e50439fcabfce8a6f550552",
+  "version": "0.16.1",
+  "build": 1,
+  "purpose": "TestFlight internal universal iPhone/iPad; per-game hints, free-play ticks and visual difficulty"
 }

@@ -334,6 +334,14 @@ export function drawDice(
       colors[kind === 'normal' ? 'tile-border' : kind + '-border'];
     ctx.lineWidth = kind === 'selected' ? 2 : 0.8;
     ctx.stroke();
+    if (f.face === 0 && kind === 'normal' && game.hintPath?.includes(f.id)) {
+      ctx.save();
+      ctx.strokeStyle = colors.primary;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      ctx.restore();
+    }
   };
   const label = (f: DieFace) => {
     const kind = kindOf(f);

@@ -80,6 +80,15 @@ final class SopaUITests: XCTestCase {
         free.tap()
         XCTAssertTrue(app.staticTexts["Dificultad"].waitForExistence(timeout: 10))
         capture("Sopa3D-0.16-free-filter")
+        let difficulty = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Dificultad Todas las dificultades")).firstMatch
+        XCTAssertTrue(difficulty.waitForExistence(timeout: 10), app.debugDescription)
+        difficulty.tap()
+        let easy = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Fácil 3")).firstMatch
+        XCTAssertTrue(easy.waitForExistence(timeout: 10), app.debugDescription)
+        capture("Sopa3D-0.16.1-visual-difficulty")
+        easy.tap()
+        XCTAssertTrue(app.staticTexts["Fácil"].waitForExistence(timeout: 10), app.debugDescription)
+        capture("Sopa3D-0.16.1-easy-filter")
         app.terminate()
         app.launch()
         XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 60), "Bundled game restarts without a development server")

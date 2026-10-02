@@ -6,6 +6,7 @@ import {
   nextHint,
   hintedPath,
   readHints,
+  readHintPaths,
   redeemHint,
   verifyHintStorage,
 } from '../lib/hints.ts';
@@ -21,6 +22,62 @@ const storage = () => {
     },
   };
 };
+void test('correct selected prefixes reveal their next letter; invalid prefixes start at the first', () => {
+  const original = startPuzzle('cielo'),
+    word = original.puzzle.words.find((w) => w.text === 'LUZ')!;
+  const game = selectCell(original, word.path[0]);
+  const offer = nextHint(game, {}, 'test')!;
+  assert.equal(offer.word, 'LUZ');
+  assert.equal(offer.before, 1);
+  assert.equal(offer.path![0], word.path[0]);
+  assert.equal(original.puzzle.cells[offer.path![1]].letter, 'U');
+  const invalid = original.puzzle.cells.find(
+    (c) =>
+      !original.puzzle.words.some(
+        (w) => w.text.startsWith(c.letter) || w.text.endsWith(c.letter),
+      ),
+  );
+  assert.ok(invalid);
+  assert.equal(
+    nextHint(selectCell(original, invalid.id), {}, 'test')!.before,
+    0,
+  );
+});
+void test('an alternative valid prefix retains its actual route and reversed prefixes also continue', () => {
+  const base = startPuzzle('cielo'),
+    word = base.puzzle.words[0];
+  const alternateId = base.puzzle.neighbors[word.path[1]].find(
+    (id) => !word.path.includes(id),
+  )!;
+  const original = {
+    ...base,
+    puzzle: {
+      ...base.puzzle,
+      words: [word],
+      cells: base.puzzle.cells.map((cell) =>
+        cell.id === alternateId ? { ...cell, letter: word.text[0] } : cell,
+      ),
+    },
+  };
+  const alternate = original.puzzle.cells[alternateId];
+  const game = selectCell(original, alternate.id),
+    s = storage(),
+    key = hintKey(game, 'es', false, 'session-a');
+  const offer = nextHint(game, {}, key)!;
+  assert.equal(offer.path![0], alternate.id);
+  redeemHint(s, { id: 'a', context: JSON.stringify(offer) });
+  assert.deepEqual(
+    hintedPath(original, readHints(s, key), readHintPaths(s, key)),
+    offer.path!.slice(0, 2),
+  );
+  const reverse = selectCell(original, word.path.at(-1)!);
+  const backward = nextHint(reverse, {}, key)!;
+  assert.equal(backward.path![0], word.path.at(-1));
+  assert.equal(backward.before, 1);
+  const freshKey = hintKey(game, 'es', false, 'session-b');
+  assert.deepEqual(readHints(s, freshKey), {});
+  assert.deepEqual(readHintPaths(s, freshKey), {});
+});
 void test('one earned receipt reveals exactly one letter; duplicates and crash replay are idempotent', () => {
   const s = storage(),
     game = startPuzzle('cielo'),
@@ -42,6 +99,36 @@ void test('one earned receipt reveals exactly one letter; duplicates and crash r
   assert.equal(readHints(s, key)[offer.word], 2);
   assert.equal(game.found.length, 0);
   assert.deepEqual(game.selection, []);
+});
+void test('switching to a correctly selected word shows that new hint instead of an older word', () => {
+  const original = startPuzzle('cielo'),
+    s = storage(),
+    key = hintKey(original, 'es', false, 'session');
+  const first = nextHint(original, {}, key)!;
+  redeemHint(s, { id: 'first', context: JSON.stringify(first) });
+  const light = original.puzzle.words.find((w) => w.text === 'LUZ')!;
+  const selected = selectCell(original, light.path[0]);
+  const offer = nextHint(
+    selected,
+    readHints(s, key),
+    key,
+    readHintPaths(s, key),
+  )!;
+  assert.equal(offer.word, 'LUZ');
+  redeemHint(s, { id: 'light', context: JSON.stringify(offer) });
+  assert.deepEqual(
+    hintedPath(original, readHints(s, key), readHintPaths(s, key)),
+    offer.path!.slice(0, 2),
+  );
+  assert.equal(
+    nextHint(original, readHints(s, key), key, readHintPaths(s, key))!.word,
+    'LUZ',
+  );
+  redeemHint(s, { id: 'first', context: JSON.stringify(first) });
+  assert.equal(
+    nextHint(original, readHints(s, key), key, readHintPaths(s, key))!.word,
+    'LUZ',
+  );
 });
 void test('full reveal requires manual solving; solved word advances to another target', () => {
   const s = storage();

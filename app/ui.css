@@ -1,4 +1,135 @@
-/* Warm paper UI, September 2026. The 3D canvas and gesture geometry are unchanged. */
+/* Warm paper UI, September 2026. */
+.studio-menu .difficulty-trigger {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin: 8px 0 18px;
+  padding: 15px 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--foreground);
+  text-align: start;
+  box-shadow: var(--shadow);
+}
+.difficulty-trigger > span {
+  flex: 1;
+  display: grid;
+  gap: 3px;
+}
+.difficulty-trigger small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.difficulty-trigger strong {
+  font-size: 16px;
+}
+.difficulty-options {
+  border: 0;
+  padding: 0;
+  margin-inline: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+.difficulty-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 10px 14px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--foreground);
+  --grade: #508858;
+}
+.difficulty-option[aria-pressed='true'] {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+  background: color-mix(in srgb, var(--primary) 9%, var(--surface));
+}
+.difficulty-option strong {
+  font-size: 16px;
+}
+.difficulty-option small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.difficulty-option .puzzle-icon {
+  width: 42px;
+  height: 42px;
+}
+.difficulty-check {
+  position: absolute;
+  top: 10px;
+  inset-inline-end: 10px;
+  width: 18px;
+  color: var(--primary);
+}
+.difficulty-all {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  padding: 16px;
+  text-align: start;
+}
+.difficulty-all > span {
+  display: grid;
+  gap: 4px;
+  padding-inline-end: 16px;
+}
+.difficulty-1 {
+  --grade: #679581;
+}
+.difficulty-2 {
+  --grade: #b59143;
+}
+.difficulty-3 {
+  --grade: #c77d4b;
+}
+.difficulty-4 {
+  --grade: #ae697a;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 50px;
+  gap: 4px 12px;
+  text-align: start;
+  padding: 16px;
+}
+.difficulty-4 > .puzzle-icon {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+.difficulty-4 > strong {
+  grid-column: 2;
+  grid-row: 1;
+}
+.difficulty-4 > small {
+  grid-column: 2;
+  grid-row: 2;
+}
+.difficulty-4 > .difficulty-bars {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+.difficulty-bars {
+  display: flex;
+  gap: 4px;
+  align-items: end;
+  height: 22px;
+}
+.difficulty-bars i {
+  width: 7px;
+  background: var(--line);
+  border-radius: 3px;
+}
+.difficulty-bars i[data-active='true'] {
+  background: var(--grade);
+}
 :root,
 :root[data-theme='light'] {
   --background: #f8f3e9;

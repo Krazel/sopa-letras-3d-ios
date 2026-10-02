@@ -155,13 +155,30 @@ const copy: Partial<Record<Language, string[]>> = {
     'すべての難易度',
   ],
 };
+const completed: Record<Language, string> = {
+  es: 'Completada',
+  en: 'Completed',
+  ca: 'Completada',
+  fr: 'Terminée',
+  de: 'Abgeschlossen',
+  it: 'Completata',
+  pt: 'Concluída',
+  tr: 'Tamamlandı',
+  ar: 'مكتملة',
+  ko: '완료됨',
+  ja: 'クリア済み',
+};
 export const MENU_UI = Object.fromEntries(
   Object.entries(copy).map(([lang, row]) => [
     lang,
-    Object.fromEntries(keys.map((key, i) => [key, row[i]])),
+    {
+      ...Object.fromEntries(keys.map((key, i) => [key, row[i]])),
+      completed: completed[lang as Language],
+    },
   ]),
 ) as Partial<Record<Language, Record<string, string>>>;
 export const MENU_ALIASES: Record<string, string> = {
+  Completada: 'completed',
   'Empieza por lo fácil y avanza hacia retos cada vez más difíciles.':
     'progressintro',
   Dificultad: 'difficultyfilter',

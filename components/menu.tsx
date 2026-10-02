@@ -2,6 +2,8 @@
 import { useState, type ReactNode } from 'react';
 import PuzzleIcon from './puzzle-icon';
 import AdSettings from './ad-settings';
+import DifficultySelector from './difficulty-selector';
+import { AD_COPY } from '@/lib/ad-copy';
 import {
   Home,
   Gamepad2,
@@ -24,7 +26,6 @@ import {
   levelsFor,
   campaignFor,
   CAMPAIGN_SIZES,
-  DIFFICULTIES,
   recommendedLevel,
   type SaveData,
 } from '@/lib/player';
@@ -389,31 +390,17 @@ export default function Menu({
         )}
         {section === 'catalog' && (
           <>
-            <p className="screen-intro">
-              {t(
-                'Aquí están todas las sopas. ✓ indica las completadas en Niveles.',
-              )}{' '}
-            </p>
-            <label className="catalog-filter">
-              <span>{t('Dificultad')}</span>
-              <select
-                value={difficulty}
-                onChange={(event) => setDifficulty(event.target.value)}
-              >
-                <option value="all">{t('Todas las dificultades')}</option>
-                {DIFFICULTIES.map((value) => (
-                  <option key={value} value={value}>
-                    {t(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <DifficultySelector
+              value={difficulty}
+              onChange={setDifficulty}
+              language={language}
+            />
             <div className="catalog-list">
               {filteredPuzzles.map((p) => (
                 <button
                   key={p.id}
-                  className={`menu-row ${data.completed.includes(p.id) ? 'completed-in-levels' : ''}`}
-                  aria-label={`${p.name}${data.completed.includes(p.id) ? ', ' + t('Completada en Niveles') : ''}`}
+                  className={`menu-row ${data.completed.includes(p.id) || data.freeCompleted.includes(p.id) ? 'completed-in-levels' : ''}`}
+                  aria-label={`${p.name}${data.completed.includes(p.id) || data.freeCompleted.includes(p.id) ? ', ' + t('Completada') : ''}`}
                   onClick={() => open(p, 'free')}
                 >
                   <PuzzleIcon id={p.id} />
@@ -424,7 +411,8 @@ export default function Menu({
                       {t('palabras')}{' '}
                     </small>
                   </span>
-                  {data.completed.includes(p.id) ? (
+                  {data.completed.includes(p.id) ||
+                  data.freeCompleted.includes(p.id) ? (
                     <Check className="catalog-check" aria-hidden="true" />
                   ) : (
                     <ChevronRight aria-hidden="true" />
@@ -615,6 +603,10 @@ export default function Menu({
                   {t(
                     'tocando una letra ya elegida. Si tocas una que no es vecina, se borra la selección.',
                   )}{' '}
+                </p>
+                <p className="hint-help">
+                  <strong>{AD_COPY[language].hint}.</strong>{' '}
+                  {AD_COPY[language].help}
                 </p>
               </div>
             </details>

@@ -249,6 +249,7 @@ export function drawMotion(
     ctx.stroke();
   }
   const { found, selected: selection, traces } = drawingState(game);
+  const clues = new Map((game.hintPath ?? []).map((id, index) => [id, index]));
   if (dice) drawDice(ctx, canvas, game, view, frame, colors, facingViewer);
   for (const id of dice ? [] : visible) {
     const p = projected[id],
@@ -276,6 +277,35 @@ export function drawMotion(
       side + pad * 2,
       side + pad * 2,
     );
+    // Paint the clue with its tile in depth order. A later, nearer tile must
+    // cover it; selected/solved letters already have their own clear highlight.
+    const clue = clues.get(id);
+    if (clue !== undefined && !selected && !hit) {
+      const inset = 4 * p.scale,
+        radius = Math.min(9 * p.scale, side * 0.22);
+      ctx.save();
+      ctx.globalAlpha = p.fade;
+      ctx.strokeStyle = colors.primary;
+      ctx.lineWidth = 2 * p.scale;
+      ctx.setLineDash([4 * p.scale, 3 * p.scale]);
+      ctx.strokeRect(
+        x - side / 2 - inset,
+        y - side / 2 - inset,
+        side + inset * 2,
+        side + inset * 2,
+      );
+      ctx.setLineDash([]);
+      ctx.fillStyle = colors.primary;
+      ctx.beginPath();
+      ctx.arc(x + side / 2, y - side / 2, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${radius * 1.22}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(clue + 1), x + side / 2, y - side / 2);
+      ctx.restore();
+    }
   }
   ctx.lineCap = 'round';
   for (const trace of traces)
@@ -328,26 +358,4 @@ export function drawMotion(
       ctx.restore();
     }
   ctx.globalAlpha = 1;
-  // Numbered dotted rings distinguish a clue from a selection or solved word.
-  // In dice mode authored paths use face zero (the original letter).
-  for (const [index, id] of (game.hintPath ?? []).entries()) {
-    const p = projected[id];
-    if (!p || camera[id].z < 0.22 || p.fade < 0.05) continue;
-    const x = ox + (p.x * frame.size) / 100;
-    const y = oy + (p.y * frame.size) / 100;
-    const side = frame.tile * p.scale;
-    ctx.save();
-    ctx.globalAlpha = p.fade;
-    ctx.strokeStyle = colors.primary;
-    ctx.lineWidth = 3;
-    ctx.setLineDash([4, 3]);
-    ctx.strokeRect(x - side / 2 - 4, y - side / 2 - 4, side + 8, side + 8);
-    ctx.setLineDash([]);
-    ctx.fillStyle = colors.primary;
-    ctx.beginPath(); ctx.arc(x + side / 2, y - side / 2, 9, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(String(index + 1), x + side / 2, y - side / 2);
-    ctx.restore();
-  }
 }

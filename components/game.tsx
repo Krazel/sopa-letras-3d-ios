@@ -37,13 +37,16 @@ import { AD_COPY } from '@/lib/ad-copy';
 import {
   hintKey,
   readHints,
+  readHintPaths,
   nextHint,
   hintedPath,
   type HintCounts,
+  type HintPaths,
   type HintOffer,
 } from '@/lib/hints';
 import {
   beginAdSession,
+  beginHintSession,
   prepareAds,
   recoverRewards,
   requestHint,
@@ -155,9 +158,9 @@ export default function Game({
   const PUZZLES = levelsFor(language)
     .slice()
     .sort((a, b) => a.size - b.size);
-  const [puzzleId, setPuzzleId] = useState(DEFAULT_PUZZLE);
+  const [puzzleId, setPuzzleId] = useState(dice ? 'cielo' : DEFAULT_PUZZLE);
   const [game, setGame] = useState(
-    () => initial ?? startPuzzle(DEFAULT_PUZZLE, language),
+    () => initial ?? startPuzzle(dice ? 'cielo' : DEFAULT_PUZZLE, language),
   );
   const games = useRef(new Map<string, GameState>());
   const gameRef = useRef(game);
@@ -182,8 +185,10 @@ export default function Game({
   const [winDismissed, setWinDismissed] = useState(false);
   const [dieFocus, setDieFocus] = useState<number | null>(null);
   const copy = AD_COPY[language];
-  const ledgerKey = hintKey(game, language, dice);
+  const [hintSession, setHintSession] = useState(() => crypto.randomUUID());
+  const ledgerKey = hintKey(game, language, dice, hintSession);
   const [hints, setHints] = useState<HintCounts>({});
+  const [hintPaths, setHintPaths] = useState<HintPaths>({});
   const [hintOffer, setHintOffer] = useState<HintOffer | null>(null);
   const [adBusy, setAdBusy] = useState(false);
   const [adNotice, setAdNotice] = useState('');
@@ -191,21 +196,25 @@ export default function Game({
   const [nativeAds, setNativeAds] = useState(false);
   const freshCompletion = useRef(!isWon(initial ?? game));
   const completionID = useRef('');
-  const offer = nextHint(game, hints, ledgerKey);
-  const cluePath = hintedPath(game, hints);
+  const offer = nextHint(game, hints, ledgerKey, hintPaths);
+  const cluePath = hintedPath(game, hints, hintPaths);
   const renderedGame = useMemo(
-    () => ({ ...game, hintPath: hintedPath(game, hints) }),
-    [game, hints],
+    () => ({ ...game, hintPath: hintedPath(game, hints, hintPaths) }),
+    [game, hints, hintPaths],
   );
   useEffect(() => {
     let live = true;
+    const endHintSession = beginHintSession(ledgerKey);
     beginAdSession();
     completionID.current = crypto.randomUUID();
     const refresh = async () => {
       try {
         await recoverRewards();
         const saved = readHints(localStorage, ledgerKey);
-        if (live) setHints(saved);
+        if (live) {
+          setHints(saved);
+          setHintPaths(readHintPaths(localStorage, ledgerKey));
+        }
       } catch {
         if (live) setAdNotice(copy.storage);
       }
@@ -219,6 +228,7 @@ export default function Game({
     });
     return () => {
       live = false;
+      endHintSession();
     };
   }, [ledgerKey, copy.storage]);
   async function watchHint() {
@@ -230,6 +240,7 @@ export default function Game({
     try {
       const result = await requestHint(frozenOffer);
       setHints(readHints(localStorage, ledgerKey));
+      setHintPaths(readHintPaths(localStorage, ledgerKey));
       setAdNotice(copy[result]);
     } catch {
       setAdNotice(copy.storage);
@@ -388,6 +399,11 @@ export default function Game({
   }
   targetSync.current = syncTargets;
   function changePuzzle(id: string, replay = false) {
+    setHints({});
+    setHintPaths({});
+    setHintSession(crypto.randomUUID());
+    setHintOffer(null);
+    setAdNotice('');
     setWinDismissed(false);
     games.current.set(puzzleId, game);
     const next = replay
@@ -911,12 +927,9 @@ export default function Game({
               'tocando una letra ya elegida. Si tocas una que no es vecina, se borra la selección.',
             )}
           </p>
-          <details className="hint-help">
-            <summary>{copy.hint}</summary>
-            <p>{copy.help}</p>
-            <p>{nativeAds ? copy.transitions : copy.web}</p>
-            {nativeAds && <p>{copy.report}</p>}
-          </details>
+          <p className="hint-help">
+            <strong>{copy.hint}.</strong> {copy.help}
+          </p>
           {privacyRequired && (
             <button
               className="dialog-action"

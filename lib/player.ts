@@ -64,6 +64,7 @@ export const CAMPAIGN_IDS = CAMPAIGN_SIZES.flatMap((size) =>
 export type SaveData = {
   version: 1;
   completed: string[];
+  freeCompleted: string[];
   progress: Record<string, Snapshot>;
   customs: PuzzleChoice[];
 };
@@ -90,6 +91,7 @@ export const levelsFor = (language: Language) =>
 export const emptySave = (): SaveData => ({
   version: 1,
   completed: [],
+  freeCompleted: [],
   progress: {},
   customs: [],
 });
@@ -240,6 +242,17 @@ export function campaignPosition(data: SaveData): number {
     if (data.completed.includes(id)) position = Math.max(position, index + 1);
   return position;
 }
+export function saveFreeCompletion(
+  data: SaveData,
+  id: string,
+  game: GameState,
+): SaveData {
+  return LEVEL_IDS.includes(id) &&
+    isWon(game) &&
+    !data.freeCompleted.includes(id)
+    ? { ...data, freeCompleted: [...data.freeCompleted, id] }
+    : data;
+}
 export function recommendedLevel(data: SaveData, language: Language = 'es') {
   return campaignFor(language)[campaignPosition(data)];
 }
@@ -256,6 +269,10 @@ export function readSave(raw: string | null): SaveData {
     if (data.version !== 1) return clean;
     if (Array.isArray(data.completed))
       clean.completed = LEVEL_IDS.filter((id) => data.completed.includes(id));
+    if (Array.isArray(data.freeCompleted))
+      clean.freeCompleted = LEVEL_IDS.filter((id) =>
+        data.freeCompleted.includes(id),
+      );
     if (
       data.progress &&
       typeof data.progress === 'object' &&
