@@ -63,9 +63,9 @@ button {
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
 }
-button:focus-visible,
-select:focus-visible,
-.cube-stage:focus-visible {
+html:not([data-input-mode='pointer']) button:focus-visible,
+html:not([data-input-mode='pointer']) select:focus-visible,
+html:not([data-input-mode='pointer']) .cube-stage:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 4px;
 }

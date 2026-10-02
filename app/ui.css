@@ -70,7 +70,8 @@ button {
 button:disabled {
   cursor: default;
 }
-:is(button, input, select, textarea):focus-visible {
+html:not([data-input-mode='pointer'])
+  :is(button, input, select, textarea):focus-visible {
   outline: 3px solid var(--primary);
   outline-offset: 3px;
 }

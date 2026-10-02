@@ -75,4 +75,39 @@ final class SopaUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 60), "Bundled game restarts without a development server")
     }
+    func testResponsiveHomeAndTouchFocus() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(es)", "-AppleLocale", "es_ES"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 120))
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            XCUIDevice.shared.orientation = orientation
+            let play = app.buttons["Jugar"]
+            XCTAssertTrue(play.waitForExistence(timeout: 15))
+            XCTAssertTrue(play.isHittable)
+            XCTAssertTrue(app.buttons["Abrir ajustes"].isHittable)
+            capture("Sopa3D-0.16-2-responsive-\(orientation.rawValue)")
+        }
+        XCUIDevice.shared.orientation = .portrait
+        app.buttons["Jugar"].tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Niveles")).firstMatch.tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Continuar · Nivel")).firstMatch.tap()
+        dismissTestConsent(app)
+        let help = app.descendants(matching: .any).matching(identifier: "Abrir ayuda").firstMatch
+        XCTAssertTrue(help.waitForExistence(timeout: 30))
+        help.tap()
+        XCTAssertTrue(app.buttons["Cerrar ayuda"].waitForExistence(timeout: 10))
+        capture("Sopa3D-0.16-2-help-touch")
+        app.buttons["Cerrar ayuda"].tap()
+        XCTAssertTrue(app.buttons["Pista"].waitForExistence(timeout: 10))
+        capture("Sopa3D-0.16-2-after-help-touch")
+        app.buttons["Pista"].tap()
+        XCTAssertTrue(app.staticTexts["Un anuncio para revelar la siguiente letra de esta palabra:"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Ahora no"].exists)
+        capture("Sopa3D-0.16-2-hint-explanation")
+        app.buttons["Ahora no"].tap()
+        XCTAssertTrue(app.buttons["Pausar partida"].exists)
+    }
+
 }

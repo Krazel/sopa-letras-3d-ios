@@ -3,7 +3,7 @@ const es = {
   hint: 'Pista',
   watch: 'Ver anuncio · 1 letra',
   later: 'Ahora no',
-  offer: 'Completa un anuncio para revelar la siguiente letra de esta palabra:',
+  offer: 'Un anuncio para revelar la siguiente letra de esta palabra:',
   help: 'Pistas: cada anuncio completado revela una letra del recorrido, empezando por la primera. Las siguientes pistas continúan la misma palabra. Cuando veas todo el recorrido, selecciónalo para resolverla; después se pasa a otra palabra. Las pistas se guardan. Cancelar o no tener anuncios no cambia tu avance.',
   transitions:
     'Puede aparecer un anuncio al continuar después de completar un nivel. No aparece mientras eliges letras. Puedes jugar sin conexión; las pistas con anuncio requieren internet.',

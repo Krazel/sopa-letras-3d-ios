@@ -115,6 +115,54 @@ export default function Menu({
       className={`studio-menu section-${section}`}
       aria-label={t('Menú del juego')}
     >
+      {section === 'home' && (
+        <>
+          <svg className="home-desk" aria-hidden="true">
+            <defs>
+              <pattern
+                id="sopa-desk"
+                patternUnits="userSpaceOnUse"
+                width="480"
+                height="120"
+              >
+                <svg
+                  id="sopa-wood"
+                  width="240"
+                  height="60"
+                  viewBox="440 165 240 60"
+                  preserveAspectRatio="none"
+                >
+                  <image
+                    href="/art/reference-ui/home-custom-es.png"
+                    width="852"
+                    height="1847"
+                  />
+                </svg>
+                <use
+                  href="#sopa-wood"
+                  transform="translate(480 0) scale(-1 1)"
+                />
+                <use
+                  href="#sopa-wood"
+                  transform="translate(0 120) scale(1 -1)"
+                />
+                <use
+                  href="#sopa-wood"
+                  transform="translate(480 120) scale(-1 -1)"
+                />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#sopa-desk)" />
+          </svg>
+          <button
+            className="home-wide-settings"
+            aria-label={t('Abrir ajustes')}
+            onClick={() => navigate('settings')}
+          >
+            <Settings aria-hidden="true" />
+          </button>
+        </>
+      )}
       <div className="menu-scroll">
         {section !== 'home' && (
           <header className="screen-header">

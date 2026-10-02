@@ -1,4 +1,4 @@
-name: iPhone validation and TestFlight
+name: iPhone and iPad validation and TestFlight
 on:
   workflow_dispatch:
     inputs:
@@ -14,6 +14,11 @@ concurrency:
 jobs:
   iphone:
     if: github.actor == github.repository_owner && github.ref == 'refs/heads/main' && !github.event.repository.private
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPhone, iPad]
+    name: Native QA (${{ matrix.device }})
     runs-on: macos-26
     timeout-minutes: 35
     steps:
@@ -32,10 +37,12 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_26.6.app
           xcodebuild -version
           ruby scripts/add-ios-ui-tests.rb
-      - name: Run the bundled game on iPhone
+      - name: Run the bundled game on ${{ matrix.device }}
+        env:
+          SOPA_DEVICE_CLASS: ${{ matrix.device }}
         run: |
           set -o pipefail
-          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for k,v in d["devices"].items() if "iOS" in k for x in v if "iPhone" in x["name"]))')
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys,os; d=json.load(sys.stdin); print(next(x["udid"] for k,v in d["devices"].items() if "iOS" in k for x in v if os.environ["SOPA_DEVICE_CLASS"] in x["name"]))')
           xcrun simctl boot "$DEVICE"
           xcrun simctl bootstatus "$DEVICE" -b
           echo "SOPA_SIMULATOR=$DEVICE" >> "$GITHUB_ENV"
@@ -52,7 +59,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Sopa3D-iPhone-QA-${{ github.sha }}
+          name: Sopa3D-${{ matrix.device }}-QA-${{ github.sha }}
           path: |
             artifacts/iPhone-QA.xcresult
             artifacts/screenshots
@@ -88,7 +95,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Sopa3D-0.16-build1-TestFlight-${{ github.sha }}
+          name: Sopa3D-0.16-build2-TestFlight-${{ github.sha }}
           path: artifacts/testflight/
           retention-days: 3
 

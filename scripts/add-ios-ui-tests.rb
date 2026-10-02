@@ -41,7 +41,7 @@ unless test
     config.build_settings['MACH_O_TYPE'] = 'mh_bundle'
     config.build_settings['SWIFT_VERSION'] = '5.0'
     config.build_settings['TEST_TARGET_NAME'] = 'App'
-    config.build_settings['TARGETED_DEVICE_FAMILY'] = '1'
+    config.build_settings['TARGETED_DEVICE_FAMILY'] = '1,2'
   end
 end
 project.save

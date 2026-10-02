@@ -2,6 +2,7 @@
 /* oxlint-disable react/react-compiler -- Browser writes and random puzzle seeds are confined to effects and callbacks passed through Menu. */
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Play as PlayIcon } from 'lucide-react';
+import { useInputMode } from '@/hooks/use-input-mode';
 import Game from './game';
 import GameDialog from './game-dialog';
 import { encodePuzzle, decodePuzzle, addCustom } from '@/lib/sharing';
@@ -41,6 +42,7 @@ type Play = {
   game?: GameState;
 };
 export default function Experience() {
+  useInputMode();
   const [data, setData] = useState<SaveData>(emptySave);
   const [ready, setReady] = useState(false);
   const [section, setSection] = useState<Section>('home');

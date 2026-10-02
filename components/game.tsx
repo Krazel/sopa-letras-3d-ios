@@ -820,7 +820,7 @@ export default function Game({
               }
             }}
           >
-            {nativeAds ? copy.watch : copy.hint}
+            {copy.hint}
           </button>
         )}
         {nativeAds && !won && <small>{copy.test}</small>}

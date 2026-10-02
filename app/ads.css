@@ -50,8 +50,8 @@
 [dir='rtl'] .play-header > div {
   direction: rtl;
 }
-.game-help-button:focus-visible,
-.hint-button:focus-visible {
+html:not([data-input-mode='pointer']) .game-help-button:focus-visible,
+html:not([data-input-mode='pointer']) .hint-button:focus-visible {
   outline: 3px solid var(--primary);
   outline-offset: 3px;
 }
@@ -71,10 +71,15 @@
   min-height: 44px;
   font-weight: 700;
 }
-.hint-help summary:focus-visible {
+html:not([data-input-mode='pointer']) .hint-help summary:focus-visible {
   outline: 3px solid var(--primary);
   outline-offset: 2px;
 }
 .game-dialog .hint-help p {
   text-align: start;
+}
+
+/* Suppress the UA outline too when a dialog returns focus after a tap. */
+html[data-input-mode='pointer'] :is(button, summary, .cube-stage):focus {
+  outline: none;
 }

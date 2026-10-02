@@ -16,13 +16,19 @@ project = project
     /IPHONEOS_DEPLOYMENT_TARGET = [^;]+;/g,
     'IPHONEOS_DEPLOYMENT_TARGET = 16.4;',
   )
-  .replace(/TARGETED_DEVICE_FAMILY = [^;]+;/g, 'TARGETED_DEVICE_FAMILY = 1;')
+  .replace(
+    /TARGETED_DEVICE_FAMILY = [^;]+;/g,
+    'TARGETED_DEVICE_FAMILY = "1,2";',
+  )
   .replace(/developmentRegion = [^;]+;/, 'developmentRegion = es;');
 fs.writeFileSync(file, project);
 const info = 'ios/App/App/Info.plist';
 let plist = fs
   .readFileSync(info, 'utf8')
-  .replace('<string>en</string>', '<string>es</string>')
+  .replace(
+    /(<key>CFBundleDevelopmentRegion<\/key>\s*<string>)[^<]+(<\/string>)/,
+    '$1es$2',
+  )
   .replace('<string>armv7</string>', '<string>arm64</string>');
 if (!plist.includes('ITSAppUsesNonExemptEncryption'))
   plist = plist.replace(
