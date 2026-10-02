@@ -9,6 +9,19 @@ final class SopaUITests: XCTestCase {
         image.lifetime = .keepAlways
         add(image)
     }
+    func dismissTestConsent(_ app: XCUIApplication) {
+        // Real UMP test-app form on the disposable US-region CI simulator.
+        // Choose opt-out, never accept sale/sharing to make automation pass.
+        let save = app.buttons["Save and close"]
+        if save.waitForExistence(timeout: 20) {
+            let optOut = app.staticTexts["Don't sell or share my data"]
+            XCTAssertTrue(optOut.exists, app.debugDescription)
+            capture("Sopa3D-0.16-UMP-test-form")
+            optOut.tap()
+            save.tap()
+            XCTAssertTrue(app.buttons["Abrir ayuda"].waitForExistence(timeout: 10))
+        }
+    }
     func testBundledCampaignHelpAndGestures() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -26,6 +39,7 @@ final class SopaUITests: XCTestCase {
         let start = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Continuar · Nivel")).firstMatch
         XCTAssertTrue(start.waitForExistence(timeout: 10), app.debugDescription)
         start.tap()
+        dismissTestConsent(app)
         let help = app.buttons["Abrir ayuda"]
         XCTAssertTrue(help.waitForExistence(timeout: 30), app.debugDescription)
         let letters = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", columna "))
