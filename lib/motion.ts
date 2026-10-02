@@ -278,9 +278,10 @@ export function drawMotion(
       side + pad * 2,
     );
     // Paint the clue with its tile in depth order. A later, nearer tile must
-    // cover it; selected/solved letters already have their own clear highlight.
+    // cover it. Keep clues on shared solved cells; only a current selection
+    // replaces the clue decoration with its own clear highlight.
     const clue = clues.get(id);
-    if (clue !== undefined && !selected && !hit) {
+    if (clue !== undefined && !selected) {
       const inset = 4 * p.scale,
         radius = Math.min(9 * p.scale, side * 0.22);
       ctx.save();
