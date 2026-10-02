@@ -2,10 +2,30 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <key>GADApplicationIdentifier</key>
+  <string>ca-app-pub-3940256099942544~1458002511</string>
+  <key>SKAdNetworkItems</key>
+  <array>
+    <dict><key>SKAdNetworkIdentifier</key><string>cstr6suwn9.skadnetwork</string></dict>
+  </array>
   <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>es</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>es</string>
+		<string>es</string>
+		<string>de</string>
+		<string>ca</string>
+		<string>fr</string>
+		<string>it</string>
+		<string>pt</string>
+		<string>tr</string>
+		<string>ar</string>
+		<string>ko</string>
+		<string>ja</string>
+	</array>
 	<key>CFBundleDisplayName</key>
         <string>Sopa de letras 3D</string>
 	<key>CFBundleExecutable</key>

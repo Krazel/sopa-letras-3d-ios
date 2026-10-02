@@ -16,11 +16,45 @@ import {
   type PointerEvent,
 } from 'react';
 import { applyTheme } from '@/lib/theme';
+import { translator } from '@/lib/i18n';
+import type { Language } from '@/lib/preferences';
+import {
+  Pause,
+  Play,
+  Home,
+  Trophy,
+  ChevronRight,
+  CircleHelp,
+  Check,
+  RotateCcw,
+  X,
+} from 'lucide-react';
+import GameDialog from './game-dialog';
+import { levelsFor, campaignFor } from '@/lib/player';
+import { playSound } from '@/lib/audio';
+import { selectionSound } from '@/lib/sound-events';
+import { AD_COPY } from '@/lib/ad-copy';
+import {
+  hintKey,
+  readHints,
+  nextHint,
+  hintedPath,
+  type HintCounts,
+  type HintOffer,
+} from '@/lib/hints';
+import {
+  beginAdSession,
+  prepareAds,
+  recoverRewards,
+  requestHint,
+  transitionAd,
+  nativeAdsAvailable,
+  showAdPrivacy,
+} from '@/lib/ads';
 import { drawMotion, motionPoints, hitMotion } from '@/lib/motion';
 import { hitDie } from '@/lib/dice';
 import {
   startPuzzle,
-  PUZZLES,
   DEFAULT_PUZZLE,
   isWon,
   selectCell,
@@ -40,28 +74,11 @@ import {
   type TouchPoint,
 } from '@/lib/camera';
 
-let fallbackTheme: 'dark' | 'light' = 'light';
-let fallbackFacingViewer = true;
-function readFacingViewer() {
-  try {
-    return localStorage.getItem('sopa-dice-orientation') !== 'face';
-  } catch {
-    return fallbackFacingViewer;
-  }
-}
-function subscribeOrientation(update: () => void) {
-  window.addEventListener('storage', update);
-  window.addEventListener('sopa-dice-orientation', update);
-  return () => {
-    window.removeEventListener('storage', update);
-    window.removeEventListener('sopa-dice-orientation', update);
-  };
-}
 function readTheme(): 'dark' | 'light' {
   try {
     return localStorage.getItem('sopa-theme') === 'dark' ? 'dark' : 'light';
   } catch {
-    return fallbackTheme;
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
   }
 }
 function subscribeTheme(update: () => void) {
@@ -80,6 +97,7 @@ const Letter = memo(function Letter({
   register,
   choose,
   faces,
+  language,
 }: {
   cell: Cell;
   selected: boolean;
@@ -87,6 +105,7 @@ const Letter = memo(function Letter({
   register: (id: number, node: HTMLButtonElement | null) => void;
   choose: (id: number) => void;
   faces?: string[];
+  language: Language;
 }) {
   const attach = useCallback(
     (node: HTMLButtonElement | null) => register(cell.id, node),
@@ -104,7 +123,7 @@ const Letter = memo(function Letter({
         }
       }}
       aria-pressed={selected}
-      aria-label={`${faces ? `Dado ${faces.join(', ')}` : cell.letter}, columna ${cell.position[0] + 1}, fila ${cell.position[1] + 1}, capa ${cell.position[2] + 1}${selected ? ', seleccionada' : ''}${found ? ', encontrada' : ''}`}
+      aria-label={`${faces ? `${translator(language)('Dado')} ${faces.join(', ')}` : cell.letter}, ${translator(language)('columna')} ${cell.position[0] + 1}, ${translator(language)('fila')} ${cell.position[1] + 1}, ${translator(language)('capa')} ${cell.position[2] + 1}${selected ? ', ' + translator(language)('seleccionada') : ''}${found ? ', ' + translator(language)('encontrada') : ''}`}
     ></button>
   );
 });
@@ -115,9 +134,10 @@ export default function Game({
   onExit,
   onProgress,
   onNext,
-  nextLabel,
   dice = false,
   pageNumber,
+  hasNextLevel,
+  language = 'es',
 }: {
   initial?: GameState;
   title?: string;
@@ -127,28 +147,127 @@ export default function Game({
   nextLabel?: string;
   dice?: boolean;
   pageNumber?: number;
+  hasNextLevel?: boolean;
+  language?: Language;
 } = {}) {
+  const t = translator(language);
+  const LEVELS = campaignFor(language);
+  const PUZZLES = levelsFor(language)
+    .slice()
+    .sort((a, b) => a.size - b.size);
   const [puzzleId, setPuzzleId] = useState(DEFAULT_PUZZLE);
   const [game, setGame] = useState(
-    () => initial ?? startPuzzle(DEFAULT_PUZZLE),
+    () => initial ?? startPuzzle(DEFAULT_PUZZLE, language),
   );
   const games = useRef(new Map<string, GameState>());
-  const [controlsHidden, setControlsHidden] = useState(false);
+  const gameRef = useRef(game);
+  const adLock = useRef(false);
+  useLayoutEffect(() => {
+    gameRef.current = game;
+  }, [game]);
+  const chooseCell = useCallback((id: number, face?: number) => {
+    if (adLock.current) return;
+    const previous = gameRef.current;
+    const next =
+      face === undefined
+        ? selectCell(previous, id)
+        : selectDie(previous, id, face);
+    const cue = selectionSound(previous, next, id, face);
+    gameRef.current = next;
+    setGame(next);
+    if (cue) void playSound(cue);
+  }, []);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [winDismissed, setWinDismissed] = useState(false);
   const [dieFocus, setDieFocus] = useState<number | null>(null);
-  const facingViewer = useSyncExternalStore(
-    subscribeOrientation,
-    readFacingViewer,
-    () => true,
+  const copy = AD_COPY[language];
+  const ledgerKey = hintKey(game, language, dice);
+  const [hints, setHints] = useState<HintCounts>({});
+  const [hintOffer, setHintOffer] = useState<HintOffer | null>(null);
+  const [adBusy, setAdBusy] = useState(false);
+  const [adNotice, setAdNotice] = useState('');
+  const [privacyRequired, setPrivacyRequired] = useState(false);
+  const [nativeAds, setNativeAds] = useState(false);
+  const freshCompletion = useRef(!isWon(initial ?? game));
+  const completionID = useRef('');
+  const offer = nextHint(game, hints, ledgerKey);
+  const cluePath = hintedPath(game, hints);
+  const renderedGame = useMemo(
+    () => ({ ...game, hintPath: hintedPath(game, hints) }),
+    [game, hints],
   );
-  function setFacingViewer(next: boolean) {
-    fallbackFacingViewer = next;
+  useEffect(() => {
+    let live = true;
+    beginAdSession();
+    completionID.current = crypto.randomUUID();
+    const refresh = async () => {
+      try {
+        await recoverRewards();
+        const saved = readHints(localStorage, ledgerKey);
+        if (live) setHints(saved);
+      } catch {
+        if (live) setAdNotice(copy.storage);
+      }
+    };
+    void refresh();
+    void prepareAds().then((s) => {
+      if (live) {
+        setNativeAds(nativeAdsAvailable());
+        setPrivacyRequired(s.privacyRequired);
+      }
+    });
+    return () => {
+      live = false;
+    };
+  }, [ledgerKey, copy.storage]);
+  async function watchHint() {
+    if (!hintOffer || adLock.current) return;
+    const frozenOffer = hintOffer;
+    setHintOffer(null);
+    adLock.current = true;
+    setAdBusy(true);
     try {
-      localStorage.setItem('sopa-dice-orientation', next ? 'viewer' : 'face');
+      const result = await requestHint(frozenOffer);
+      setHints(readHints(localStorage, ledgerKey));
+      setAdNotice(copy[result]);
     } catch {
-      /* Keep the preference for this session when storage is unavailable. */
+      setAdNotice(copy.storage);
+    } finally {
+      adLock.current = false;
+      setAdBusy(false);
     }
-    window.dispatchEvent(new Event('sopa-dice-orientation'));
   }
+  async function leaveResult(action?: () => void) {
+    if (adLock.current) return;
+    adLock.current = true;
+    setAdBusy(true);
+    try {
+      await transitionAd(
+        completionID.current,
+        !!pageNumber && freshCompletion.current && isWon(gameRef.current),
+      );
+    } finally {
+      adLock.current = false;
+      setAdBusy(false);
+      action?.();
+    }
+  }
+  async function privacyOptions() {
+    if (adLock.current) return;
+    adLock.current = true;
+    setAdBusy(true);
+    try {
+      const s = await showAdPrivacy();
+      setPrivacyRequired(s.privacyRequired);
+    } catch {
+      setAdNotice(copy.unavailable);
+    } finally {
+      adLock.current = false;
+      setAdBusy(false);
+    }
+  }
+  const facingViewer = false;
   const theme = useSyncExternalStore<'dark' | 'light'>(
     subscribeTheme,
     readTheme,
@@ -157,20 +276,10 @@ export default function Game({
   useLayoutEffect(() => {
     applyTheme(theme);
   }, [theme]);
-  function toggleTheme() {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    fallbackTheme = next;
-    try {
-      localStorage.setItem('sopa-theme', next);
-    } catch {
-      /* Keep the current session usable. */
-    }
-    window.dispatchEvent(new Event('sopa-theme'));
-  }
   const viewRef = useRef<CameraView>(
-    initial ? homeView(initial.puzzle.size, initial.puzzle.shape) : HOME_VIEW,
+    initial ? homeView(initial.puzzle.size) : HOME_VIEW,
   );
-  useEffect(() => {
+  useLayoutEffect(() => {
     onProgress?.(game);
   }, [game, onProgress]);
   const letterNodes = useRef<(HTMLButtonElement | null)[]>([]);
@@ -183,9 +292,8 @@ export default function Game({
     [],
   );
   const chooseLetter = useCallback(
-    (id: number) =>
-      dice ? setDieFocus(id) : setGame((s) => selectCell(s, id)),
-    [dice],
+    (id: number) => (dice ? setDieFocus(id) : chooseCell(id)),
+    [dice, chooseCell],
   );
   const cameraFrame = useRef<number | null>(null);
   const settleFrame = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -280,16 +388,17 @@ export default function Game({
   }
   targetSync.current = syncTargets;
   function changePuzzle(id: string, replay = false) {
+    setWinDismissed(false);
     games.current.set(puzzleId, game);
     const next = replay
-      ? startPuzzle(id)
-      : (games.current.get(id) ?? startPuzzle(id));
+      ? startPuzzle(id, language)
+      : (games.current.get(id) ?? startPuzzle(id, language));
     setPuzzleId(id);
     setGame(next);
     pointers.current.clear();
     pressOrigin.current = null;
     suppressPick.current = true;
-    moveCamera(homeView(next.puzzle.size, next.puzzle.shape));
+    moveCamera(homeView(next.puzzle.size));
     commitCamera();
   }
   useEffect(() => {
@@ -400,7 +509,7 @@ export default function Game({
       if (motionCanvas.current && frame.size) {
         drawMotion(
           motionCanvas.current,
-          game,
+          renderedGame,
           next,
           frame,
           edges,
@@ -415,7 +524,7 @@ export default function Game({
     };
     motionRenderer.current(viewRef.current);
     targetSync.current();
-  }, [game, size, frame, edges, theme, dice, facingViewer]);
+  }, [renderedGame, size, frame, edges, theme, dice, facingViewer]);
   function onDown(e: PointerEvent<HTMLDivElement>) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (pointers.current.size === 0) {
@@ -461,121 +570,98 @@ export default function Game({
     if (e.type === 'pointercancel') suppressPick.current = true;
     pressOrigin.current = pointers.current.values().next().value ?? null;
     if (pointers.current.size === 0) commitCamera();
+    // Mobile click synthesis can shift a tap toward a nearby DOM button.
+    // Dice letters must use the actual release point, including enlarged glyphs.
+    if (
+      dice &&
+      origin &&
+      e.type === 'pointerup' &&
+      !suppressPick.current &&
+      pointers.current.size === 0 &&
+      motionCanvas.current
+    ) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const face = hitDie(
+        motionCanvas.current,
+        e.clientX - rect.left,
+        e.clientY - rect.top,
+      );
+      if (face) chooseCell(face.id, face.face);
+    }
   }
   return (
     <main
-      className="game-shell book-page"
+      className="game-shell paper-game"
       data-mode={dice ? 'dice' : 'letters'}
-      data-controls-hidden={controlsHidden}
-      aria-label="Sopa de letras 3D"
+      aria-label={t('Sopa de letras 3D')}
+      aria-busy={adBusy}
     >
-      <button
-        type="button"
-        className="controls-toggle"
-        aria-controls="game-controls"
-        aria-expanded={!controlsHidden}
-        aria-label={controlsHidden ? 'Mostrar controles' : 'Ocultar controles'}
-        onClick={() => setControlsHidden((v) => !v)}
-      >
-        <span aria-hidden="true">{controlsHidden ? '⌄' : '⌃'}</span>
-      </button>
-      <div id="game-controls" className="game-controls" hidden={controlsHidden}>
-        <div className="book-game-heading">
-          {onExit && (
-            <button
-              className="book-back"
-              onClick={onExit}
-              aria-label="Volver al menú"
-            >
-              ‹
-            </button>
-          )}
-          <h1>{title ?? 'Mi sopa de letras'}</h1>
-          <span className="book-ribbon" aria-hidden="true">
-            {dice ? '⚄' : '≋'}
+      <header className="play-header" inert={adBusy}>
+        <button
+          className="icon-button pause-art-button"
+          onClick={() => setPaused(true)}
+          aria-label={t('Pausar partida')}
+        >
+          <span className="pause-art" aria-hidden="true" />
+        </button>
+        <div>
+          <h1>{title ?? t('Mi sopa de letras')}</h1>
+          <span>
+            {dice ? t('Dados · Experimental') : `${size} × ${size} × ${size}`} ·{' '}
+            {game.found.length}/{game.puzzle.words.length} {t('palabras')}{' '}
           </span>
         </div>
-        <p className="game-help">
-          <span>
-            {dice
-              ? 'Une caras del mismo dado que compartan borde, o letras de dados vecinos.'
-              : `Une letras vecinas y encuentra las ${game.puzzle.words.length} palabras.`}
-          </span>
-          <span>
-            {dice ? 'Toca una letra por cara' : 'Toca letras'} · Arrastra para
-            girar · Pellizca para acercar
-          </span>
-        </p>
-        <div className="game-options">
-          {!initial && (
-            <select
-              aria-label="Sopa"
-              value={puzzleId}
-              onChange={(e) => changePuzzle(e.target.value)}
-            >
-              {[3, 4, 5, 6, 8, 10].map((n) => (
-                <optgroup key={n} label={`${n}×${n}×${n} · ${n ** 3} letras`}>
-                  {PUZZLES.filter((p) => p.size === n).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {n}×{n}×{n} · {p.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-              <optgroup label="Otras formas">
-                <option value="estrella">Estrella 3D</option>
-              </optgroup>
-            </select>
-          )}
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={toggleTheme}
-            aria-label={`Cambiar a tema ${theme === 'dark' ? 'claro' : 'oscuro'}`}
-          >
-            {theme === 'dark' ? '◐ Claro' : '◑ Oscuro'}
-          </button>
+        <button
+          type="button"
+          className="icon-button game-help-button"
+          aria-haspopup="dialog"
+          aria-expanded={helpOpen}
+          aria-label={t('Abrir ayuda')}
+          onClick={(event) => {
+            event.currentTarget.focus();
+            setHelpOpen(true);
+          }}
+        >
+          <CircleHelp size={22} />
+        </button>
+      </header>
+      {!initial && (
+        <div className="game-controls puzzle-picker">
+          <div className="game-options">
+            {!initial && (
+              <select
+                aria-label={t('Sopa')}
+                value={puzzleId}
+                onChange={(e) => changePuzzle(e.target.value)}
+              >
+                {[3, 4, 5, 6, 8, 10].map((n) => (
+                  <optgroup
+                    key={n}
+                    label={`${n}×${n}×${n} · ${n ** 3} ${t('letras')}`}
+                  >
+                    {PUZZLES.filter((p) => p.size === n).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {n}×{n}×{n} · {p.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
-        {dice && (
-          <fieldset
-            className="dice-orientation"
-            aria-label="Orientación de letras"
-          >
-            <span>Letras</span>
-            <button
-              type="button"
-              aria-pressed={facingViewer}
-              onClick={() => setFacingViewer(true)}
-            >
-              Mirándote
-            </button>
-            <button
-              type="button"
-              aria-pressed={!facingViewer}
-              onClick={() => setFacingViewer(false)}
-            >
-              Sobre la cara
-            </button>
-          </fieldset>
-        )}
-      </div>
+      )}
       <p id="gesture-help" className="sr-only">
-        Toca y suelta letras vecinas para formar palabras. Arrastra para girar
-        sin límites; pellizca o usa la rueda para acercarte y alejarte. Toca la
-        última letra para deshacer. Con la figura enfocada, usa las flechas para
-        girar y más o menos para el zoom. Tocar una letra no vecina borra la
-        selección.
+        {t(
+          'Toca y suelta letras vecinas para formar palabras. Arrastra para girar sin límites; pellizca o usa la rueda para acercarte y alejarte. Toca la última letra para deshacer. Con la figura enfocada, usa las flechas para girar y más o menos para el zoom. Tocar una letra no vecina borra la selección.',
+        )}{' '}
       </p>
-      <div className="game-board">
+      <div className="game-board" inert={adBusy}>
         <div
           ref={stageRef}
           className="cube-stage"
           role="application"
-          aria-label={
-            game.puzzle.shape === 'star'
-              ? 'Estrella de letras'
-              : 'Cubo de letras'
-          }
+          aria-label={t('Cubo de letras')}
           aria-describedby="gesture-help"
           tabIndex={0}
           data-size={size}
@@ -585,18 +671,14 @@ export default function Game({
             dice ? (facingViewer ? 'viewer' : 'face') : undefined
           }
           onClick={(e) => {
-            if (e.detail === 0 || suppressPick.current || !motionCanvas.current)
+            if (
+              dice ||
+              e.detail === 0 ||
+              suppressPick.current ||
+              !motionCanvas.current
+            )
               return;
             const rect = e.currentTarget.getBoundingClientRect();
-            if (dice) {
-              const face = hitDie(
-                motionCanvas.current,
-                e.clientX - rect.left,
-                e.clientY - rect.top,
-              );
-              if (face) setGame((s) => selectDie(s, face.id, face.face));
-              return;
-            }
             const id = hitMotion(
               motionCanvas.current,
               e.clientX - rect.left,
@@ -643,6 +725,7 @@ export default function Game({
             />
             {game.puzzle.cells.map((cell) => (
               <Letter
+                language={language}
                 key={cell.id}
                 cell={cell}
                 selected={game.selection.includes(cell.id)}
@@ -657,14 +740,17 @@ export default function Game({
         <ul
           className={`word-list ${won ? 'solved' : ''}`}
           data-long={size >= 8}
-          aria-label="Palabras por encontrar"
+          aria-label={t('Palabras por encontrar')}
         >
           {game.puzzle.words.map((word) => (
             <li
               key={word.text}
               className={game.found.includes(word.text) ? 'complete' : ''}
-              aria-label={`${word.text}${game.found.includes(word.text) ? ', encontrada' : ''}`}
+              aria-label={`${word.text}${game.found.includes(word.text) ? `, ${t('encontrada')}` : ''}`}
             >
+              {game.found.includes(word.text) && (
+                <Check size={13} aria-hidden="true" />
+              )}
               {word.text}
             </li>
           ))}
@@ -685,10 +771,11 @@ export default function Game({
       )}
       {dice && dieFocus !== null && (
         <fieldset
+          disabled={adBusy}
           className="die-face-picker"
-          aria-label="Elige una cara del dado"
+          aria-label={t('Elige una cara del dado')}
         >
-          <legend>Elige una cara</legend>
+          <legend>{t('Elige una cara')}</legend>
           {dieLetters(game.puzzle.cells[dieFocus], game.puzzle.seed).map(
             (letter, face) => (
               <button
@@ -697,9 +784,9 @@ export default function Game({
                   (id, i) =>
                     id === dieFocus && game.selectionFaces?.[i] === face,
                 )}
-                aria-label={`Cara ${face + 1}: ${letter}`}
+                aria-label={t(`Cara ${face + 1}: ${letter}`)}
                 onClick={() => {
-                  setGame((s) => selectDie(s, dieFocus, face));
+                  chooseCell(dieFocus, face);
                   setDieFocus(null);
                 }}
               >
@@ -707,61 +794,249 @@ export default function Game({
               </button>
             ),
           )}
-          <button aria-label="Cerrar caras" onClick={() => setDieFocus(null)}>
+          <button
+            aria-label={t('Cerrar caras')}
+            data-sound="ui"
+            onClick={() => setDieFocus(null)}
+          >
             ×
           </button>
         </fieldset>
       )}
-      {pageNumber && (
-        <footer className="book-game-footer">
-          <span>— &nbsp; {pageNumber} / 15 &nbsp; —</span>
-          <button disabled={!won} onClick={onNext} aria-label={nextLabel}>
-            {won
-              ? pageNumber === 15
-                ? 'Cerrar el libro'
-                : 'Pasar página'
-              : 'Completa la sopa'}{' '}
-            <span aria-hidden="true">›</span>
-          </button>
-          {won && <output className="sr-only">¡Sopa completada!</output>}
-          <span className="book-corner" aria-hidden="true" />
-        </footer>
-      )}
-      {won && !pageNumber && (
-        <output className="victory">
-          <span>¡Sopa completada!</span>
+      <section className="hint-controls" aria-label={copy.hint}>
+        {!won && (
           <button
+            className="hint-button"
+            disabled={adBusy || (!offer && nativeAds)}
+            data-sound="none"
+            onClick={() => {
+              if (!nativeAds) {
+                setAdNotice(copy.web);
+                return;
+              }
+              if (offer) {
+                setHintOffer(offer);
+                setAdNotice('');
+              }
+            }}
+          >
+            {nativeAds ? copy.watch : copy.hint}
+          </button>
+        )}
+        {nativeAds && !won && <small>{copy.test}</small>}
+        {cluePath.length > 0 && (
+          <output aria-label={copy.path} dir="ltr">
+            {cluePath.map((id, i) => (
+              <span key={id}>
+                {i + 1}: {game.puzzle.cells[id].letter}
+              </span>
+            ))}
+          </output>
+        )}
+        {!offer && cluePath.length > 0 && <small>{copy.complete}</small>}
+        <output className="ad-notice" aria-live="polite">
+          {adBusy ? copy.busy : adNotice}
+        </output>
+      </section>
+      <footer className="play-footer" inert={adBusy}>
+        <span>
+          {pageNumber
+            ? t(`Nivel ${pageNumber} de ${LEVELS.length}`)
+            : dice
+              ? t('Prueba de dados')
+              : t('A tu ritmo')}
+        </span>
+        <progress
+          value={game.found.length}
+          max={game.puzzle.words.length}
+          aria-label={t('Palabras encontradas')}
+        />
+        <span>
+          {game.found.length}/{game.puzzle.words.length}
+        </span>
+        {won && (
+          <button
+            className="icon-button"
+            aria-label={t('Ver resultado')}
+            onClick={() => setWinDismissed(false)}
+          >
+            <Trophy size={19} />
+          </button>
+        )}
+      </footer>
+      <GameDialog
+        open={helpOpen && !adBusy}
+        onClose={() => setHelpOpen(false)}
+        title={t('Cómo jugar')}
+      >
+        <button
+          className="dialog-close icon-button"
+          aria-label={t('Cerrar ayuda')}
+          onClick={() => setHelpOpen(false)}
+        >
+          <X size={21} />
+        </button>
+        <div className="dialog-symbol">
+          <CircleHelp size={30} />
+        </div>
+        <h2>{t('Cómo jugar')}</h2>
+        <div className="game-help-content">
+          <p>
+            {dice
+              ? t(
+                  'Las palabras pueden compartir caras, aunque ya estén marcadas. En una misma palabra cada cara se usa una sola vez.',
+                )
+              : t(
+                  'Las palabras pueden compartir casillas, aunque ya estén marcadas. En una misma palabra cada casilla se usa una sola vez.',
+                )}
+          </p>
+          <p>
+            {dice
+              ? t(
+                  'Une caras del mismo dado que compartan borde, o letras de dados vecinos.',
+                )
+              : t(
+                  `Une letras vecinas y encuentra las ${game.puzzle.words.length} palabras.`,
+                )}
+          </p>
+          <p>
+            {t('Arrastra')}{' '}
+            {t(
+              'para girar libremente. Pellizca o usa la rueda para acercarte, incluso al interior.',
+            )}
+          </p>
+          <p>
+            {t('Deshaz')}{' '}
+            {t(
+              'tocando una letra ya elegida. Si tocas una que no es vecina, se borra la selección.',
+            )}
+          </p>
+          <details className="hint-help">
+            <summary>{copy.hint}</summary>
+            <p>{copy.help}</p>
+            <p>{nativeAds ? copy.transitions : copy.web}</p>
+            {nativeAds && <p>{copy.report}</p>}
+          </details>
+          {privacyRequired && (
+            <button
+              className="dialog-action"
+              onClick={() => void privacyOptions()}
+            >
+              {copy.privacy}
+            </button>
+          )}
+        </div>
+        <button className="primary-action" onClick={() => setHelpOpen(false)}>
+          {t('Entendido')}
+        </button>
+      </GameDialog>
+      <GameDialog
+        open={hintOffer !== null && !adBusy}
+        onClose={() => setHintOffer(null)}
+        title={copy.hint}
+      >
+        <h2>{copy.hint}</h2>
+        <p>{copy.offer}</p>
+        <strong dir="auto">{hintOffer?.word}</strong>
+        <p>{copy.test}</p>
+        <button
+          className="primary-action"
+          data-sound="none"
+          onClick={() => void watchHint()}
+        >
+          {copy.watch}
+        </button>
+        <button className="dialog-action" onClick={() => setHintOffer(null)}>
+          {copy.later}
+        </button>
+      </GameDialog>
+      <GameDialog
+        open={paused && !adBusy}
+        onClose={() => setPaused(false)}
+        title={t('Partida en pausa')}
+      >
+        <div className="dialog-symbol">
+          <Pause size={32} />
+        </div>
+        <h2>{t('Un pequeño descanso')}</h2>
+        <p>{t('Todo sigue donde lo dejaste.')}</p>
+        <button className="primary-action" onClick={() => setPaused(false)}>
+          <Play size={19} />
+          {t('Seguir jugando')}{' '}
+        </button>
+        <button
+          className="dialog-action"
+          onClick={() => void leaveResult(onExit)}
+        >
+          <Home size={19} />
+          {t('Volver al menú')}{' '}
+        </button>
+      </GameDialog>
+      <GameDialog
+        open={won && !winDismissed && !paused && !adBusy}
+        onClose={() => setWinDismissed(true)}
+        title={t('Sopa completada')}
+      >
+        <button
+          className="dialog-close icon-button"
+          aria-label={t('Ver sopa completada')}
+          onClick={() => setWinDismissed(true)}
+        >
+          <X size={21} />
+        </button>
+        <div className="dialog-symbol trophy" aria-hidden="true" />
+        <span className="eyebrow">{t('¡BIEN ENCONTRADO!')}</span>
+        <h2>{pageNumber ? t('¡Nivel completado!') : t('¡Sopa completada!')}</h2>
+        <p>{title ?? t('Has encontrado todas las palabras.')}</p>
+        <div className="victory-fact">
+          <span>{t('Palabras encontradas')}</span>
+          <strong>
+            {game.found.length}/{game.puzzle.words.length}
+          </strong>
+        </div>
+        {pageNumber && (hasNextLevel ?? pageNumber < LEVELS.length) ? (
+          <button
+            className="primary-action"
+            onClick={() => void leaveResult(onNext)}
+            aria-label={t('Siguiente nivel')}
+          >
+            {t('Siguiente nivel')} <ChevronRight size={20} />
+          </button>
+        ) : (
+          <button
+            className="primary-action"
             onClick={() =>
-              initial
-                ? setGame({
+              void leaveResult(() => {
+                setWinDismissed(false);
+                if (initial)
+                  setGame({
                     ...initial,
                     found: [],
                     selection: [],
-                    message: 'Empieza de nuevo.',
-                  })
-                : changePuzzle(puzzleId, true)
+                    selectionLetters: [],
+                    selectionFaces: [],
+                    message: t('Empieza de nuevo.'),
+                  });
+                else changePuzzle(puzzleId, true);
+                freshCompletion.current = true;
+                completionID.current = crypto.randomUUID();
+              })
             }
           >
-            Volver a jugar
+            <RotateCcw size={19} />
+            {t('Volver a jugar')}{' '}
           </button>
-          <button
-            onClick={
-              onNext ??
-              (() =>
-                changePuzzle(
-                  PUZZLES[
-                    (PUZZLES.findIndex((p) => p.id === puzzleId) + 1) %
-                      PUZZLES.length
-                  ].id,
-                ))
-            }
-          >
-            {nextLabel ?? 'Otra sopa'}
-          </button>
-        </output>
-      )}
+        )}
+        <button
+          className="dialog-action"
+          onClick={() => void leaveResult(onExit)}
+        >
+          <Home size={19} />
+          {t('Volver al menú')}{' '}
+        </button>
+      </GameDialog>
       <output className="sr-only" aria-live="polite">
-        {game.message}
+        {t(game.message)}
       </output>
     </main>
   );

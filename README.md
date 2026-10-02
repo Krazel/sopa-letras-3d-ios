@@ -1,5 +1,5 @@
 # Sopa de letras 3D · Krazel Games
 
-Source for the iPhone build of the 3×3×3 to 10×10×10 word-search collection with progressive levels, saved progress, custom word puzzles and a volumetric five-point star. Spanish, offline bundled gameplay, perspective rotation and zoom. Capacitor 8, iPhone with iOS 16.4 or later.
+Bundled iPhone game with 24 sequential levels, a 60-puzzle catalogue per language, difficulty filters and saved custom puzzles. Eleven languages. Experimental dice, 3D rotation and zoom. Capacitor 8, iOS 16.4+. Native recorded effects with AVAudioPlayer. AdMob interstitial and rewarded ads use Google test IDs only; no production ads.
 
-Manual CI validates the app in an iPhone simulator. TestFlight upload uses the protected app-store-production environment, after validation, only on main and for the repository owner. No production App Store release is triggered.
+Manual CI validates the exact source in an iPhone simulator before signed TestFlight upload, through the protected app-store-production environment. Internal testing; no public App Store release.

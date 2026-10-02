@@ -17,18 +17,10 @@ export const HOME_VIEW: CameraView = {
   distance: 8,
 };
 export const MAX_DISTANCE = 48;
-export const homeView = (size: number, shape = 'cube'): CameraView =>
-  shape === 'star'
-    ? {
-        rotation: new Quaternion()
-          .setFromEuler(new Euler(-0.12, 0.18, 0, 'YXZ'))
-          .toArray(),
-        distance: size * 1.6,
-      }
-    : {
-        ...HOME_VIEW,
-        distance: size === 3 ? 6.5 : (8 * (size - 1)) / 3,
-      };
+export const homeView = (size: number): CameraView => ({
+  ...HOME_VIEW,
+  distance: size === 3 ? 6.5 : (8 * (size - 1)) / 3,
+});
 export const NEAR = 0.22;
 const FOCAL = HOME_VIEW.distance * 17;
 export const clampDistance = (distance: number) =>

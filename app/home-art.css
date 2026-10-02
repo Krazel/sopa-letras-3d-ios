@@ -1,0 +1,432 @@
+/* The approved artwork is kept intact. Real buttons track its coordinates
+   in one aspect-ratio container, including during scrolling and resizing. */
+.studio-menu.section-home {
+  width: min(
+    100%,
+    max(
+      320px,
+      calc(
+        (100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) *
+          852 / 1847
+      )
+    )
+  );
+  max-width: 430px;
+  height: calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  margin: 0 auto;
+  border-radius: 0;
+  overflow: auto;
+  scrollbar-width: none;
+  background: #ab703a;
+}
+.studio-menu.section-home .menu-scroll {
+  flex: none;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+  background: none;
+}
+.straight-home {
+  container-type: inline-size;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 852 / 1847;
+  isolation: isolate;
+}
+.home-button-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: auto;
+  clip-path: inset(49% 0 28% 0);
+  pointer-events: none;
+  user-select: none;
+}
+.straight-home-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+.studio-menu .home-hotspot {
+  position: absolute;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #17212a;
+  cursor: pointer;
+  touch-action: manipulation;
+  border-radius: 5cqw;
+  min-height: 44px;
+}
+.studio-menu .home-hotspot:hover {
+  background: #ffffff0c;
+}
+.studio-menu .home-hotspot:active {
+  background: #00000012;
+  transform: none;
+}
+.studio-menu .home-hotspot:focus-visible {
+  outline: 3px solid #0c465c;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #fff8;
+}
+.home-settings {
+  top: 2.6%;
+  right: 4.7%;
+  width: 12%;
+  height: 5.5%;
+  min-width: 44px;
+}
+.home-play,
+.home-modes,
+.home-progress {
+  left: 15%;
+  width: 70.3%;
+}
+.home-play {
+  top: 49.1%;
+  height: 7.15%;
+}
+.home-modes {
+  top: 57.5%;
+  height: 6.4%;
+}
+.home-progress {
+  top: 65%;
+  height: 6.3%;
+}
+.paper-game .game-help-button {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 10px;
+  background: transparent;
+}
+.game-help-content {
+  display: grid;
+  gap: 14px;
+  margin-block: 18px 24px;
+}
+.game-help-content p {
+  margin: 0;
+  text-align: left;
+  font-size: 16px;
+  line-height: 1.45;
+}
+.saved-mode > svg.saved-mode-icon {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.campaign-current {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface);
+  text-align: center;
+}
+.campaign-logo {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  margin: 18px auto 14px;
+  border-radius: 25px;
+  background: #51a56b20;
+  color: var(--primary);
+}
+.campaign-logo .puzzle-icon {
+  width: 52px;
+  height: 52px;
+  stroke-width: 1.7;
+}
+.campaign-current h2 {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+.campaign-current p {
+  color: var(--muted);
+  font-size: 15px;
+}
+.campaign-current small {
+  display: block;
+  margin-top: 8px;
+}
+.campaign-current .primary-action {
+  margin-top: 22px;
+}
+.campaign-stages {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0;
+}
+.campaign-stage {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.campaign-stage strong {
+  font-size: 15px;
+  white-space: nowrap;
+}
+.stage-marks {
+  display: flex;
+  gap: 7px;
+}
+.stage-marks > button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 12px;
+}
+.stage-marks > button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.stage-marks > button:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+.catalog-filter {
+  display: grid;
+  gap: 8px;
+  margin: 20px 0;
+  font-weight: 700;
+}
+.catalog-filter select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--foreground);
+  font: inherit;
+}
+.stage-marks > .done {
+  background: var(--primary);
+  color: var(--surface);
+  border-color: var(--primary);
+}
+.stage-marks > .current {
+  border: 2px solid var(--primary);
+  color: var(--primary);
+  font-weight: 800;
+}
+.campaign-history summary {
+  padding-block: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.catalog-list .menu-row > .catalog-check {
+  color: var(--primary);
+  fill: none;
+  stroke-width: 3;
+}
+.catalog-list .completed-in-levels {
+  background: #51a56b0a;
+}
+.section-saved > .menu-scroll > .primary-action {
+  margin-bottom: 22px;
+}
+.studio-menu .saved-play {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 12px;
+  align-items: center;
+  min-height: 64px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  text-align: start;
+}
+.saved-play strong,
+.saved-play small {
+  grid-column: 1;
+  overflow-wrap: anywhere;
+}
+.saved-open {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.paper-game .pause-art-button {
+  background: transparent;
+  padding: 0;
+  width: 46px;
+  height: 46px;
+}
+.pause-art {
+  display: block;
+  width: 46px;
+  height: 46px;
+  background: url('/art/reference-ui/pause-wood.png') center / contain no-repeat;
+}
+.custom-notice {
+  display: block;
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--primary);
+}
+.studio-menu .saved-soups li {
+  flex-wrap: wrap;
+}
+.studio-menu .saved-play {
+  flex: 1 1 100%;
+}
+.share-soup {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--foreground);
+  font-weight: 700;
+}
+.import-soup {
+  margin: 24px 0;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.import-soup summary {
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 20px;
+}
+.import-soup form {
+  display: grid;
+  gap: 12px;
+}
+.share-code {
+  direction: ltr;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  padding: 12px;
+  margin: 12px 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+/* Localized labels use the same approved notebook composition. */
+.translated-home {
+  container-type: inline-size;
+}
+.translated-home .live-home-title,
+.translated-home .live-home-subtitle {
+  position: absolute;
+  left: 15%;
+  width: 70%;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #192129;
+  overflow-wrap: anywhere;
+}
+.translated-home .live-home-title {
+  top: 20.5%;
+  height: 14%;
+  font-size: 10cqw;
+  line-height: 1.15;
+  font-weight: 900;
+}
+.translated-home .live-home-subtitle {
+  top: 37%;
+  height: 10%;
+  font-size: 4.8cqw;
+  line-height: 1.4;
+  font-weight: 700;
+}
+.straight-home .live-home-label {
+  display: flex;
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  font-size: 4.9cqw;
+  line-height: 1.15;
+  font-weight: 800;
+  padding: 4px 22%;
+  overflow-wrap: anywhere;
+}
+.straight-home .home-play .live-home-label {
+  color: white;
+  font-size: 6.4cqw;
+}
+.translated-home .live-home-motto {
+  position: absolute;
+  top: 85%;
+  left: 30%;
+  width: 45%;
+  margin: 0;
+  color: #ffdf83;
+  text-align: center;
+  font-size: 4.1cqw;
+  font-weight: 700;
+  line-height: 1.4;
+}
+html[dir='rtl'] .screen-header,
+html[dir='rtl'] .mode-card,
+html[dir='rtl'] .level-row,
+html[dir='rtl'] .category-card {
+  text-align: start;
+}
+html[dir='rtl'] .game-help-content p {
+  text-align: right;
+}
+.language-setting select {
+  max-width: 100%;
+}
+html[lang='ar'] body,
+html[lang='ur'] body,
+html[lang='hi'] body,
+html[lang='bn'] body,
+html[lang='mr'] body,
+html[lang='ta'] body,
+html[lang='te'] body,
+html[lang='zh'] body,
+html[lang='ja'] body,
+html[lang='ko'] body {
+  --font-body: system-ui, sans-serif;
+  font-family: system-ui, sans-serif;
+}
+.word-list,
+.current-word {
+  unicode-bidi: plaintext;
+}

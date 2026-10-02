@@ -13,6 +13,8 @@ import {
   pickDie,
   pointInFace,
   dieGlyphTransform,
+  diceLayers,
+  pickDiceLabels,
 } from '../lib/dice.ts';
 import { homeView, turn, dolly } from '../lib/camera.ts';
 const frame = {
@@ -23,7 +25,7 @@ const frame = {
   radius: 7,
   font: 18,
 };
-void test('viewer-facing glyphs stay upright inside their own face through tumbling and interior zoom', () => {
+void test('viewer-facing glyphs stay upright and readable through tumbling and interior zoom', () => {
   const game = startPuzzle('cielo');
   let view = homeView(3);
   let checked = 0;
@@ -40,14 +42,7 @@ void test('viewer-facing glyphs stay upright inside their own face through tumbl
       assert.equal(x, f.center.x);
       assert.equal(y, f.center.y);
       if (a > 0) {
-        for (const sx of [-1, 1])
-          for (const sy of [-1, 1])
-            assert(
-              pointInFace(
-                { x: x + sx * a * 48, y: y + sy * d * 48 },
-                f.polygon,
-              ),
-            );
+        assert(a * 48 >= 10 && a * 48 <= 80);
         checked++;
       }
       assert.deepEqual(dieGlyphTransform(f, false), [
@@ -178,4 +173,38 @@ void test('face picking follows projected polygons and reveals all six faces und
         f.polygon.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)),
       );
   }
+});
+
+void test('thin faces retain readable letters and tapping their overflow selects the same face', () => {
+  const f = {
+    id: 1,
+    face: 0,
+    letter: 'A',
+    depth: 2,
+    center: { x: 50, y: 50 },
+    u: { x: 50.2, y: 50 },
+    v: { x: 50, y: 62 },
+    polygon: [
+      { x: 49, y: 30 },
+      { x: 51, y: 30 },
+      { x: 51, y: 70 },
+      { x: 49, y: 70 },
+    ],
+  };
+  assert(dieGlyphTransform(f, true)[0] * 48 >= 12);
+  assert.equal(pickDie([f], 55, 50), null);
+  assert.equal(pickDiceLabels(diceLayers([f]), 55, 50), f);
+  const front = {
+    ...f,
+    id: 2,
+    depth: 1,
+    center: { x: 70, y: 70 },
+    polygon: [
+      { x: 52, y: 45 },
+      { x: 80, y: 45 },
+      { x: 80, y: 80 },
+      { x: 52, y: 80 },
+    ],
+  };
+  assert.equal(pickDiceLabels(diceLayers([f, front]), 55, 50), front);
 });

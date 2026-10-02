@@ -123,13 +123,14 @@ function letterSprite(
   ctx.stroke();
   ctx.shadowBlur = 0;
   ctx.fillStyle = colors[kind === 'normal' ? 'foreground' : kind + '-text'];
-  ctx.font = `500 ${frame.font}px Georgia`;
+  ctx.font = `500 ${frame.font}px Arial`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(
     letter,
     pad + frame.tile / 2,
     pad + frame.tile / 2 + frame.font * 0.04,
+    frame.tile * 0.84,
   );
   const sprite = { image, pad };
   cache.set(key, sprite);
@@ -327,4 +328,26 @@ export function drawMotion(
       ctx.restore();
     }
   ctx.globalAlpha = 1;
+  // Numbered dotted rings distinguish a clue from a selection or solved word.
+  // In dice mode authored paths use face zero (the original letter).
+  for (const [index, id] of (game.hintPath ?? []).entries()) {
+    const p = projected[id];
+    if (!p || camera[id].z < 0.22 || p.fade < 0.05) continue;
+    const x = ox + (p.x * frame.size) / 100;
+    const y = oy + (p.y * frame.size) / 100;
+    const side = frame.tile * p.scale;
+    ctx.save();
+    ctx.globalAlpha = p.fade;
+    ctx.strokeStyle = colors.primary;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(x - side / 2 - 4, y - side / 2 - 4, side + 8, side + 8);
+    ctx.setLineDash([]);
+    ctx.fillStyle = colors.primary;
+    ctx.beginPath(); ctx.arc(x + side / 2, y - side / 2, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(index + 1), x + side / 2, y - side / 2);
+    ctx.restore();
+  }
 }

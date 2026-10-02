@@ -1,0 +1,56 @@
+'use client';
+import { useEffect, useState } from 'react';
+import { AD_COPY } from '@/lib/ad-copy';
+import type { Language } from '@/lib/preferences';
+import { nativeAdsAvailable, prepareAds, showAdPrivacy } from '@/lib/ads';
+
+export default function AdSettings({ language }: { language: Language }) {
+  const copy = AD_COPY[language];
+  const [native, setNative] = useState(false);
+  const [required, setRequired] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    void prepareAds().then((s) => {
+      setNative(nativeAdsAvailable());
+      setRequired(s.privacyRequired);
+    });
+  }, []);
+  return (
+    <section className="settings-group ad-settings">
+      <details className="hint-help">
+        <summary>{copy.hint}</summary>
+        <p>{copy.help}</p>
+        <p>{native ? copy.transitions : copy.web}</p>
+      </details>
+      {native && (
+        <>
+          <p>{copy.test}</p>
+          <p>{copy.report}</p>
+        </>
+      )}
+      {required && (
+        <button
+          className="menu-row"
+          disabled={busy}
+          data-sound="none"
+          onClick={async () => {
+            setBusy(true);
+            setError(false);
+            try {
+              const s = await showAdPrivacy();
+              setRequired(s.privacyRequired);
+            } catch {
+              setError(true);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {copy.privacy}
+        </button>
+      )}
+      {error && <output aria-live="polite">{copy.unavailable}</output>}
+    </section>
+  );
+}

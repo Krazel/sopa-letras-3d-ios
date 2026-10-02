@@ -1,0 +1,80 @@
+.hint-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 12px;
+  padding: 4px 16px;
+  text-align: center;
+}
+.hint-button {
+  min-height: 44px;
+  border: 1px solid var(--tile-border);
+  border-radius: 12px;
+  padding: 8px 16px;
+  background: var(--tile);
+  color: var(--foreground);
+  font-weight: 650;
+}
+.hint-button:disabled {
+  opacity: 0.6;
+}
+.hint-controls small {
+  font-size: 12px;
+}
+.hint-controls output {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.hint-controls output span {
+  border-bottom: 2px dotted var(--primary);
+  padding: 2px;
+}
+.hint-controls .ad-notice {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 13px;
+}
+.hint-controls .ad-notice:empty {
+  display: none;
+}
+.game-help-button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.play-header {
+  direction: ltr;
+}
+[dir='rtl'] .play-header > div {
+  direction: rtl;
+}
+.game-help-button:focus-visible,
+.hint-button:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+.game-help-content {
+  text-align: start;
+}
+.ad-settings {
+  padding: 12px;
+}
+.ad-settings p {
+  margin: 8px 0;
+  font-size: 13px;
+}
+.hint-help summary {
+  cursor: pointer;
+  padding: 12px 0;
+  min-height: 44px;
+  font-weight: 700;
+}
+.hint-help summary:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+.game-dialog .hint-help p {
+  text-align: start;
+}

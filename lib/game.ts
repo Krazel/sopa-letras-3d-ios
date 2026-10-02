@@ -1,17 +1,28 @@
+import { EXTRA_PUZZLES, localizePuzzle } from './content.ts';
+import { lettersOf, validWord, alphabetFor, reverseWord } from './letters.ts';
+import type { Language } from './preferences.ts';
 export type Point = [number, number, number];
-export type Cell = { id: number; position: Point; letter: string };
+export type Cell = {
+  id: number;
+  position: Point;
+  letter: string;
+  language?: Language;
+  alphabet?: string[];
+};
 export type Word = { text: string; path: number[]; faces?: number[] };
 export type Puzzle = {
   seed: number;
   size: number;
   cells: Cell[];
   words: Word[];
-  shape: 'cube' | 'star';
+  shape: 'cube';
   neighbors: number[][];
   edges: [number, number][];
   outline?: [Point, Point][];
 };
 export type GameState = {
+  /** Presentation-only paid clue; never counts as a selected or found word. */
+  hintPath?: number[];
   puzzle: Puzzle;
   found: string[];
   selection: number[];
@@ -51,7 +62,13 @@ export function dieLetters(cell: Cell, seed: number): string[] {
   if (cached?.seed === seed) return cached.letters;
   const letters = [cell.letter];
   const alphabet = shuffle(
-    Array.from('ABCDEFGHIJKLMNÑOPQRSTUVWXYZ'),
+    cell.alphabet
+      ? [...cell.alphabet]
+      : Array.from(
+          cell.language === 'en'
+            ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+            : 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ',
+        ),
     random(seed ^ Math.imul(cell.id + 1, 2654435761)),
   );
   for (const letter of alphabet) {
@@ -98,31 +115,18 @@ function shuffle<T>(items: T[], rng: () => number) {
   return items;
 }
 export type PuzzleChoice = {
+  language?: Language;
+  legacyWords?: string[];
+  legacySize?: number;
   id: string;
   name: string;
   size: number;
   seed: number;
   words: string[];
-  shape?: 'cube' | 'star';
+  shape?: 'cube';
 };
 export const PUZZLES: PuzzleChoice[] = [
-  {
-    id: 'estrella',
-    name: 'Estrella 3D',
-    size: 13,
-    shape: 'star' as const,
-    seed: 1381,
-    words: [
-      'ESTRELLA',
-      'DESTELLO',
-      'BRILLO',
-      'ORBITA',
-      'COMETA',
-      'COSMOS',
-      'NOCHE',
-      'LUZ',
-    ],
-  },
+  ...EXTRA_PUZZLES,
   {
     id: 'planeta',
     name: 'Planeta',
@@ -262,44 +266,19 @@ export const PUZZLES: PuzzleChoice[] = [
   },
 ].sort((a, b) => a.size - b.size);
 export const DEFAULT_PUZZLE = 'naturaleza';
-export function starOutline(size: number, z: number): Point[] {
-  const center = (size - 1) / 2;
-  const taper = 1;
-  return Array.from({ length: 10 }, (_, i) => {
-    const angle = -Math.PI / 2 + (i * Math.PI) / 5,
-      radius = center * (i % 2 ? 0.46 : 1) * taper;
-    return [
-      center + Math.cos(angle) * radius,
-      center + Math.sin(angle) * radius,
-      z,
-    ];
-  });
-}
-export function inPolygon(x: number, y: number, polygon: Point[]) {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const a = polygon[i],
-      b = polygon[j];
-    if (
-      a[1] > y !== b[1] > y &&
-      x < ((b[0] - a[0]) * (y - a[1])) / (b[1] - a[1]) + a[0]
-    )
-      inside = !inside;
-  }
-  return inside;
-}
 export function createPuzzle(
   seed = 1609,
   size = SIZE,
   terms = WORDS,
-  shape: 'cube' | 'star' = 'cube',
+  shape: 'cube' = 'cube',
 ): Puzzle {
   if (
-    !(shape === 'star' ? size === 13 : [3, 4, 5, 6, 8, 10].includes(size)) ||
+    shape !== 'cube' ||
+    ![3, 4, 5, 6, 8, 10].includes(size) ||
     terms.length === 0 ||
     terms.length > 12 ||
     new Set(terms).size !== terms.length ||
-    terms.some((w) => !/^[A-ZÑ]{3,11}$/.test(w))
+    terms.some((w) => !validWord(w))
   )
     throw new Error('Configuración de sopa no válida');
   const rng = random(seed);
@@ -307,9 +286,7 @@ export function createPuzzle(
     id,
     position: pointAt(id, size),
     letter: '',
-  }))
-    .filter((c) => shape === 'cube' || starContains(c.position, size))
-    .map((c, id) => ({ ...c, id }));
+  }));
   const lookup = new Map(cells.map((c) => [c.position.join(','), c.id]));
   const neighbors = cells.map((c) => {
     const ids: number[] = [];
@@ -340,23 +317,15 @@ export function createPuzzle(
       edges.push([c, c + size * size * (size - 1)]);
   }
   const outline: [Point, Point][] = [];
-  if (shape === 'star') {
-    const center = (size - 1) / 2;
-    for (let z = center - 2; z <= center + 2; z++) {
-      const ring = starOutline(size, z);
-      for (let i = 0; i < 10; i++) outline.push([ring[i], ring[(i + 1) % 10]]);
-    }
-    const front = starOutline(size, center - 2),
-      back = starOutline(size, center + 2);
-    for (let i = 0; i < 10; i++) outline.push([front[i], back[i]]);
-  }
   const words: Word[] = [];
   for (const [index, text] of terms.entries()) {
+    const letters = lettersOf(text);
     let budget = 20000;
     function grow(path: number[]): number[] | null {
       if (--budget < 0) return null;
-      if (path.length === text.length)
+      if (path.length === letters.length)
         return index < 3 &&
+          letters.length > 1 &&
           new Set(path.map((id) => cells[id].position[2])).size === 1
           ? null
           : path;
@@ -367,7 +336,7 @@ export function createPuzzle(
         ).filter(
           (c) =>
             !path.includes(c.id) &&
-            (!c.letter || c.letter === text[path.length]),
+            (!c.letter || c.letter === letters[path.length]),
         ),
         rng,
       );
@@ -380,12 +349,17 @@ export function createPuzzle(
     const path = grow([]);
     if (!path) throw new Error(`No se pudo colocar ${text} en la sopa ${seed}`);
     path.forEach((id, i) => {
-      cells[id].letter = text[i];
+      cells[id].letter = letters[i];
     });
     words.push({ text, path });
   }
-  const alphabet = 'AAAABCDEEEEFGIIIJLMNNOOOPRRSSSTUUV';
+  const allText = terms.join('');
+  const alphabet = alphabetFor(allText);
+  const diceAlphabet = /^[A-ZÑ]+$/.test(allText)
+    ? undefined
+    : alphabetFor(allText, true);
   cells.forEach((cell) => {
+    if (diceAlphabet) cell.alphabet = diceAlphabet;
     if (!cell.letter)
       cell.letter = alphabet[Math.floor(rng() * alphabet.length)];
   });
@@ -422,14 +396,24 @@ export const initialState = (
   message:
     'Toca las letras una a una. Cada letra debe estar junto a la anterior.',
 });
-export function startPuzzle(id: string): GameState {
+export function startPuzzle(id: string, language: Language = 'es'): GameState {
   const p = PUZZLES.find((p) => p.id === id);
   if (!p) throw new Error('Sopa desconocida');
-  return { ...initialStateForChoice(p) };
+  return { ...initialStateForChoice(localizePuzzle(p, language)) };
 }
 export function initialStateForChoice(p: PuzzleChoice): GameState {
+  const puzzle = createPuzzle(p.seed, p.size, p.words, p.shape);
+  const alphabet =
+    p.language && p.language !== 'es' && p.language !== 'en'
+      ? alphabetFor(p.words.join(''), true, p.language)
+      : undefined;
+  if (p.language)
+    puzzle.cells.forEach((cell) => {
+      cell.language = p.language;
+      if (alphabet) cell.alphabet = alphabet;
+    });
   return {
-    puzzle: createPuzzle(p.seed, p.size, p.words, p.shape),
+    puzzle,
     found: [],
     selection: [],
     message:
@@ -507,8 +491,16 @@ export function selectCell(
       ? { selectionLetters: [], ...(faces ? { selectionFaces: [] } : {}) }
       : {};
   const text = letters.join('');
+  const canContinue = state.puzzle.words.some(
+    (w) =>
+      !state.found.includes(w.text) &&
+      lettersOf(w.text).length > path.length &&
+      (w.text.startsWith(text) || reverseWord(w.text).startsWith(text)),
+  );
   const word = state.puzzle.words.find(
-    (w) => w.text === text || w.text === text.split('').reverse().join(''),
+    (w) =>
+      (w.text === text || w.text === letters.slice().reverse().join('')) &&
+      !(canContinue && state.found.includes(w.text)),
   );
   if (!word)
     return {
@@ -516,7 +508,8 @@ export function selectCell(
       selection: path,
       ...extra,
       message:
-        text.length >= Math.max(...state.puzzle.words.map((w) => w.text.length))
+        path.length >=
+        Math.max(...state.puzzle.words.map((w) => lettersOf(w.text).length))
           ? `${text} no está en la lista. Toca una letra seleccionada para retroceder o cancela.`
           : `${text} · Sigue por una letra vecina. Puedes girar, hacer zoom y cambiar de capa.`,
     };
@@ -541,14 +534,4 @@ export function selectCell(
     found: [...state.found, word.text],
     message: `¡${word.text} encontrada!`,
   };
-}
-
-// A consistent cross-section and margin keep every letter within the true outline.
-export function starContains([x, y, z]: Point, size = 13) {
-  const c = (size - 1) / 2;
-  if (Math.abs(z - c) > 2) return false;
-  const ring = starOutline(size, z);
-  return [-0.2, 0.2].every((dx) =>
-    [-0.2, 0.2].every((dy) => inPolygon(x + dx, y + dy, ring)),
-  );
 }

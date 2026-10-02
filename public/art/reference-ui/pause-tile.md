@@ -1,0 +1,5 @@
+Pause tile · ChatGPT Images · 2026-09-23
+
+User requested an image for the pause button. Generated PNG copied unchanged from exec-1c234df0-f7c2-4b7f-8744-64a1d67d7de2.png; used as the 46px pause-button background. Original image remains in Codex generated_images.
+
+Prompt: Create a single polished small pause button game UI asset, square 1024x1024 PNG with transparent background. Front-facing orthographic, completely straight, no tilt. A softly rounded square ivory ceramic / cream paper tile with a fine warm beige bevel, subtle tactile shading and soft tiny shadow. Two thick dark charcoal vertical pause bars centered, extremely clear and legible when reduced to 44 pixels. Button occupies 92% of canvas, evenly centered. Cozy word puzzle game aesthetic: cream notebook paper, warm wood, tactile tabletop board-game pieces, restrained premium finish. No letters, no text, no border outside the tile, no surrounding scene, no extra objects, no mockup. Real alpha transparent outside the rounded tile. Not neon, no metallic chrome, no cartoon face. Deliver one isolated production-ready button.

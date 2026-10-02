@@ -1,0 +1,6 @@
+{
+  "name": "sopa-ads",
+  "version": "1.0.0",
+  "private": true,
+  "capacitor": { "ios": { "src": "ios" } }
+}

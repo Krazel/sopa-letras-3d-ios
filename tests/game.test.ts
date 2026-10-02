@@ -13,21 +13,14 @@ import {
   startPuzzle,
   idAt,
 } from '../lib/game.ts';
-void test('all 15 collection puzzles are deterministic, valid, solvable both ways and restartable', () => {
-  assert.equal(PUZZLES.length, 15);
+void test('all 60 collection puzzles are deterministic, valid, solvable both ways and restartable', () => {
+  assert.equal(PUZZLES.length, 60);
   for (const choice of PUZZLES) {
     let s = startPuzzle(choice.id);
     const original = structuredClone(s);
-    assert.equal(
-      s.puzzle.cells.length,
-      choice.shape === 'star' ? 200 : choice.size ** 3,
-    );
+    assert.equal(s.puzzle.cells.length, choice.size ** 3);
     assert.deepEqual(s, startPuzzle(choice.id));
-    assert.equal(
-      PUZZLES.filter((p) => p.size === choice.size).length,
-      choice.size <= 6 ? 3 : 1,
-    );
-    for (const cell of s.puzzle.cells.filter(() => choice.shape !== 'star'))
+    for (const cell of s.puzzle.cells)
       assert.equal(idAt(pointAt(cell.id, choice.size), choice.size), cell.id);
     for (const [index, w] of s.puzzle.words.entries()) {
       assert.equal(new Set(w.path).size, w.text.length);
@@ -156,6 +149,41 @@ void test('invalid jumps clear the whole path without selecting the invalid targ
   assert.deepEqual(s.selection, []);
   for (const id of [-1, 99, 0.5, NaN]) assert.equal(selectCell(s, id), s);
 });
+void test('crossing words reuse a found cell without repeating a cell inside a path', () => {
+  let s = initialState();
+  const letters: Record<number, string> = {
+    0: 'S',
+    1: 'O',
+    2: 'L',
+    5: 'S',
+    9: 'O',
+  };
+  s = {
+    ...s,
+    puzzle: {
+      ...s.puzzle,
+      cells: s.puzzle.cells.map((c) => ({
+        ...c,
+        letter: letters[c.id] ?? c.letter,
+      })),
+      words: [
+        { ...s.puzzle.words[0], text: 'SOL', path: [0, 1, 2] },
+        { ...s.puzzle.words[1], text: 'OSO', path: [1, 5, 9] },
+      ],
+    },
+  };
+  for (const id of [0, 1, 2]) s = selectCell(s, id);
+  assert.deepEqual(s.found, ['SOL']);
+  s = selectCell(s, 1);
+  s = selectCell(s, 5);
+  s = selectCell(s, 1);
+  assert.deepEqual(s.selection, [1]);
+  assert.equal(new Set(s.selection).size, s.selection.length);
+  for (const id of [5, 9]) s = selectCell(s, id);
+  assert(isWon(s));
+  assert.deepEqual(s.found, ['SOL', 'OSO']);
+  assert(s.puzzle.words.every((w) => w.path.includes(1)));
+});
 void test('a non-neighbor cancels after the first letter without losing found words or the puzzle', () => {
   let s = initialState();
   for (const id of s.puzzle.words[0].path) s = selectCell(s, id);
@@ -185,32 +213,4 @@ void test('all words work in both directions and victory/restart behave correctl
     initialState(s.puzzle.seed + 7919).puzzle.cells,
     s.puzzle.cells,
   );
-});
-
-void test('star is a connected, sparse volume and adjacency never jumps its empty space', () => {
-  const p = startPuzzle('estrella').puzzle;
-  assert.equal(new Set(p.cells.map((c) => c.position[2])).size, 5);
-  assert(p.cells.length < p.size ** 3);
-  const visited = new Set([0]),
-    queue = [0];
-  for (let i = 0; i < queue.length; i++)
-    for (const id of p.neighbors[queue[i]])
-      if (!visited.has(id)) {
-        visited.add(id);
-        queue.push(id);
-      }
-  assert.equal(visited.size, p.cells.length);
-  for (const cell of p.cells) {
-    const expected = p.cells
-      .filter(
-        (other) =>
-          other.id !== cell.id &&
-          other.position.every(
-            (n, axis) => Math.abs(n - cell.position[axis]) <= 1,
-          ),
-      )
-      .map((c) => c.id);
-    assert.deepEqual(p.neighbors[cell.id], expected);
-  }
-  for (const [a, b] of p.edges) assert(p.cells[a] && p.cells[b] && a !== b);
 });

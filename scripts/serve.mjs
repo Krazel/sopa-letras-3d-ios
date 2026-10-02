@@ -10,6 +10,9 @@ const types = {
   '.svg': 'image/svg+xml',
   '.rsc': 'text/x-component',
   '.json': 'application/json',
+  '.png': 'image/png',
+  '.ttf': 'font/ttf',
+  '.wav': 'audio/wav',
 };
 createServer(async (req, res) => {
   try {

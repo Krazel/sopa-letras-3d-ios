@@ -6,6 +6,11 @@ import {
   type PuzzleChoice,
 } from './game.ts';
 
+import { EXTRA_PUZZLES, localizePuzzle } from './content.ts';
+import { lettersOf, normalizeWord, validWord } from './letters.ts';
+import { spanishSpelling } from './spanish-spelling.ts';
+export { normalizeWord } from './letters.ts';
+import type { Language } from './preferences.ts';
 export const LEVEL_IDS = [
   'cielo',
   'agua',
@@ -16,28 +21,46 @@ export const LEVEL_IDS = [
   'bosque',
   'viaje',
   'musica',
-  'estrella',
   'universo',
   'oceano',
   'aventura',
   'planeta',
   'exploracion',
-];
+  ...EXTRA_PUZZLES.map((p) => p.id),
+].sort(
+  (a, b) =>
+    PUZZLES.find((p) => p.id === a)!.size -
+    PUZZLES.find((p) => p.id === b)!.size,
+);
+export const DIFFICULTIES = [
+  'Fácil',
+  'Suave',
+  'Intermedio',
+  'Difícil',
+  'Experto',
+] as const;
+export const RETOS_PARA_AVANZAR = 4;
 export const LEVELS = LEVEL_IDS.map((id, index) => ({
   ...PUZZLES.find((p) => p.id === id)!,
   number: index + 1,
   difficulty:
-    index < 3
+    PUZZLES.find((p) => p.id === id)!.size === 3
       ? 'Fácil'
-      : index < 6
+      : PUZZLES.find((p) => p.id === id)!.size === 4
         ? 'Suave'
-        : index < 10
+        : PUZZLES.find((p) => p.id === id)!.size === 5
           ? 'Intermedio'
-          : index < 13
+          : PUZZLES.find((p) => p.id === id)!.size === 6
             ? 'Difícil'
             : 'Experto',
 }));
 export type Snapshot = { paths: Record<string, number[]> };
+export const CAMPAIGN_SIZES = [3, 4, 5, 6, 8, 10] as const;
+export const CAMPAIGN_IDS = CAMPAIGN_SIZES.flatMap((size) =>
+  LEVELS.filter((p) => p.size === size)
+    .slice(0, RETOS_PARA_AVANZAR)
+    .map((p) => p.id),
+);
 export type SaveData = {
   version: 1;
   completed: string[];
@@ -45,51 +68,74 @@ export type SaveData = {
   customs: PuzzleChoice[];
 };
 export const SAVE_KEY = 'sopa-player-v1';
+export const saveKeyFor = (language: Language) =>
+  language === 'es' ? SAVE_KEY : `sopa-player-${language}-v1`;
+export const levelsFor = (language: Language) =>
+  LEVELS.map((p) => {
+    const choice = localizePuzzle(p, language);
+    return {
+      ...choice,
+      difficulty:
+        choice.size === 3
+          ? 'Fácil'
+          : choice.size === 4
+            ? 'Suave'
+            : choice.size === 5
+              ? 'Intermedio'
+              : choice.size === 6
+                ? 'Difícil'
+                : 'Experto',
+    };
+  });
 export const emptySave = (): SaveData => ({
   version: 1,
   completed: [],
   progress: {},
   customs: [],
 });
-export const normalizeWord = (word: string) =>
-  Array.from(word.trim().toUpperCase())
-    .map((c) =>
-      c === 'Ñ' ? c : c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-    )
-    .join('');
+export const campaignFor = (language: Language) => {
+  const catalogue = levelsFor(language);
+  return CAMPAIGN_IDS.map((id, index) => ({
+    ...catalogue.find((p) => p.id === id)!,
+    number: index + 1,
+  }));
+};
 export function customChoice(
   name: string,
   text: string,
-  shape: 'cube' | 'star',
+  shape: 'cube',
   size: number,
   seed: number,
   id: string,
+  language?: Language,
 ): PuzzleChoice {
   const words = text
-    .split(/[,;\n]+/)
-    .map(normalizeWord)
+    .split(/[,;，、؛،\n]+/)
+    .map((word) => normalizeWord(word, language))
     .filter(Boolean);
   if (!name.trim() || name.trim().length > 40)
     throw Error('Pon un nombre de entre 1 y 40 caracteres.');
   if (words.length < 1 || words.length > 12)
     throw Error('Escribe entre 1 y 12 palabras.');
-  if (words.some((w) => !/^[A-ZÑ]{3,11}$/.test(w)))
+  if (words.some((w) => !validWord(w)))
     throw Error(
-      'Cada palabra debe tener de 3 a 11 letras, sin espacios ni números.',
+      'Cada palabra debe tener de 1 a 16 letras, sin espacios ni números.',
     );
   if (new Set(words).size !== words.length)
     throw Error('Hay palabras repetidas. Deja cada palabra una sola vez.');
   if (shape === 'cube' && ![3, 4, 5, 6, 8, 10].includes(size))
     throw Error('Elige un tamaño disponible.');
-  if (shape !== 'cube' && shape !== 'star')
-    throw Error('Elige una forma disponible.');
-  if (shape === 'cube' && words.join('').length > size ** 3 * 0.75)
+  if (shape !== 'cube') throw Error('Elige una forma disponible.');
+  if (
+    shape === 'cube' &&
+    words.reduce((n, w) => n + lettersOf(w).length, 0) > size ** 3 * 0.75
+  )
     throw Error('Elige un tamaño mayor para que quepan todas las palabras.');
   return {
     id,
     name: name.trim(),
     shape,
-    size: shape === 'star' ? 13 : size,
+    size,
     seed,
     words,
   };
@@ -124,7 +170,7 @@ export function restore(choice: PuzzleChoice, saved?: Snapshot): GameState {
     const path = saved.paths[word.text];
     if (
       !Array.isArray(path) ||
-      path.length !== word.text.length ||
+      path.length !== lettersOf(word.text).length ||
       new Set(path).size !== path.length
     )
       continue;
@@ -136,11 +182,39 @@ export function restore(choice: PuzzleChoice, saved?: Snapshot): GameState {
         .every((id, i) => game.puzzle.neighbors[path[i]].includes(id))
     )
       continue;
-    const text = path.map((id) => game.puzzle.cells[id].letter).join('');
-    if (text !== word.text && text.split('').reverse().join('') !== word.text)
+    const letters = path.map((id) => game.puzzle.cells[id].letter);
+    if (
+      letters.join('') !== word.text &&
+      letters.reverse().join('') !== word.text
+    )
       continue;
     word.path = [...path];
     game.found.push(word.text);
+  }
+  if (choice.legacyWords) {
+    // Only carry an old success after validating the actual old board and path.
+    // Matching a stripped word alone would accept forged or stale progress.
+    const legacy = restore(
+      {
+        ...choice,
+        size: choice.legacySize ?? choice.size,
+        words: choice.legacyWords,
+        legacyWords: undefined,
+        legacySize: undefined,
+      },
+      saved,
+    );
+    for (const text of legacy.found) {
+      const current =
+        !choice.language || choice.language === 'es'
+          ? spanishSpelling(text)
+          : text;
+      if (
+        game.puzzle.words.some((w) => w.text === current) &&
+        !game.found.includes(current)
+      )
+        game.found.push(current);
+    }
   }
   return game;
 }
@@ -158,10 +232,20 @@ export function saveGame(
         : data.completed,
   };
 }
+export function campaignPosition(data: SaveData): number {
+  // Preserve the furthest level reached in older saves without inventing ticks
+  // for unfinished boards. New players advance exactly one level per win.
+  let position = 0;
+  for (const [index, id] of CAMPAIGN_IDS.entries())
+    if (data.completed.includes(id)) position = Math.max(position, index + 1);
+  return position;
+}
+export function recommendedLevel(data: SaveData, language: Language = 'es') {
+  return campaignFor(language)[campaignPosition(data)];
+}
 export function isUnlocked(data: SaveData, index: number) {
   return (
-    index === 0 ||
-    LEVEL_IDS.slice(0, index).every((id) => data.completed.includes(id))
+    index >= 0 && index < CAMPAIGN_IDS.length && index <= campaignPosition(data)
   );
 }
 export function readSave(raw: string | null): SaveData {
@@ -210,6 +294,13 @@ export function readSave(raw: string | null): SaveData {
           /* Ignore malformed drafts without losing valid saved games. */
         }
       }
+    clean.progress = Object.fromEntries(
+      Object.entries(clean.progress).filter(
+        ([id]) =>
+          LEVEL_IDS.includes(id) ||
+          clean.customs.some((choice) => choice.id === id),
+      ),
+    );
     return clean;
   } catch {
     return clean;

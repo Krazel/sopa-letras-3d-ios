@@ -168,30 +168,65 @@ export function dieGlyphTransform(
       f.center.x,
       f.center.y,
     ];
-  // Fit an upright square inside the real face so its letter cannot suggest
-  // a different tap target. Edge-on faces naturally become smaller.
-  let radius = 0;
-  if (pointInFace(f.center, f.polygon)) {
-    radius = Infinity;
-    for (let i = 0; i < f.polygon.length; i++) {
-      const a = f.polygon[i],
-        b = f.polygon[(i + 1) % f.polygon.length];
-      const dx = b.x - a.x,
-        dy = b.y - a.y;
-      const span = Math.abs(dx) + Math.abs(dy);
-      if (span > 0)
-        radius = Math.min(
-          radius,
-          Math.abs(dx * (f.center.y - a.y) - dy * (f.center.x - a.x)) / span,
-        );
-    }
-  }
-  const scale = Number.isFinite(radius) ? (radius * 0.8) / 48 : 0;
-  return [scale, 0, 0, scale, f.center.x, f.center.y];
+  // Use the projected die edge, not the vanishing width of an edge-on face.
+  const edge = Math.max(
+    Math.hypot(f.u.x - f.center.x, f.u.y - f.center.y),
+    Math.hypot(f.v.x - f.center.x, f.v.y - f.center.y),
+  );
+  const radius =
+    pointInFace(f.center, f.polygon) && edge > 0
+      ? Math.min(80, Math.max(10, edge * 1.05))
+      : 0;
+  return [radius / 48, 0, 0, radius / 48, f.center.x, f.center.y];
 }
+export function diceLayers(faces: DieFace[]) {
+  const layers = new Map<number, DieFace[]>();
+  for (const face of faces) {
+    const layer = layers.get(face.id);
+    if (layer) layer.push(face);
+    else layers.set(face.id, [face]);
+  }
+  return [...layers.values()].sort(
+    (a, b) =>
+      b.reduce((s, f) => s + f.depth, 0) / b.length -
+      a.reduce((s, f) => s + f.depth, 0) / a.length,
+  );
+}
+export function pickDiceLabels(layers: DieFace[][], x: number, y: number) {
+  // Follow the same die/label paint order. Opaque foreground dice shield rear letters.
+  for (let i = layers.length - 1; i >= 0; i--) {
+    let nearest: DieFace | null = null,
+      distance = Infinity;
+    for (const f of layers[i]) {
+      const [scale] = dieGlyphTransform(f, true);
+      const radius = scale * 48 * 0.72,
+        dx = x - f.center.x,
+        dy = y - f.center.y;
+      const d = Math.hypot(dx, dy);
+      if (
+        radius > 0 &&
+        Math.abs(dx) <= radius &&
+        Math.abs(dy) <= radius &&
+        d < distance
+      ) {
+        nearest = f;
+        distance = d;
+      }
+    }
+    if (nearest) return nearest;
+    const face = pickDie(layers[i], x, y);
+    if (face) return face;
+  }
+  return null;
+}
+const layersByCanvas = new WeakMap<HTMLCanvasElement, DieFace[][]>();
+
 const glyphs = new Map<string, HTMLCanvasElement>();
 export function hitDie(canvas: HTMLCanvasElement, x: number, y: number) {
-  return pickDie(facesByCanvas.get(canvas) ?? [], x, y);
+  const layers = layersByCanvas.get(canvas);
+  return layers
+    ? pickDiceLabels(layers, x, y)
+    : pickDie(facesByCanvas.get(canvas) ?? [], x, y);
 }
 export function diceFaces(canvas: HTMLCanvasElement) {
   return facesByCanvas.get(canvas) ?? [];
@@ -233,6 +268,21 @@ export function excludeDie(
   width: number,
   height: number,
 ) {
+  if (layersByCanvas.has(canvas))
+    for (const face of diceFaces(canvas))
+      if (face.id === id) {
+        const radius = dieGlyphTransform(face, true)[0] * 48 * 0.72;
+        if (!radius) continue;
+        ctx.beginPath();
+        ctx.rect(0, 0, width, height);
+        ctx.rect(
+          face.center.x - radius,
+          face.center.y - radius,
+          radius * 2,
+          radius * 2,
+        );
+        ctx.clip('evenodd');
+      }
   for (const face of diceFaces(canvas))
     if (face.id === id) {
       ctx.beginPath();
@@ -260,7 +310,13 @@ export function drawDice(
       .flatMap((w) => w.path.map((id, i) => `${id}:${w.faces?.[i] ?? 0}`)),
   );
   facesByCanvas.set(canvas, faces);
-  for (const f of faces) {
+  const kindOf = (f: DieFace) =>
+    selected.has(f.id + ':' + f.face)
+      ? 'selected'
+      : found.has(f.id + ':' + f.face)
+        ? 'found'
+        : 'normal';
+  const body = (f: DieFace) => {
     const keyFace = `${f.id}:${f.face}`;
     const kind = selected.has(keyFace)
       ? 'selected'
@@ -278,6 +334,9 @@ export function drawDice(
       colors[kind === 'normal' ? 'tile-border' : kind + '-border'];
     ctx.lineWidth = kind === 'selected' ? 2 : 0.8;
     ctx.stroke();
+  };
+  const label = (f: DieFace) => {
+    const kind = kindOf(f);
     const ink = colors[kind === 'normal' ? 'foreground' : kind + '-text'];
     const key = f.letter + ink;
     let glyph = glyphs.get(key);
@@ -286,16 +345,41 @@ export function drawDice(
       glyph.width = glyph.height = 96;
       const g = glyph.getContext('2d')!;
       g.fillStyle = ink;
-      g.font = '72px Georgia';
+      g.font = '72px Arial';
       g.textAlign = 'center';
       g.textBaseline = 'middle';
-      g.fillText(f.letter, 48, 51);
+      g.fillText(f.letter, 48, 51, 82);
       glyphs.set(key, glyph);
     }
     ctx.save();
-    ctx.clip();
+    if (!facingViewer) ctx.clip();
     ctx.transform(...dieGlyphTransform(f, facingViewer));
+    if (facingViewer) {
+      // A fine halo separates readable letters from the adjacent die edge.
+      ctx.globalAlpha = 1;
+      ctx.font = '72px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.strokeStyle = colors[kind === 'normal' ? 'tile' : kind];
+      ctx.lineWidth = 5;
+      ctx.strokeText(f.letter, 0, 3, 82);
+    }
     ctx.drawImage(glyph, -48, -48);
     ctx.restore();
+  };
+  if (facingViewer) {
+    const layers = diceLayers(faces);
+    layersByCanvas.set(canvas, layers);
+    facesByCanvas.set(canvas, layers.flat());
+    for (const layer of layers) {
+      for (const f of layer) body(f);
+      for (const f of layer) label(f);
+    }
+  } else {
+    layersByCanvas.delete(canvas);
+    for (const f of faces) {
+      body(f);
+      label(f);
+    }
   }
 }

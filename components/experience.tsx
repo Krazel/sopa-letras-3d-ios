@@ -1,17 +1,34 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+/* oxlint-disable react/react-compiler -- Browser writes and random puzzle seeds are confined to effects and callbacks passed through Menu. */
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { Play as PlayIcon } from 'lucide-react';
 import Game from './game';
-import { LockKeyhole } from 'lucide-react';
+import GameDialog from './game-dialog';
+import { encodePuzzle, decodePuzzle, addCustom } from '@/lib/sharing';
+import Menu, { type Section } from './menu';
 import { applyTheme } from '@/lib/theme';
+import {
+  soundEnabled,
+  setSoundEnabled,
+  installInterfaceAudio,
+  playSound,
+} from '@/lib/audio';
+import {
+  supportedLanguage,
+  initialLanguage,
+  directionFor,
+  type Language,
+} from '@/lib/preferences';
+import { translate, translator } from '@/lib/i18n';
 import { type GameState, type PuzzleChoice } from '@/lib/game';
 import {
-  LEVELS,
-  SAVE_KEY,
+  campaignFor,
+  recommendedLevel,
+  saveKeyFor,
   emptySave,
   readSave,
   saveGame,
   restore,
-  isUnlocked,
   customChoice,
   generateCustom,
   type SaveData,
@@ -26,50 +43,87 @@ type Play = {
 export default function Experience() {
   const [data, setData] = useState<SaveData>(emptySave);
   const [ready, setReady] = useState(false);
-  const [section, setSection] = useState<'levels' | 'create'>('levels');
+  const [section, setSection] = useState<Section>('home');
   const [active, setActive] = useState<Play | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
-  const [chapter, setChapter] = useState(0);
+  const [sound, setSound] = useState(true);
+  const [language, setLanguage] = useState<Language>('es');
+  const t = translator(language);
+  const LEVELS = campaignFor(language);
+  const suggestedLevel = recommendedLevel(data, language);
   const [saveError, setSaveError] = useState('');
   const [name, setName] = useState('');
   const [words, setWords] = useState('');
-  const [shape, setShape] = useState<'cube' | 'star'>('cube');
   const [size, setSize] = useState(4);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [remove, setRemove] = useState<string | null>(null);
-  // Read browser storage after hydration, then synchronize writes and their error state.
-  /* oxlint-disable react/react-compiler */
+  const [shareChoice, setShareChoice] = useState<PuzzleChoice | null>(null);
+  const [shareNotice, setShareNotice] = useState('');
+  const [importCode, setImportCode] = useState('');
+  const [importError, setImportError] = useState('');
+  const [customNotice, setCustomNotice] = useState('');
+  useEffect(installInterfaceAudio, []);
   useEffect(() => {
+    document.title = translate(language, 'Sopa de letras 3D');
+    document.documentElement.dir = directionFor(language);
+    document.documentElement.lang = language;
+  }, [language]);
+  // Read browser storage after hydration, then synchronize writes and their error state.
+  // Storage effects below run only after hydration.
+  useEffect(() => {
+    // Keep the approved paper treatment even if an older version saved 'plain'.
+    document.documentElement.dataset.background = 'paper';
+    let locale: Language = 'es';
     try {
-      setData(readSave(localStorage.getItem(SAVE_KEY)));
+      locale = initialLanguage(
+        localStorage.getItem('sopa-language'),
+        navigator.languages,
+        localStorage.getItem(saveKeyFor('es')) !== null,
+      );
+      const raw = localStorage.getItem(saveKeyFor(locale));
+      setData(readSave(raw));
+      // Preserve a recovery copy before retiring old star levels and drafts.
+      if (
+        raw &&
+        (raw.includes('"star"') || raw.includes('"estrella"')) &&
+        !localStorage.getItem('sopa-before-cubes-v1')
+      )
+        try {
+          localStorage.setItem('sopa-before-cubes-v1', raw);
+        } catch {
+          /* A full store must not prevent restoring valid cube progress. */
+        }
     } catch {
       setSaveError(
         'El avance no se puede guardar en este dispositivo. Puedes seguir jugando.',
       );
     }
     try {
+      setSound(soundEnabled());
+      setLanguage(locale);
+      document.documentElement.lang = locale;
       const t =
         localStorage.getItem('sopa-theme') === 'dark' ? 'dark' : 'light';
       setTheme(t);
       applyTheme(t);
     } catch {
-      /* Keep the dark default. */
+      /* Keep the default theme. */
     }
     setReady(true);
   }, []);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!ready) return;
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      localStorage.setItem(saveKeyFor(language), JSON.stringify(data));
       setSaveError('');
     } catch {
       setSaveError(
         'No se ha podido guardar el avance. Libera espacio para conservarlo al cerrar.',
       );
     }
-  }, [data, ready]);
-  /* oxlint-enable react/react-compiler */
+  }, [data, ready, language]);
+
   function toggleTheme() {
     const next =
       document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
@@ -82,20 +136,58 @@ export default function Experience() {
     }
     window.dispatchEvent(new Event('sopa-theme'));
   }
-  function open(choice: PuzzleChoice, mode: 'level' | 'custom') {
+  function toggleSound() {
+    const value = !sound;
+    setSound(value);
+    setSoundEnabled(value);
+    if (value) void playSound('ui');
+  }
+  function changeLanguage(value: Language) {
+    const locale = supportedLanguage(value);
+    if (locale === language) return;
+    try {
+      localStorage.setItem(saveKeyFor(language), JSON.stringify(data));
+      setData(readSave(localStorage.getItem(saveKeyFor(locale))));
+    } catch {
+      // Do not overwrite one language's in-memory progress with the other's.
+      setSaveError(
+        t(
+          'No se ha podido guardar el avance. Libera espacio para conservarlo al cerrar.',
+        ),
+      );
+      return;
+    }
+    setError('');
+    setRemove(null);
+    setLanguage(locale);
+    document.documentElement.lang = locale;
+    try {
+      localStorage.setItem('sopa-language', locale);
+    } catch {
+      /* Session preference remains usable. */
+    }
+  }
+  function open(choice: PuzzleChoice, mode: 'level' | 'custom' | 'free') {
     try {
       setActive({
         id: choice.id,
         mode,
         title:
           mode === 'level'
-            ? `Página ${LEVELS.find((l) => l.id === choice.id)!.number} · ${choice.name}`
+            ? t(
+                `Página ${LEVELS.find((l) => l.id === choice.id)!.number} · ${choice.name}`,
+              )
             : choice.name,
-        game: restore(choice, data.progress[choice.id]),
+        game: restore(
+          choice,
+          mode === 'free' ? undefined : data.progress[choice.id],
+        ),
       });
       setError('');
     } catch {
-      setError('No se ha podido abrir esta sopa. Prueba a crearla de nuevo.');
+      setError(
+        t('No se ha podido abrir esta sopa. Prueba a crearla de nuevo.'),
+      );
     }
   }
   const onProgress = useCallback(
@@ -113,18 +205,64 @@ export default function Experience() {
   }
   function next() {
     if (active?.mode === 'level') {
-      const i = LEVELS.findIndex((l) => l.id === active.id);
-      if (i < LEVELS.length - 1) {
-        open(LEVELS[i + 1], 'level');
+      const choice = suggestedLevel;
+      if (choice && choice.id !== active.id) {
+        open(choice, 'level');
         return;
       }
     }
     exit();
   }
-  async function create() {
+  function persistCustom(nextData: SaveData) {
+    // Confirm persistence before telling the player that a puzzle was saved.
+    try {
+      localStorage.setItem(saveKeyFor(language), JSON.stringify(nextData));
+    } catch {
+      throw Error(
+        'No se ha podido guardar la sopa. Libera espacio e inténtalo de nuevo.',
+      );
+    }
+    setData(nextData);
+  }
+  function importPuzzle() {
+    setImportError('');
+    setCustomNotice('');
+    try {
+      const choice = decodePuzzle(importCode, `custom-${crypto.randomUUID()}`);
+      const nextData = addCustom(data, choice);
+      persistCustom(nextData);
+      setImportCode('');
+      setCustomNotice(
+        nextData === data
+          ? 'Esta sopa ya está en Mis sopas.'
+          : 'Sopa importada y guardada en Mis sopas.',
+      );
+    } catch (e) {
+      setImportError((e as Error).message);
+    }
+  }
+  async function sharePuzzle() {
+    if (!shareChoice) return;
+    const text = encodePuzzle(shareChoice);
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: shareChoice.name, text });
+      } else {
+        await navigator.clipboard.writeText(text);
+        setShareNotice('Código copiado. Envíalo a quien quieras.');
+      }
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError')
+        setShareNotice(
+          'Selecciona y copia el código de abajo para compartirlo.',
+        );
+    }
+  }
+  async function create(play = true) {
     setError('');
+    setCustomNotice('');
     if (data.customs.length >= 20) {
-      setError('Ya tienes 20 sopas guardadas. Elimina una para crear otra.');
+      setError(t('Ya tienes 20 sopas guardadas. Elimina una para crear otra.'));
       return;
     }
     let choice: PuzzleChoice;
@@ -132,10 +270,11 @@ export default function Experience() {
       choice = customChoice(
         name,
         words,
-        shape,
+        'cube',
         size,
         Math.floor(Math.random() * 0x100000000),
         `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        language,
       );
     } catch (e) {
       setError((e as Error).message);
@@ -145,13 +284,18 @@ export default function Experience() {
     await new Promise((resolve) => setTimeout(resolve, 30));
     try {
       const result = generateCustom(choice);
-      setData((old) => ({ ...old, customs: [result.choice, ...old.customs] }));
-      setActive({
-        id: result.choice.id,
-        mode: 'custom',
-        title: result.choice.name,
-        game: result.game,
-      });
+      persistCustom(addCustom(data, result.choice));
+      if (play)
+        setActive({
+          id: result.choice.id,
+          mode: 'custom',
+          title: result.choice.name,
+          game: result.game,
+        });
+      else {
+        setCustomNotice('Sopa guardada en Mis sopas.');
+        setSection('saved');
+      }
       setName('');
       setWords('');
     } catch (e) {
@@ -164,6 +308,7 @@ export default function Experience() {
     return (
       <>
         <Game
+          language={language}
           key={active.id}
           initial={active.game}
           title={active.title}
@@ -176,270 +321,154 @@ export default function Experience() {
           onExit={exit}
           onProgress={onProgress}
           onNext={next}
+          hasNextLevel={!!suggestedLevel && suggestedLevel.id !== active.id}
           nextLabel={
-            active.mode === 'level' && active.id !== LEVELS.at(-1)!.id
-              ? 'Siguiente nivel'
-              : 'Volver al menú'
+            active.mode === 'level' && !!suggestedLevel
+              ? t('Siguiente nivel')
+              : t('Volver al menú')
           }
         />
         {saveError && (
           <p className="save-warning" role="alert">
-            {saveError}
+            {t(saveError)}
           </p>
         )}
       </>
     );
-  const nextLevel =
-    LEVELS.find((l) => !data.completed.includes(l.id)) ?? LEVELS[0];
   return (
-    <main className="journey book-page" aria-label="Menú del juego">
-      <header className="journey-header">
-        <div>
-          <h1>Mi libro de sopas</h1>
-          <span className="book-ornament" aria-hidden="true">
-            ── ◆ ──
-          </span>
-          <p className="book-subtitle">Una página, un reto</p>
-        </div>
-        <button
-          className="menu-theme"
-          onClick={toggleTheme}
-          aria-label={`Cambiar a tema ${theme === 'dark' ? 'claro' : 'oscuro'}`}
-        >
-          {theme === 'dark' ? '◐' : '◑'}
-        </button>
-      </header>
-      <nav className="journey-nav" aria-label="Modo de juego">
-        <button
-          aria-current={section === 'levels' ? 'page' : undefined}
-          onClick={() => setSection('levels')}
-        >
-          Niveles
-        </button>
-        <button
-          aria-current={section === 'create' ? 'page' : undefined}
-          onClick={() => setSection('create')}
-        >
-          Crear una sopa
-        </button>
-        <button
-          onClick={() =>
+    <>
+      {saveError && (
+        <p className="save-warning" role="alert">
+          {t(saveError)}
+        </p>
+      )}
+      {!ready ? (
+        <main className="loading-screen">
+          <p>{t('Cargando tu avance…')}</p>
+        </main>
+      ) : (
+        <Menu
+          key={language}
+          section={section}
+          navigate={setSection}
+          data={data}
+          theme={theme}
+          toggleTheme={toggleTheme}
+          sound={sound}
+          toggleSound={toggleSound}
+          language={language}
+          changeLanguage={changeLanguage}
+          open={open}
+          free={(dice) =>
             setActive({
-              id: 'free',
-              mode: 'free',
-              title: 'Juego libre',
+              id: dice ? 'dice' : 'free',
+              mode: dice ? 'dice' : 'free',
+              title: dice ? t('Prueba de dados') : t('Juego libre'),
             })
           }
         >
-          Juego libre
-        </button>
-        <button
-          onClick={() =>
-            setActive({ id: 'dice', mode: 'dice', title: 'Prueba de dados' })
-          }
-        >
-          Probar dados
-        </button>
-      </nav>
-      {saveError && <p role="alert">{saveError}</p>}
-      {!ready ? (
-        <output>Cargando tu avance…</output>
-      ) : section === 'levels' ? (
-        <>
-          <section className="book-index" aria-label="Índice de niveles">
-            <div className="chapter-heading">
-              <span>Capítulo {chapter + 1}</span>
-              <span>
-                {
-                  [
-                    'Primeras palabras',
-                    'Entre árboles',
-                    'Más allá',
-                    'Grandes descubrimientos',
-                  ][chapter]
-                }
-              </span>
-            </div>
-            <ol className="level-list" start={chapter * 4 + 1}>
-              {LEVELS.slice(chapter * 4, chapter * 4 + 4).map((level) => {
-                const i = level.number - 1;
-                const done = data.completed.includes(level.id),
-                  unlocked = isUnlocked(data, i);
-                return (
-                  <li key={level.id}>
-                    <button
-                      disabled={!unlocked}
-                      className={`level-card ${done ? 'level-done' : ''} ${level.id === nextLevel.id ? 'level-current' : ''}`}
-                      aria-label={`${unlocked ? 'Jugar' : 'Bloqueado'} nivel ${i + 1}: ${level.name}${done ? ', completado' : ''}`}
-                      onClick={() => open(level, 'level')}
-                    >
-                      <span className="level-number">{i + 1}</span>
-                      <span className="level-copy">
-                        <strong>{level.name}</strong>
-                        <small>
-                          {level.shape === 'star'
-                            ? 'Estrella 3D'
-                            : `${level.size} × ${level.size} × ${level.size}`}{' '}
-                        </small>
-                      </span>
-                      <span
-                        className={`chapter-art art-${i % 4}`}
-                        aria-hidden="true"
-                      />
-                      <span
-                        className={`level-state ${unlocked ? 'open' : ''}`}
-                        aria-hidden="true"
-                      >
-                        {done ? (
-                          '✓'
-                        ) : unlocked ? (
-                          '›'
-                        ) : (
-                          <LockKeyhole size={19} strokeWidth={1.5} />
-                        )}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-            <div className="chapter-paging">
-              <button
-                aria-label="Capítulo anterior"
-                disabled={chapter === 0}
-                onClick={() => setChapter((c) => c - 1)}
-              >
-                ‹
-              </button>
-              <span>{chapter + 1} / 4</span>
-              <button
-                aria-label="Capítulo siguiente"
-                disabled={chapter === 3}
-                onClick={() => setChapter((c) => c + 1)}
-              >
-                ›
-              </button>
-            </div>
-          </section>
-          <footer className="book-index-footer">
-            <button
-              className="primary-action"
-              aria-label={data.completed.length ? 'Continuar' : 'Jugar nivel 1'}
-              onClick={() => open(nextLevel, 'level')}
-            >
-              {data.completed.length === LEVELS.length
-                ? 'Volver a empezar'
-                : `Continuar · Página ${nextLevel.number}`}
-              <span aria-hidden="true">›</span>
-            </button>
-            <p>
-              {data.completed.length} de {LEVELS.length} páginas completadas
-            </p>
-            <span className="book-corner" aria-hidden="true" />
-          </footer>
-        </>
-      ) : (
-        <>
-          <section className="creator-intro">
-            <p className="eyebrow">TUS PALABRAS, TU RETO</p>
-            <h2>Crea tu propia sopa</h2>
-            <p>
-              Escribe las palabras y elige dónde esconderlas. Podrás jugarla y
-              volver a ella cuando quieras.
-            </p>
-          </section>
-          <form
-            className="creator-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void create();
-            }}
-          >
-            <label>
-              Nombre de la sopa
-              <input
-                name="name"
-                aria-label="Nombre de la sopa"
-                autoComplete="off"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={40}
-                required
-                placeholder="Por ejemplo, Mi universo"
-              />
-            </label>
-            <div className="creator-options">
-              <label>
-                Forma
-                <select
-                  aria-label="Forma"
-                  value={shape}
-                  onChange={(e) => setShape(e.target.value as 'cube' | 'star')}
-                >
-                  <option value="cube">Cubo</option>
-                  <option value="star">Estrella 3D</option>
-                </select>
-              </label>
-              {shape === 'cube' ? (
-                <label>
-                  Tamaño
-                  <select
-                    aria-label="Tamaño"
-                    value={size}
-                    onChange={(e) => setSize(Number(e.target.value))}
-                  >
-                    {[3, 4, 5, 6, 8, 10].map((n) => (
-                      <option key={n} value={n}>
-                        {n} × {n} × {n} · {n ** 3} letras
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : (
-                <p className="shape-detail">
-                  Cinco capas conectadas.
-                  <br />
-                  200 letras dentro de la estrella.
+          {section === 'create' && (
+            <>
+              <section className="creator-intro">
+                <p>
+                  {t(
+                    'Escribe las palabras y elige dónde esconderlas. Podrás jugarla y volver a ella cuando quieras.',
+                  )}{' '}
                 </p>
-              )}
-            </div>
-            <label>
-              Palabras
-              <textarea
-                name="words"
-                aria-label="Palabras"
-                value={words}
-                onChange={(e) => {
-                  setWords(e.target.value);
-                  setError('');
+              </section>
+              <form
+                className="creator-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void create();
                 }}
-                maxLength={300}
-                rows={5}
-                required
-                placeholder={'LUNA\nCOMETA\nESTRELLA'}
-                aria-describedby="words-help"
-              />
-            </label>
-            <p id="words-help" className="field-help">
-              De 1 a 12 palabras, de 3 a 11 letras cada una. Sepáralas con comas
-              o saltos de línea. Se conservan las ñ y se quitan las tildes.
-            </p>
-            {error && (
-              <p className="form-error" role="alert">
-                {error}
-              </p>
-            )}
-            <button className="primary-action" disabled={busy} type="submit">
-              {busy ? 'Colocando tus palabras…' : 'Crear y jugar'}
-            </button>
-          </form>
+              >
+                <label>
+                  {t('Nombre de la sopa')}{' '}
+                  <input
+                    name="name"
+                    aria-label={t('Nombre de la sopa')}
+                    autoComplete="off"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    maxLength={40}
+                    required
+                    placeholder={t('Por ejemplo, Mi universo')}
+                  />
+                </label>
+                <div className="creator-options">
+                  <label>
+                    {t('Tamaño')}{' '}
+                    <select
+                      aria-label={t('Tamaño')}
+                      value={size}
+                      onChange={(e) => setSize(Number(e.target.value))}
+                    >
+                      {[3, 4, 5, 6, 8, 10].map((n) => (
+                        <option key={n} value={n}>
+                          {n} × {n} × {n} · {n ** 3} {t('letras')}{' '}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <label>
+                  {t('Palabras')}{' '}
+                  <textarea
+                    name="words"
+                    aria-label={t('Palabras')}
+                    value={words}
+                    onChange={(e) => {
+                      setWords(e.target.value);
+                      setError('');
+                    }}
+                    maxLength={2200}
+                    rows={5}
+                    required
+                    placeholder={t('LUNA\nCOMETA\nPLANETA')}
+                    aria-describedby="words-help"
+                  />
+                </label>
+                <p id="words-help" className="field-help">
+                  {t(
+                    'De 1 a 12 palabras, de 1 a 16 letras o caracteres cada una. Sepáralas con comas o saltos de línea. Se conservan las tildes y los signos de cada idioma.',
+                  )}{' '}
+                </p>
+                {error && (
+                  <p className="form-error" role="alert">
+                    {t(error)}
+                  </p>
+                )}
+                <button
+                  data-sound="none"
+                  className="primary-action"
+                  disabled={busy}
+                  type="submit"
+                >
+                  {busy ? t('Colocando tus palabras…') : t('Guardar y jugar')}
+                </button>
+                <button
+                  className="dialog-action"
+                  disabled={busy}
+                  type="button"
+                  onClick={() => void create(false)}
+                  data-sound="none"
+                >
+                  {t('Guardar sin jugar')}
+                </button>
+              </form>
+            </>
+          )}
+          {customNotice && (
+            <output className="custom-notice">{t(customNotice)}</output>
+          )}
           <section className="saved-soups">
             <h2>
-              Mis sopas <span>{data.customs.length}</span>
+              {t('Mis sopas')} <span>{data.customs.length}</span>
             </h2>
             {!data.customs.length ? (
               <p className="local-note">
-                Tus sopas aparecerán aquí cuando crees la primera.
+                {t('Tus sopas aparecerán aquí cuando crees la primera.')}{' '}
               </p>
             ) : (
               <ul>
@@ -447,19 +476,36 @@ export default function Experience() {
                   <li key={choice.id}>
                     <button
                       className="saved-play"
+                      aria-label={`${t('Jugar')}: ${choice.name}`}
                       onClick={() => open(choice, 'custom')}
                     >
                       <strong>{choice.name}</strong>
                       <small>
-                        {choice.shape === 'star'
-                          ? 'Estrella 3D'
-                          : `${choice.size} × ${choice.size} × ${choice.size}`}{' '}
-                        · {choice.words.length} palabras
+                        {`${choice.size} × ${choice.size} × ${choice.size}`} ·{' '}
+                        {choice.words.length} {t('palabras')}{' '}
                       </small>
+                      <span className="saved-open">
+                        <PlayIcon size={18} aria-hidden="true" />
+                        {t('Jugar')}
+                      </span>
+                    </button>
+                    <button
+                      className="share-soup"
+                      aria-label={`${t('Compartir')}: ${choice.name}`}
+                      onClick={() => {
+                        setShareNotice('');
+                        setShareChoice(choice);
+                      }}
+                    >
+                      {t('Compartir')}
                     </button>
                     {remove === choice.id ? (
                       <div className="remove-confirm">
-                        <p>¿Eliminar «{choice.name}» y su avance?</p>
+                        <p>
+                          {t('¿Eliminar «')}
+                          {choice.name}
+                          {t('» y su avance?')}
+                        </p>
                         <button
                           onClick={() => {
                             setData((old) => {
@@ -476,19 +522,19 @@ export default function Experience() {
                             setRemove(null);
                           }}
                         >
-                          Sí, eliminar
+                          {t('Sí, eliminar')}{' '}
                         </button>
                         <button onClick={() => setRemove(null)}>
-                          Cancelar
+                          {t('Cancelar')}{' '}
                         </button>
                       </div>
                     ) : (
                       <button
                         className="remove-soup"
-                        aria-label={`Eliminar ${choice.name}`}
+                        aria-label={t(`Eliminar ${choice.name}`)}
                         onClick={() => setRemove(choice.id)}
                       >
-                        Eliminar
+                        {t('Eliminar')}{' '}
                       </button>
                     )}
                   </li>
@@ -496,11 +542,80 @@ export default function Experience() {
               </ul>
             )}
           </section>
+          <details className="import-soup">
+            <summary>{t('Importar una sopa')}</summary>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                importPuzzle();
+              }}
+            >
+              <label htmlFor="import-code">{t('Código de la sopa')}</label>
+              <textarea
+                id="import-code"
+                value={importCode}
+                onChange={(event) => {
+                  setImportCode(event.target.value);
+                  setImportError('');
+                }}
+                maxLength={8192}
+                rows={3}
+                required
+                placeholder="SOPA1-…"
+                spellCheck={false}
+                autoCapitalize="off"
+              />
+              {importError && (
+                <p className="form-error" role="alert">
+                  {t(importError)}
+                </p>
+              )}
+              <button
+                data-sound="none"
+                className="primary-action"
+                type="submit"
+              >
+                {t('Importar y guardar')}
+              </button>
+            </form>
+          </details>
           <p className="local-note">
-            Se guardan en este dispositivo, sin necesidad de una cuenta.
+            {t(
+              'Se guardan en este dispositivo, sin necesidad de una cuenta.',
+            )}{' '}
           </p>
-        </>
+        </Menu>
       )}
-    </main>
+      <GameDialog
+        open={shareChoice !== null}
+        onClose={() => setShareChoice(null)}
+        title={t('Compartir sopa')}
+      >
+        <h2>{t('Compartir sopa')}</h2>
+        <p>{shareChoice?.name}</p>
+        <p>
+          {t(
+            'Envía este código. La otra persona puede pegarlo en Partida personalizada → Importar una sopa. Se comparte la sopa, sin tu avance.',
+          )}
+        </p>
+        <textarea
+          className="share-code"
+          aria-label={t('Código para compartir')}
+          readOnly
+          rows={3}
+          value={shareChoice ? encodePuzzle(shareChoice) : ''}
+          onFocus={(event) => event.target.select()}
+        />
+        {shareNotice && (
+          <output className="custom-notice">{t(shareNotice)}</output>
+        )}
+        <button className="primary-action" onClick={() => void sharePuzzle()}>
+          {t('Compartir o copiar código')}
+        </button>
+        <button className="dialog-action" onClick={() => setShareChoice(null)}>
+          {t('Cerrar')}
+        </button>
+      </GameDialog>
+    </>
   );
 }

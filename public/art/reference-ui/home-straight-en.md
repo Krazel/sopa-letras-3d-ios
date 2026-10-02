@@ -1,0 +1,7 @@
+# English home screen
+
+Localized using the built-in ChatGPT Images tool (image_gen), with home-straight.png as the reference. Spanish art is untouched. Output: home-straight-en.png. SHA-256 0a191037733af5c82b8178224df5c53f830c556e08c2c7ada7f766f01fa52949.
+
+Prompt: Precise text-localization edit of this approved mobile game home screen. Keep EXACT same 852:1847 portrait composition and every object position and dimensions: wood grain, coffee, plant leaves, letter tiles, perfectly straight ivory squared spiral notebook, button backgrounds, icons, settings gear. Change ONLY Spanish lettering to English, using matching typefaces, colors and exact same text regions. Main title two lines: 'WORD' / 'SEARCH 3D'. Main description two lines: 'Find all' / 'the words'. Small line: 'IN 3D · ROTATE & EXPLORE'. Green button: 'Play'. Cream buttons: 'Game modes' and 'Statistics'. Footer two lines: 'Small challenges,' / 'great minds'. Preserve all button geometry and centers so existing touch coordinates remain exact. No other changes. No extra labels, no device frame. Output single image.
+
+Original generated file: C:/Users/dmkra/.codex/generated_images/01a07880-9098-7c41-8071-cd2afaae17b3/exec-34d52329-b570-41d9-aa52-4cba3f15ac87.png. Asset copied into the project, rendered in Chrome/WebKit and checked against its controls. This is a translated generated asset; it is not pixel-identical to the Spanish image outside the type.
