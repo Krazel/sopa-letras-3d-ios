@@ -13,10 +13,14 @@ final class SopaUITests: XCTestCase {
         // UMP also keeps an offscreen WKWebView in its accessibility tree.
         // Only act on an actual onscreen form; querying all buttons can tap
         // the cube using coordinates from that hidden privacy view.
+        // UMP can expose a hidden form with a normal onscreen AX frame too.
+        // An actually hittable game help control proves the form is not modal.
+        let gameHelp = app.descendants(matching: .any).matching(identifier: "Abrir ayuda").firstMatch
+        if gameHelp.exists && gameHelp.isHittable { return }
         let visibleViews = app.webViews.allElementsBoundByIndex.filter {
             $0.frame.minX >= 0 && $0.frame.minY >= 0 && $0.frame.width > 100
         }
-        guard let form = visibleViews.first(where: { $0.buttons["Save and close"].exists }) else { return }
+        guard let form = visibleViews.first(where: { $0.buttons["Save and close"].exists && $0.buttons["Save and close"].isHittable }) else { return }
         let optOut = form.staticTexts["Don't sell or share my data"]
         XCTAssertTrue(optOut.exists, app.debugDescription)
         capture("Sopa3D-0.16-UMP-test-form")
@@ -56,12 +60,13 @@ final class SopaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Cerrar ayuda"].exists)
         capture("Sopa3D-0.16-help")
         app.buttons["Cerrar ayuda"].tap()
+        let selected = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", seleccionada"))
+        XCTAssertEqual(selected.count, 0, "Fresh board has no selection before the rotation gesture")
         let first = try XCTUnwrap(letters.allElementsBoundByIndex.first(where: { $0.isHittable }))
         let before = first.frame
         let from = first.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         from.press(forDuration: 0.1, thenDragTo: from.withOffset(CGVector(dx: 65, dy: 20)))
         XCTAssertTrue(!first.exists || first.frame != before, "Dragging rotates the actual bundled cube")
-        let selected = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", seleccionada"))
         XCTAssertEqual(selected.count, 0, "Rotation does not select a letter")
         let next = try XCTUnwrap(letters.allElementsBoundByIndex.first(where: { $0.isHittable }))
         next.tap()
@@ -94,9 +99,23 @@ final class SopaUITests: XCTestCase {
             capture("Sopa3D-0.16-2-responsive-\(orientation.rawValue)")
         }
         XCUIDevice.shared.orientation = .portrait
-        app.buttons["Jugar"].tap()
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Niveles")).firstMatch.tap()
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Continuar · Nivel")).firstMatch.tap()
+        let restoredPlay = app.buttons["Jugar"]
+        // UIKit can finish rotating before WKWebView has laid out its buttons.
+        // Wait for a portrait window and an onscreen button before the single tap.
+        let portraitReady = NSPredicate { _, _ in
+            let window = app.windows.firstMatch.frame
+            return window.height > window.width && restoredPlay.isHittable && window.contains(restoredPlay.frame)
+        }
+        expectation(for: portraitReady, evaluatedWith: app)
+        waitForExpectations(timeout: 20)
+        capture("Sopa3D-0.16-2-portrait-restored")
+        restoredPlay.tap()
+        let levels = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Niveles")).firstMatch
+        XCTAssertTrue(levels.waitForExistence(timeout: 20), app.debugDescription)
+        levels.tap()
+        let start = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Continuar · Nivel")).firstMatch
+        XCTAssertTrue(start.waitForExistence(timeout: 20), app.debugDescription)
+        start.tap()
         dismissTestConsent(app)
         let help = app.descendants(matching: .any).matching(identifier: "Abrir ayuda").firstMatch
         XCTAssertTrue(help.waitForExistence(timeout: 30))
