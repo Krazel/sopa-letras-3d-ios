@@ -9,23 +9,28 @@ final class SopaUITests: XCTestCase {
         image.lifetime = .keepAlways
         add(image)
     }
-    func dismissTestConsent(_ app: XCUIApplication) {
+    @discardableResult
+    func dismissTestConsent(_ app: XCUIApplication, unobstructedControl: XCUIElement? = nil) -> Bool {
         // UMP also keeps an offscreen WKWebView in its accessibility tree.
         // Only act on an actual onscreen form; querying all buttons can tap
         // the cube using coordinates from that hidden privacy view.
         // UMP can expose a hidden form with a normal onscreen AX frame too.
         // An actually hittable game help control proves the form is not modal.
         let gameHelp = app.descendants(matching: .any).matching(identifier: "Abrir ayuda").firstMatch
-        if gameHelp.exists && gameHelp.isHittable { return }
+        let gameControl = unobstructedControl ?? gameHelp
+        if gameControl.exists && gameControl.isHittable { return false }
         let visibleViews = app.webViews.allElementsBoundByIndex.filter {
-            $0.frame.minX >= 0 && $0.frame.minY >= 0 && $0.frame.width > 100
+            // UMP's visible container can have a -1 pt origin on iPhone.
+            // Hittability of its actual close button is still mandatory.
+            $0.frame.minX >= -1 && $0.frame.minY >= -1 && $0.frame.width > 100
         }
-        guard let form = visibleViews.first(where: { $0.buttons["Save and close"].exists && $0.buttons["Save and close"].isHittable }) else { return }
+        guard let form = visibleViews.first(where: { $0.buttons["Save and close"].exists && $0.buttons["Save and close"].isHittable }) else { return false }
         let optOut = form.staticTexts["Don't sell or share my data"]
         XCTAssertTrue(optOut.exists, app.debugDescription)
         capture("Sopa3D-0.16-UMP-test-form")
         optOut.tap()
         form.buttons["Save and close"].tap()
+        return true
     }
     func testBundledCampaignHelpAndGestures() throws {
         continueAfterFailure = false
@@ -82,14 +87,24 @@ final class SopaUITests: XCTestCase {
         // without a separate StaticText child for the visible field caption.
         let difficulty = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Dificultad Todas las dificultades")).firstMatch
         XCTAssertTrue(difficulty.waitForExistence(timeout: 10), app.debugDescription)
+        dismissTestConsent(app, unobstructedControl: difficulty)
         XCTAssertTrue(difficulty.isHittable)
         capture("Sopa3D-0.16.1-free-filter")
         difficulty.tap()
         let easy = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Fácil 3")).firstMatch
         XCTAssertTrue(easy.waitForExistence(timeout: 10), app.debugDescription)
         capture("Sopa3D-0.16.1-visual-difficulty")
+        // The asynchronous test UMP form may arrive while taking the screenshot.
+        // Dismiss only that visible form, then exercise the real selector.
+        dismissTestConsent(app, unobstructedControl: easy)
+        XCTAssertTrue(easy.isHittable, app.debugDescription)
         easy.tap()
         let filtered = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Dificultad Fácil")).firstMatch
+        // Recover only if an actual late UMP modal intercepted the first tap.
+        if !filtered.waitForExistence(timeout: 3), dismissTestConsent(app, unobstructedControl: easy) {
+            XCTAssertTrue(easy.isHittable, app.debugDescription)
+            easy.tap()
+        }
         XCTAssertTrue(filtered.waitForExistence(timeout: 10), app.debugDescription)
         XCTAssertTrue(app.buttons["Cielo"].exists)
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Naturaleza")).firstMatch.exists)
