@@ -1,4 +1,20 @@
 /* Material and proportion pass against the approved eight-screen reference. */
+/* The menu background reaches the iPhone gesture area; controls stay above it. */
+@media (max-width: 899px), (max-height: 520px) {
+  body:has(.studio-menu:not(.section-home)) {
+    padding-bottom: 0;
+  }
+  .studio-menu:not(.section-home) {
+    height: calc(100svh - env(safe-area-inset-top, 0px));
+    margin: 0 auto;
+    border: 0;
+    border-radius: 0;
+  }
+  .studio-menu:not(.section-home) .bottom-nav {
+    padding-bottom: calc(9px + env(safe-area-inset-bottom, 0px));
+    background: var(--background);
+  }
+}
 @font-face {
   font-family: RobotoCondensed;
   src: url('/fonts/RobotoCondensed.ttf') format('truetype');

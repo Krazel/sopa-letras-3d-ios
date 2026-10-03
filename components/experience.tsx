@@ -54,6 +54,12 @@ export default function Experience() {
   const t = translator(language);
   const LEVELS = campaignFor(language);
   const suggestedLevel = recommendedLevel(data, language);
+  const activeLevelIndex =
+    active?.mode === 'level'
+      ? LEVELS.findIndex((level) => level.id === active.id)
+      : -1;
+  const followingLevel =
+    activeLevelIndex >= 0 ? LEVELS[activeLevelIndex + 1] : undefined;
   const [saveError, setSaveError] = useState('');
   const [name, setName] = useState('');
   const [words, setWords] = useState('');
@@ -210,7 +216,7 @@ export default function Experience() {
   }
   function next() {
     if (active?.mode === 'level') {
-      const choice = suggestedLevel;
+      const choice = followingLevel;
       if (choice && choice.id !== active.id) {
         open(choice, 'level');
         return;
@@ -326,7 +332,7 @@ export default function Experience() {
           onExit={exit}
           onProgress={onProgress}
           onNext={next}
-          hasNextLevel={!!suggestedLevel && suggestedLevel.id !== active.id}
+          hasNextLevel={!!followingLevel}
           nextLabel={
             active.mode === 'level' && !!suggestedLevel
               ? t('Siguiente nivel')

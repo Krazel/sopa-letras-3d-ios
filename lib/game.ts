@@ -30,6 +30,16 @@ export type GameState = {
   selectionFaces?: number[];
   message: string;
 };
+export function replayCampaignState(game: GameState): GameState {
+  return {
+    puzzle: game.puzzle,
+    found: [],
+    selection: [],
+    selectionLetters: [],
+    selectionFaces: [],
+    message: 'Empieza de nuevo.',
+  };
+}
 export const SIZE = 4;
 export const WORDS = ['LUNA', 'NUBE', 'AIRE', 'SOL', 'MAR', 'RIO'];
 export const idAt = ([x, y, z]: Point, size = SIZE) =>
