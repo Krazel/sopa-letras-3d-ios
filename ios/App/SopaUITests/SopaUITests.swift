@@ -46,6 +46,11 @@ final class SopaUITests: XCTestCase {
         capture("Sopa3D-0.16-home")
         app.buttons["Jugar"].tap()
         let levels = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Niveles")).firstMatch
+        // Hosted WebKit can expose a ready AX button while its first touch is
+        // swallowed during launch. Exercise another real touch only if still home.
+        if !levels.waitForExistence(timeout: 3), app.buttons["Jugar"].exists && app.buttons["Jugar"].isHittable {
+            app.buttons["Jugar"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
         XCTAssertTrue(levels.waitForExistence(timeout: 10), app.debugDescription)
         levels.tap()
         XCTAssertTrue(app.staticTexts["Empieza por lo fácil y avanza hacia retos cada vez más difíciles."].waitForExistence(timeout: 10))

@@ -6,6 +6,11 @@ on:
         description: Upload the signed build to TestFlight
         type: boolean
         default: false
+      devices:
+        description: Reuse unchanged successful iPhone QA only when recorded in release evidence
+        type: choice
+        options: [both, iPad]
+        default: both
 permissions:
   contents: read
 concurrency:
@@ -17,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: [iPhone, iPad]
+        device: ${{ fromJSON(inputs.devices == 'iPad' && '["iPad"]' || '["iPhone","iPad"]') }}
     name: Native QA (${{ matrix.device }})
     runs-on: macos-26
     timeout-minutes: 35
