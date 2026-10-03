@@ -1,0 +1,62 @@
+name: Native marketing assets
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sopa-marketing-assets
+  cancel-in-progress: false
+jobs:
+  capture:
+    if: github.actor == github.repository_owner
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPhone, iPad]
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - run: npm ci && npm run build && npx cap sync ios && node scripts/prepare-ios.mjs
+      - name: Build native capture target
+        env:
+          CLASS: ${{ matrix.device }}
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          ruby scripts/add-ios-ui-tests.rb
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys,os;d=json.load(sys.stdin);wanted="iPhone 17 Pro Max" if os.environ["CLASS"]=="iPhone" else "iPad Pro 13-inch (M5)";print(next(x["udid"] for k,v in d["devices"].items() if "iOS" in k for x in v if x["name"]==wanted))')
+          echo "DEVICE=$DEVICE" >> "$GITHUB_ENV"
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl status_bar "$DEVICE" override --time '9:41' --batteryState charged --batteryLevel 100
+          xcodebuild build-for-testing -project ios/App/App.xcodeproj -scheme SopaQA -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+      - name: Capture real bundled game in eleven languages
+        run: |
+          set -euo pipefail
+          mkdir -p media
+          for LANG in es en de ca fr it pt tr ar ko ja; do
+            export SOPA_LANGUAGE="$LANG"
+            REC=""
+            if [ "$LANG" = es ] || [ "$LANG" = en ]; then
+              xcrun simctl io "$DEVICE" recordVideo --codec=h264 "media/native-$LANG.mov" > "media/record-$LANG.log" 2>&1 &
+              REC=$!
+            fi
+            xcodebuild test-without-building -project ios/App/App.xcodeproj -scheme SopaQA -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -parallel-testing-enabled NO -only-testing:SopaUITests/SopaUITests/testStoreAssets -resultBundlePath "results-$LANG.xcresult" CODE_SIGNING_ALLOWED=NO > "media/test-$LANG.log" 2>&1 || { if [ -n "$REC" ]; then kill -INT "$REC"; fi; exit 1; }
+            if [ -n "$REC" ]; then kill -INT "$REC"; wait "$REC" || true; fi
+            xcrun xcresulttool export attachments --path "results-$LANG.xcresult" --output-path "media/screens-$LANG"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Native-marketing-${{ matrix.device }}-${{ github.sha }}
+          path: |
+            media/
+            build.log
+          retention-days: 7
