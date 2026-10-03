@@ -7,7 +7,7 @@ final class SopaUITests: XCTestCase {
         let app = XCUIApplication(); app.launchEnvironment["MARKETING_SCENE"] = scene
         app.launchArguments = ["-AppleLanguages", "(es)", "-AppleLocale", "es_ES"]
         app.launch(); XCTAssertTrue(app.buttons["Pausar partida"].waitForExistence(timeout: 120), app.debugDescription)
-        RunLoop.current.run(until: Date().addingTimeInterval(3))
+        RunLoop.current.run(until: Date().addingTimeInterval(4))
         return app
     }
     func testCleanGameplayScreenshots() throws {
@@ -25,13 +25,27 @@ final class SopaUITests: XCTestCase {
         let app = open("video")
         print("MARKETING_VIDEO_START \(Date().timeIntervalSince1970)")
         shot("VIDEO-START")
-        RunLoop.current.run(until: Date().addingTimeInterval(12))
-        let found = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", encontrada"))
-        XCTAssertGreaterThan(found.count, 3, "Second word formed through actual letter controls")
+        for _ in 0..<7 {
+            RunLoop.current.run(until: Date().addingTimeInterval(1.4))
+            _ = XCUIScreen.main.screenshot()
+        }
+        let found = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "LUNA, encontrada"))
+        XCTAssertGreaterThan(found.count, 0, "LUNA visibly completed through actual letter controls")
         shot("VIDEO-WORD-FORMED")
-        let from = app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.28, dy: 0.5))
-        from.press(forDuration: 0.1, thenDragTo: from.withOffset(CGVector(dx: 65, dy: 25)))
-        shot("VIDEO-ROTATED")
+        print("MARKETING_CUE ROTATE_A \(Date().timeIntervalSince1970)")
+        let from = app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.40, dy: 0.45))
+        from.press(forDuration: 0.08, thenDragTo: from.withOffset(CGVector(dx: 100, dy: 35)), withVelocity: .slow, thenHoldForDuration: 0)
+        shot("VIDEO-ROTATE-A")
+        print("MARKETING_CUE ZOOM_IN \(Date().timeIntervalSince1970)")
+        app.pinch(withScale: 1.35, velocity: 0.45)
+        shot("VIDEO-ZOOM-IN")
+        print("MARKETING_CUE ROTATE_B \(Date().timeIntervalSince1970)")
+        let other = app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: 0.45))
+        other.press(forDuration: 0.08, thenDragTo: other.withOffset(CGVector(dx: -85, dy: 55)), withVelocity: .slow, thenHoldForDuration: 0)
+        shot("VIDEO-ROTATE-B")
+        print("MARKETING_CUE ZOOM_OUT \(Date().timeIntervalSince1970)")
+        app.pinch(withScale: 0.65, velocity: -0.45)
+        shot("VIDEO-ZOOM-OUT")
         RunLoop.current.run(until: Date().addingTimeInterval(1))
         print("MARKETING_VIDEO_END \(Date().timeIntervalSince1970)")
     }
