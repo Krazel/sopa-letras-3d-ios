@@ -272,10 +272,6 @@ export default function Experience() {
   async function create(play = true) {
     setError('');
     setCustomNotice('');
-    if (data.customs.length >= 20) {
-      setError(t('Ya tienes 20 sopas guardadas. Elimina una para crear otra.'));
-      return;
-    }
     let choice: PuzzleChoice;
     try {
       choice = customChoice(

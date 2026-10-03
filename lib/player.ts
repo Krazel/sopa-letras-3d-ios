@@ -263,7 +263,7 @@ export function isUnlocked(data: SaveData, index: number) {
 }
 export function readSave(raw: string | null): SaveData {
   const clean = emptySave();
-  if (!raw || raw.length > 256000) return clean;
+  if (!raw) return clean;
   try {
     const data = JSON.parse(raw);
     if (data.version !== 1) return clean;
@@ -278,7 +278,7 @@ export function readSave(raw: string | null): SaveData {
       typeof data.progress === 'object' &&
       !Array.isArray(data.progress)
     ) {
-      for (const [key, val] of Object.entries(data.progress).slice(0, 100))
+      for (const [key, val] of Object.entries(data.progress))
         if (
           (LEVEL_IDS.includes(key) || /^custom-[a-zA-Z0-9-]+$/.test(key)) &&
           val &&
@@ -288,7 +288,7 @@ export function readSave(raw: string | null): SaveData {
           clean.progress[key] = val as Snapshot;
     }
     if (Array.isArray(data.customs))
-      for (const p of data.customs.slice(0, 20)) {
+      for (const p of data.customs) {
         try {
           if (
             typeof p.id !== 'string' ||

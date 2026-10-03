@@ -58,7 +58,5 @@ export function decodePuzzle(code: string, id: string): PuzzleChoice {
 export function addCustom(data: SaveData, choice: PuzzleChoice): SaveData {
   const code = encodePuzzle(choice);
   if (data.customs.some((p) => encodePuzzle(p) === code)) return data;
-  if (data.customs.length >= 20)
-    throw Error('Ya tienes 20 sopas guardadas. Elimina una para crear otra.');
   return { ...data, customs: [choice, ...data.customs] };
 }
