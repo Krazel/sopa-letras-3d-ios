@@ -61,6 +61,11 @@ final class SopaUITests: XCTestCase {
         capture("Sopa3D-0.16-game")
         help.tap()
         let shared = app.staticTexts["Las palabras pueden compartir casillas, aunque ya estén marcadas. En una misma palabra cada casilla se usa una sola vez."]
+        // UMP can arrive after the first help tap. Retry only after dismissing
+        // that actual visible consent modal, never bypass the real help check.
+        if !shared.waitForExistence(timeout: 3), dismissTestConsent(app, unobstructedControl: shared) {
+            help.tap()
+        }
         XCTAssertTrue(shared.waitForExistence(timeout: 10), app.debugDescription)
         XCTAssertTrue(app.buttons["Cerrar ayuda"].exists)
         capture("Sopa3D-0.16-help")
@@ -111,7 +116,9 @@ final class SopaUITests: XCTestCase {
         capture("Sopa3D-0.16.1-easy-filter")
         app.terminate()
         app.launch()
-        XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 60), "Bundled game restarts without a development server")
+        // The previous CI's WebKit log shows its restart document completing
+        // after ~72 s on the hosted simulator. Use the same cold-start budget.
+        XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 120), "Bundled game restarts without a development server: " + app.debugDescription)
     }
     func testResponsiveHomeAndTouchFocus() {
         continueAfterFailure = false
