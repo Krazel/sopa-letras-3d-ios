@@ -4,7 +4,9 @@ import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { asc } from './asc-client.mjs';
 const cfg = JSON.parse(fs.readFileSync('store/testflight.json', 'utf8'));
-if (process.platform !== 'darwin' || process.env.SOPA_TESTFLIGHT_UPLOAD !== 'true' || !cfg.appId) throw Error('An explicit macOS TestFlight run and App Store record are required');
+const upload = process.env.SOPA_TESTFLIGHT_UPLOAD === 'true';
+const exportOnly = process.env.SOPA_NATIVE_EXPORT === 'true';
+if (process.platform !== 'darwin' || (!upload && !exportOnly) || !cfg.appId) throw Error('An explicit macOS export/upload run and App Store record are required');
 const temp = process.env.RUNNER_TEMP;
 if (!temp) throw Error('Runner temporary directory required');
 function run(cmd, args, quiet = false) {
@@ -61,13 +63,17 @@ try {
   run('xcodebuild',['-exportArchive','-archivePath',archive,'-exportOptionsPlist',options,'-exportPath',out]);
   const ipa = path.join(out,fs.readdirSync(out).find(n=>n.endsWith('.ipa')));
   fs.mkdirSync('artifacts/testflight',{recursive:true});
-  const final = `artifacts/testflight/Sopa3D-${cfg.marketingVersion}-build${cfg.buildNumber}-${process.env.GITHUB_SHA.slice(0,7)}-TestFlight.ipa`;
+  const final = `artifacts/testflight/Sopa3D-${cfg.marketingVersion}-build${cfg.buildNumber}-${process.env.GITHUB_SHA.slice(0,7)}-${upload ? 'TestFlight' : 'NonCommercialCandidate'}.ipa`;
   fs.copyFileSync(ipa,final);
   const manifest = {...cfg,commit:process.env.GITHUB_SHA,run:process.env.GITHUB_RUN_ID,ipa:path.basename(final),sha256:crypto.createHash('sha256').update(fs.readFileSync(final)).digest('hex'),signatureVerified:true};
   fs.writeFileSync('artifacts/testflight/manifest.json',JSON.stringify(manifest,null,2));
   run('xcrun',['altool','--validate-app','-f',final,'-t','ios','--apiKey',process.env.ASC_KEY_ID,'--apiIssuer',process.env.ASC_ISSUER_ID]);
-  run('xcrun',['altool','--upload-app','-f',final,'-t','ios','--apiKey',process.env.ASC_KEY_ID,'--apiIssuer',process.env.ASC_ISSUER_ID]);
-  fs.writeFileSync('artifacts/testflight/upload.json',JSON.stringify({...manifest,uploadAccepted:true},null,2));
+  if (upload) {
+    run('xcrun',['altool','--upload-app','-f',final,'-t','ios','--apiKey',process.env.ASC_KEY_ID,'--apiIssuer',process.env.ASC_ISSUER_ID]);
+    fs.writeFileSync('artifacts/testflight/upload.json',JSON.stringify({...manifest,uploadAccepted:true},null,2));
+  } else {
+    fs.writeFileSync('artifacts/testflight/export-only.json',JSON.stringify({...manifest,validated:true,uploadAccepted:false,commercialReady:false},null,2));
+  }
 } finally {
   spawnSync('security',['delete-keychain',keychain],{stdio:'ignore'});
   for (const file of [key,p12,profile,profilePlist,installedProfile]) if(file && fs.existsSync(file)) fs.unlinkSync(file);

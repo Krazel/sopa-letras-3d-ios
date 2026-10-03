@@ -6,6 +6,10 @@ on:
         description: Upload the signed build to TestFlight
         type: boolean
         default: false
+      archive:
+        description: Sign and validate an export without uploading to Apple
+        type: boolean
+        default: false
       devices:
         description: Reuse unchanged successful iPhone QA only when recorded in release evidence
         type: choice
@@ -73,7 +77,7 @@ jobs:
           retention-days: 3
   testflight:
     needs: iphone
-    if: inputs.upload
+    if: inputs.upload || inputs.archive
     runs-on: macos-26
     environment: app-store-production
     timeout-minutes: 35
@@ -87,9 +91,10 @@ jobs:
           package-manager-cache: false
       - run: npm ci && npm run build && npx cap sync ios && node scripts/prepare-ios.mjs
       - run: sudo xcode-select -s /Applications/Xcode_26.6.app
-      - name: Sign, verify and upload
+      - name: Sign, verify and optionally upload
         env:
-          SOPA_TESTFLIGHT_UPLOAD: 'true'
+          SOPA_TESTFLIGHT_UPLOAD: ${{ inputs.upload && 'true' || 'false' }}
+          SOPA_NATIVE_EXPORT: ${{ inputs.archive && 'true' || 'false' }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_PRIVATE_KEY_BASE64: ${{ secrets.ASC_PRIVATE_KEY_BASE64 }}
