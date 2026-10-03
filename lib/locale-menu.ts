@@ -168,16 +168,30 @@ const completed: Record<Language, string> = {
   ko: '완료됨',
   ja: 'クリア済み',
 };
+const replayLevel: Partial<Record<Language, string>> = {
+  en: 'Replay level',
+  ca: 'Repeteix el nivell',
+  fr: 'Rejouer le niveau',
+  de: 'Level wiederholen',
+  it: 'Ripeti livello',
+  pt: 'Repetir nível',
+  tr: 'Bölümü tekrar oyna',
+  ar: 'إعادة لعب المستوى',
+  ko: '레벨 다시 하기',
+  ja: 'レベルをもう一度遊ぶ',
+};
 export const MENU_UI = Object.fromEntries(
   Object.entries(copy).map(([lang, row]) => [
     lang,
     {
       ...Object.fromEntries(keys.map((key, i) => [key, row[i]])),
       completed: completed[lang as Language],
+      replaylevel: replayLevel[lang as Language],
     },
   ]),
 ) as Partial<Record<Language, Record<string, string>>>;
 export const MENU_ALIASES: Record<string, string> = {
+  'Repetir nivel': 'replaylevel',
   Completada: 'completed',
   'Empieza por lo fácil y avanza hacia retos cada vez más difíciles.':
     'progressintro',

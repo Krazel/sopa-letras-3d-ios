@@ -60,6 +60,7 @@ import { drawMotion, motionPoints, hitMotion } from '@/lib/motion';
 import { hitDie } from '@/lib/dice';
 import {
   startPuzzle,
+  replayCampaignState,
   DEFAULT_PUZZLE,
   isWon,
   selectCell,
@@ -414,6 +415,25 @@ export default function Game({
       : (games.current.get(id) ?? startPuzzle(id, language));
     setPuzzleId(id);
     setGame(next);
+    pointers.current.clear();
+    pressOrigin.current = null;
+    suppressPick.current = true;
+    moveCamera(homeView(next.puzzle.size));
+    commitCamera();
+  }
+  function replayLevel() {
+    const next = replayCampaignState(gameRef.current);
+    gameRef.current = next;
+    setGame(next);
+    setHints({});
+    setHintPaths({});
+    setHintSession(crypto.randomUUID());
+    setHintOffer(null);
+    setAdNotice('');
+    setWinDismissed(false);
+    setDieFocus(null);
+    freshCompletion.current = true;
+    completionID.current = crypto.randomUUID();
     pointers.current.clear();
     pressOrigin.current = null;
     suppressPick.current = true;
@@ -963,14 +983,24 @@ export default function Game({
             {game.found.length}/{game.puzzle.words.length}
           </strong>
         </div>
-        {pageNumber && (hasNextLevel ?? pageNumber < LEVELS.length) ? (
-          <button
-            className="primary-action"
-            onClick={() => void leaveResult(onNext)}
-            aria-label={t('Siguiente nivel')}
-          >
-            {t('Siguiente nivel')} <ChevronRight size={20} />
-          </button>
+        {pageNumber ? (
+          <>
+            <button
+              className="primary-action"
+              onClick={() => void leaveResult(replayLevel)}
+            >
+              <RotateCcw size={19} /> {t('Repetir nivel')}
+            </button>
+            {(hasNextLevel ?? pageNumber < LEVELS.length) && (
+              <button
+                className="dialog-action"
+                onClick={() => void leaveResult(onNext)}
+                aria-label={t('Siguiente nivel')}
+              >
+                {t('Siguiente nivel')} <ChevronRight size={20} />
+              </button>
+            )}
+          </>
         ) : (
           <button
             className="primary-action"
@@ -996,13 +1026,15 @@ export default function Game({
             {t('Volver a jugar')}{' '}
           </button>
         )}
-        <button
-          className="dialog-action"
-          onClick={() => void leaveResult(onExit)}
-        >
-          <Home size={19} />
-          {t('Volver al menú')}{' '}
-        </button>
+        {!pageNumber && (
+          <button
+            className="dialog-action"
+            onClick={() => void leaveResult(onExit)}
+          >
+            <Home size={19} />
+            {t('Volver al menú')}{' '}
+          </button>
+        )}
       </GameDialog>
       <output className="sr-only" aria-live="polite">
         {t(game.message)}

@@ -5,6 +5,7 @@ import {
   selectCell,
   isWon,
   createPuzzle,
+  replayCampaignState,
 } from '../lib/game.ts';
 import { LANGUAGES, supportedLanguage } from '../lib/preferences.ts';
 import {
@@ -24,6 +25,25 @@ import {
   customChoice,
   generateCustom,
 } from '../lib/player.ts';
+void test('replaying a completed campaign board resets only its attempt, retaining unlocks', () => {
+  const campaign = campaignFor('es');
+  let game = initialStateForChoice(campaign[0]);
+  for (const word of game.puzzle.words)
+    for (const id of word.path) game = selectCell(game, id);
+  assert.equal(isWon(game), true);
+  const completed = saveGame(emptySave(), campaign[0].id, game);
+  const replay = replayCampaignState({ ...game, hintPath: [0, 1], selection: [0] });
+  assert.equal(isWon(replay), false);
+  assert.deepEqual(replay.found, []);
+  assert.deepEqual(replay.selection, []);
+  assert.equal(replay.hintPath, undefined);
+  assert.equal(replay.puzzle, game.puzzle);
+  assert.equal(isWon(game), true);
+  const saved = readSave(JSON.stringify(saveGame(completed, campaign[0].id, replay)));
+  assert.deepEqual(saved.completed, completed.completed);
+  assert.equal(isUnlocked(saved, 1), true);
+  assert.equal(isWon(restore(campaign[0], saved.progress[campaign[0].id])), false);
+});
 void test('free-play wins persist a separate tick without unlocking campaign levels', () => {
   const choice = LEVELS.find((p) => p.size === 6)!;
   let game = initialStateForChoice(choice);
