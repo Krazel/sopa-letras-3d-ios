@@ -7,7 +7,7 @@ permissions:
   contents: read
 concurrency:
   group: sopa-marketing-assets
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   capture:
     if: github.actor == github.repository_owner
@@ -43,6 +43,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p media
+          FAIL=0
           for LANG in es en de ca fr it pt tr ar ko ja; do
             export SOPA_LANGUAGE="$LANG"
             export TEST_RUNNER_SOPA_LANGUAGE="$LANG"
@@ -51,10 +52,11 @@ jobs:
               xcrun simctl io "$DEVICE" recordVideo --codec=h264 "media/native-$LANG.mov" > "media/record-$LANG.log" 2>&1 &
               REC=$!
             fi
-            xcodebuild test-without-building -project ios/App/App.xcodeproj -scheme SopaQA -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -parallel-testing-enabled NO -only-testing:SopaUITests/SopaUITests/testStoreAssets -resultBundlePath "results-$LANG.xcresult" CODE_SIGNING_ALLOWED=NO > "media/test-$LANG.log" 2>&1 || { if [ -n "$REC" ]; then kill -INT "$REC"; fi; exit 1; }
+            xcodebuild test-without-building -project ios/App/App.xcodeproj -scheme SopaQA -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -parallel-testing-enabled NO -only-testing:SopaUITests/SopaUITests/testStoreAssets -resultBundlePath "results-$LANG.xcresult" CODE_SIGNING_ALLOWED=NO > "media/test-$LANG.log" 2>&1 || { tail -100 "media/test-$LANG.log"; FAIL=1; }
             if [ -n "$REC" ]; then kill -INT "$REC"; wait "$REC" || true; fi
-            xcrun xcresulttool export attachments --path "results-$LANG.xcresult" --output-path "media/screens-$LANG"
+            xcrun xcresulttool export attachments --path "results-$LANG.xcresult" --output-path "media/screens-$LANG" || true
           done
+          exit "$FAIL"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
