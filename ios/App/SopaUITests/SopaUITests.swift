@@ -9,6 +9,29 @@ final class SopaUITests: XCTestCase {
         image.lifetime = .keepAlways
         add(image)
     }
+    func assertPhoneMenuBackgroundReachesBottom(_ app: XCUIApplication) throws {
+        guard UIDevice.current.userInterfaceIdiom == .phone else { return }
+        let settings = app.buttons["Ajustes"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 10))
+        XCTAssertTrue(settings.isHittable)
+        let window = app.windows.firstMatch.frame
+        let cg = try XCTUnwrap(XCUIScreen.main.screenshot().image.cgImage)
+        let data = try XCTUnwrap(cg.dataProvider?.data)
+        let pixels = try XCTUnwrap(CFDataGetBytePtr(data))
+        let bytesPerPixel = cg.bitsPerPixel / 8
+        XCTAssertGreaterThanOrEqual(bytesPerPixel, 3)
+        let scaleX = CGFloat(cg.width) / window.width
+        let scaleY = CGFloat(cg.height) / window.height
+        let x = Int(window.width * 0.2 * scaleX)
+        let upperY = Int((settings.frame.maxY + 3 - window.minY) * scaleY)
+        let lowerY = Int((window.height - 5) * scaleY)
+        XCTAssertLessThan(upperY, lowerY, "Navigation controls stay above the gesture area")
+        for channel in 0..<3 {
+            let upper = Int(pixels[upperY * cg.bytesPerRow + x * bytesPerPixel + channel])
+            let lower = Int(pixels[lowerY * cg.bytesPerRow + x * bytesPerPixel + channel])
+            XCTAssertLessThanOrEqual(abs(upper - lower), 3, "No different-color strip below navigation")
+        }
+    }
     @discardableResult
     func dismissTestConsent(_ app: XCUIApplication, unobstructedControl: XCUIElement? = nil) -> Bool {
         // UMP also keeps an offscreen WKWebView in its accessibility tree.
@@ -52,6 +75,8 @@ final class SopaUITests: XCTestCase {
             app.buttons["Jugar"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         }
         XCTAssertTrue(levels.waitForExistence(timeout: 10), app.debugDescription)
+        capture("Sopa3D-0.16.4-modes-safe-area")
+        try assertPhoneMenuBackgroundReachesBottom(app)
         levels.tap()
         XCTAssertTrue(app.staticTexts["Empieza por lo fácil y avanza hacia retos cada vez más difíciles."].waitForExistence(timeout: 10))
         capture("Sopa3D-0.16-levels")

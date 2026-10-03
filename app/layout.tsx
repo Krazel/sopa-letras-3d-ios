@@ -8,7 +8,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#f4eedf',
+  themeColor: '#fbf5ed',
 };
 export const metadata: Metadata = {
   title: 'Sopa de letras 3D',
