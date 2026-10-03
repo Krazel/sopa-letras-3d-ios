@@ -145,8 +145,14 @@ final class SopaUITests: XCTestCase {
         expectation(for: portraitReady, evaluatedWith: app)
         waitForExpectations(timeout: 20)
         capture("Sopa3D-0.16-2-portrait-restored")
-        restoredPlay.tap()
+        // Re-query after the screenshot: WebKit's accessibility frame may lag
+        // the landscape->portrait rotation although isHittable is already true.
+        app.buttons["Jugar"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         let levels = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Niveles")).firstMatch
+        if !levels.waitForExistence(timeout: 3), app.buttons["Jugar"].exists && app.buttons["Jugar"].isHittable {
+            capture("Sopa3D-portrait-touch-retry")
+            app.buttons["Jugar"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
         XCTAssertTrue(levels.waitForExistence(timeout: 20), app.debugDescription)
         levels.tap()
         let start = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Continuar · Nivel")).firstMatch
