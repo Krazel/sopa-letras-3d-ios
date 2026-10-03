@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react';
 import PuzzleIcon from './puzzle-icon';
 import AdSettings from './ad-settings';
 import DifficultySelector from './difficulty-selector';
-import { AD_COPY } from '@/lib/ad-copy';
+import HelpRules from './help-rules';
 import {
   Home,
   Gamepad2,
@@ -565,35 +565,7 @@ export default function Menu({
                 <BookOpen size={22} />
                 {t('Cómo jugar')} <ChevronRight size={18} />
               </summary>
-              <div className="help-rules">
-                <p>
-                  {t(
-                    'Las palabras pueden compartir casillas, aunque ya estén marcadas. En una misma palabra cada casilla se usa una sola vez.',
-                  )}
-                </p>
-                <p>
-                  <strong>{t('Toca')}</strong>{' '}
-                  {t(
-                    'letras vecinas, una a una, para formar las palabras. También se conectan entre capas.',
-                  )}{' '}
-                </p>
-                <p>
-                  <strong>{t('Arrastra')}</strong>{' '}
-                  {t(
-                    'para girar libremente. Pellizca o usa la rueda para acercarte, incluso al interior.',
-                  )}{' '}
-                </p>
-                <p>
-                  <strong>{t('Deshaz')}</strong>{' '}
-                  {t(
-                    'tocando una letra ya elegida. Si tocas una que no es vecina, se borra la selección.',
-                  )}{' '}
-                </p>
-                <p className="hint-help">
-                  <strong>{AD_COPY[language].hint}.</strong>{' '}
-                  {AD_COPY[language].help}
-                </p>
-              </div>
+              <HelpRules language={language} />
             </details>
           </>
         )}

@@ -1019,27 +1019,7 @@ progress::-moz-progress-bar {
 .paper-game .word-list li.complete::after {
   content: none;
 }
-.play-footer {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  width: 100%;
-  flex-shrink: 0;
-  padding: 11px 5px 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-.play-footer > progress {
-  flex: 1;
-  max-width: 220px;
-  margin-left: auto;
-  height: 6px;
-}
-.play-footer .icon-button {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-}
+
 .paper-game .dice-selection {
   height: 30px;
   min-height: 30px;
@@ -1228,9 +1208,7 @@ progress::-moz-progress-bar {
   .play-header {
     min-height: 50px;
   }
-  .play-footer {
-    padding-top: 7px;
-  }
+
   .notebook-cover h1 {
     font-size: 43px;
     margin: 14px 0;
@@ -1279,9 +1257,7 @@ progress::-moz-progress-bar {
   .play-header h1 {
     font-size: 17px;
   }
-  .play-footer {
-    padding-top: 4px;
-  }
+
   .dialog-content {
     padding: 22px;
   }

@@ -1,6 +1,6 @@
 {
-  "productCommit": "9f954e9600b833513217b0d4b787e195e21cbe8a",
-  "version": "0.16.2",
-  "build": 2,
-  "purpose": "TestFlight internal universal iPhone/iPad; original mobile cover and fully visible desktop/tablet letter tiles"
+  "productCommit": "e98df2239b58c5d6780a2c1029376c7c27d80608",
+  "version": "0.16.3",
+  "build": 1,
+  "purpose": "Shared instructions and no bottom strip; internal TestFlight"
 }

@@ -140,9 +140,12 @@ html:not([data-input-mode='pointer']) .studio-menu .home-hotspot:focus-visible {
   padding: 10px;
   background: transparent;
 }
-.game-help-content {
+.game-help-content,
+.game-help-content .help-rules {
   display: grid;
   gap: 14px;
+}
+.game-help-content {
   margin-block: 18px 24px;
 }
 .game-help-content p {

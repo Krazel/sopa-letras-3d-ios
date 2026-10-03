@@ -30,6 +30,8 @@ import {
   X,
 } from 'lucide-react';
 import GameDialog from './game-dialog';
+import HelpRules from './help-rules';
+import { useAdFreeEdition } from '@/hooks/use-ad-free-edition';
 import { levelsFor, campaignFor } from '@/lib/player';
 import { playSound } from '@/lib/audio';
 import { selectionSound } from '@/lib/sound-events';
@@ -185,6 +187,7 @@ export default function Game({
   const [winDismissed, setWinDismissed] = useState(false);
   const [dieFocus, setDieFocus] = useState<number | null>(null);
   const copy = AD_COPY[language];
+  const adFree = useAdFreeEdition();
   const [hintSession, setHintSession] = useState(() => crypto.randomUUID());
   const ledgerKey = hintKey(game, language, dice, hintSession);
   const [hints, setHints] = useState<HintCounts>({});
@@ -820,7 +823,7 @@ export default function Game({
         </fieldset>
       )}
       <section className="hint-controls" aria-label={copy.hint}>
-        {!won && (
+        {!won && !adFree && (
           <button
             className="hint-button"
             disabled={adBusy || (!offer && nativeAds)}
@@ -850,36 +853,21 @@ export default function Game({
           </output>
         )}
         {!offer && cluePath.length > 0 && <small>{copy.complete}</small>}
-        <output className="ad-notice" aria-live="polite">
-          {adBusy ? copy.busy : adNotice}
-        </output>
-      </section>
-      <footer className="play-footer" inert={adBusy}>
-        <span>
-          {pageNumber
-            ? t(`Nivel ${pageNumber} de ${LEVELS.length}`)
-            : dice
-              ? t('Prueba de dados')
-              : t('A tu ritmo')}
-        </span>
-        <progress
-          value={game.found.length}
-          max={game.puzzle.words.length}
-          aria-label={t('Palabras encontradas')}
-        />
-        <span>
-          {game.found.length}/{game.puzzle.words.length}
-        </span>
         {won && (
           <button
-            className="icon-button"
+            className="hint-button"
             aria-label={t('Ver resultado')}
             onClick={() => setWinDismissed(false)}
+            disabled={adBusy}
           >
             <Trophy size={19} />
           </button>
         )}
-      </footer>
+        <output className="ad-notice" aria-live="polite">
+          {adBusy ? copy.busy : adNotice}
+        </output>
+      </section>
+
       <GameDialog
         open={helpOpen && !adBusy}
         onClose={() => setHelpOpen(false)}
@@ -897,39 +885,7 @@ export default function Game({
         </div>
         <h2>{t('Cómo jugar')}</h2>
         <div className="game-help-content">
-          <p>
-            {dice
-              ? t(
-                  'Las palabras pueden compartir caras, aunque ya estén marcadas. En una misma palabra cada cara se usa una sola vez.',
-                )
-              : t(
-                  'Las palabras pueden compartir casillas, aunque ya estén marcadas. En una misma palabra cada casilla se usa una sola vez.',
-                )}
-          </p>
-          <p>
-            {dice
-              ? t(
-                  'Une caras del mismo dado que compartan borde, o letras de dados vecinos.',
-                )
-              : t(
-                  `Une letras vecinas y encuentra las ${game.puzzle.words.length} palabras.`,
-                )}
-          </p>
-          <p>
-            {t('Arrastra')}{' '}
-            {t(
-              'para girar libremente. Pellizca o usa la rueda para acercarte, incluso al interior.',
-            )}
-          </p>
-          <p>
-            {t('Deshaz')}{' '}
-            {t(
-              'tocando una letra ya elegida. Si tocas una que no es vecina, se borra la selección.',
-            )}
-          </p>
-          <p className="hint-help">
-            <strong>{copy.hint}.</strong> {copy.help}
-          </p>
+          <HelpRules language={language} />
           {privacyRequired && (
             <button
               className="dialog-action"
