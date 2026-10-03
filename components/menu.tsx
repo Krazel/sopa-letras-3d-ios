@@ -88,6 +88,9 @@ export default function Menu({
   const PUZZLES = levelsFor(language)
     .slice()
     .sort((a, b) => a.size - b.size);
+  const completedPuzzles = PUZZLES.filter(
+    (p) => data.completed.includes(p.id) || data.freeCompleted.includes(p.id),
+  ).length;
   const suggested = recommendedLevel(data, language);
   const filteredPuzzles = PUZZLES.filter(
     (p) => difficulty === 'all' || p.difficulty === difficulty,
@@ -429,10 +432,10 @@ export default function Menu({
             <div className="stat-grid">
               <div>
                 <strong>
-                  {completedCount}
-                  <small>/{LEVELS.length}</small>
+                  {completedPuzzles}
+                  <small>/{PUZZLES.length}</small>
                 </strong>
-                <span>{t('Niveles completos')}</span>
+                <span>{t('Sopas completadas')}</span>
               </div>
               <div>
                 <strong>{wordsFound}</strong>
