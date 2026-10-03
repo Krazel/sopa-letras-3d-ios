@@ -1,4 +1,4 @@
-name: Gameplay proposal captures
+name: Gameplay motion and zoom proposal
 on:
   workflow_dispatch:
 permissions:
@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: [iPad]
+        device: [iPhone, iPad]
     name: Gameplay proposal (${{ matrix.device }})
     runs-on: macos-26
     timeout-minutes: 35
