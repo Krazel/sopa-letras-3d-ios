@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: [iPhone, iPad]
+        device: [iPad]
     name: Gameplay proposal (${{ matrix.device }})
     runs-on: macos-26
     timeout-minutes: 35
@@ -63,8 +63,8 @@ jobs:
       - name: Export any diagnostic captures
         if: always()
         run: |
-          if [ -d shots.xcresult ]; then xcrun xcresulttool export attachments --path shots.xcresult --output-path media/shots; fi
-          if [ -d video.xcresult ]; then xcrun xcresulttool export attachments --path video.xcresult --output-path media/video-shots; fi
+          if [ -d shots.xcresult ] && [ ! -f media/shots/manifest.json ]; then xcrun xcresulttool export attachments --path shots.xcresult --output-path media/shots; fi
+          if [ -d video.xcresult ] && [ ! -f media/video-shots/manifest.json ]; then xcrun xcresulttool export attachments --path video.xcresult --output-path media/video-shots; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -3,7 +3,7 @@ import UIKit
 final class SopaUITests: XCTestCase {
     func shot(_ name: String) { RunLoop.current.run(until: Date().addingTimeInterval(2)); let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a) }
     func open(_ scene: String) -> XCUIApplication {
-        XCUIDevice.shared.orientation = ProcessInfo.processInfo.environment["SOPA_DEVICE_CLASS"] == "iPad" ? .landscapeLeft : .portrait
+        XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
         let app = XCUIApplication(); app.launchEnvironment["MARKETING_SCENE"] = scene
         app.launchArguments = ["-AppleLanguages", "(es)", "-AppleLocale", "es_ES"]
         app.launch(); XCTAssertTrue(app.buttons["Pausar partida"].waitForExistence(timeout: 120), app.debugDescription)
