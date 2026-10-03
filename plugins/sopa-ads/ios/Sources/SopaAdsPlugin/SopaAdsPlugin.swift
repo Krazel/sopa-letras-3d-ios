@@ -12,6 +12,7 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "prepare", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "showRewarded", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "claimSupportHint", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "showInterstitial", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "rewards", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "acknowledge", returnType: CAPPluginReturnPromise),
@@ -31,7 +32,16 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
     private var rewardID: String?
     private var rewardContext: String?
     private var earned = false
-    private var lastAd = Date()
+    private var supportObserver: NSObjectProtocol?
+    public override func load() {
+        supportObserver = NotificationCenter.default.addObserver(forName: SopaSupportStore.changed, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, SopaSupportStore.shared.active else { return }
+                self.epoch += 1; self.rewarded = nil; self.interstitial = nil
+            }
+        }
+    }
+    deinit { if let supportObserver { NotificationCenter.default.removeObserver(supportObserver) } }
     private let rewardUnit = "ca-app-pub-3940256099942544/1712485313"
     private let interstitialUnit = "ca-app-pub-3940256099942544/4411468910"
     private let sampleApp = "ca-app-pub-3940256099942544~1458002511"
@@ -49,11 +59,11 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
         try FileManager.default.createDirectory(at: journalURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try JSONEncoder().encode(receipts).write(to: journalURL, options: .atomic)
     }
-    private var permitted: Bool {
+    @MainActor private var permitted: Bool {
         Bundle.main.object(forInfoDictionaryKey: "GADApplicationIdentifier") as? String == sampleApp &&
-        ConsentInformation.shared.canRequestAds
+        ConsentInformation.shared.canRequestAds && SopaSupportStore.shared.ready && !SopaSupportStore.shared.active
     }
-    private var status: [String: Any] {
+    @MainActor private var status: [String: Any] {
         ["available": permitted && started,
          "privacyRequired": ConsentInformation.shared.privacyOptionsRequirementStatus == .required]
     }
@@ -67,7 +77,9 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
         return vc
     }
     @objc func prepare(_ call: CAPPluginCall) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
+            await SopaSupportStore.shared.refresh()
+            guard !SopaSupportStore.shared.active else { call.resolve(self.status); return }
             guard !self.consentBusy, self.showing == nil, let vc = self.controller() else { call.resolve(self.status); return }
             self.consentBusy = true
             self.pause(true)
@@ -135,7 +147,8 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
         }
     }
     @objc func showRewarded(_ call: CAPPluginCall) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
+            await SopaSupportStore.shared.refresh()
             guard self.permitted, !self.consentBusy, self.showing == nil,
                   let vc = self.controller(), let id = call.getString("id"),
                   let context = call.getString("context"), context.utf8.count < 100_000 else {
@@ -165,9 +178,10 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
         }
     }
     @objc func showInterstitial(_ call: CAPPluginCall) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
+            await SopaSupportStore.shared.refresh()
             guard self.permitted, !self.consentBusy, self.showing == nil,
-                  Date().timeIntervalSince(self.lastAd) >= 120, let vc = self.controller(),
+                  let vc = self.controller(),
                   let ad = self.interstitial, Date().timeIntervalSince(self.interstitialAt) < 3500 else {
                 if Date().timeIntervalSince(self.interstitialAt) >= 3500 { self.interstitial = nil }
                 Task { @MainActor in self.preload() }
@@ -186,7 +200,6 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
         if isReward { rewarded = nil } else { interstitial = nil }
         let result = earned ? "rewarded" : failed ? "unavailable" : isReward ? "cancelled" : "closed"
         showing = nil; showingAd = nil; rewardID = nil; rewardContext = nil
-        if !failed { lastAd = Date() }
         pause(false)
         call.resolve(["status": result])
         Task { @MainActor in self.preload() }
@@ -196,6 +209,19 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
             do {
                 if let receipt = self.memoryReceipt { try self.writeJournal([receipt]); self.memoryReceipt = nil }
                 call.resolve(["receipts": try self.journal().map { ["id": $0.id, "context": $0.context] }])
+            } catch { call.reject("Reward storage unavailable") }
+        }
+    }
+    @objc func claimSupportHint(_ call: CAPPluginCall) {
+        Task { @MainActor in
+            await SopaSupportStore.shared.refresh()
+            guard SopaSupportStore.shared.active, self.showing == nil,
+                  let id = call.getString("id"), let context = call.getString("context"),
+                  context.utf8.count < 100_000 else { call.resolve(["status": "unavailable"]); return }
+            do {
+                guard try self.journal().isEmpty, self.memoryReceipt == nil else { call.resolve(["status": "unavailable"]); return }
+                try self.writeJournal([Receipt(id: id, context: context)])
+                call.resolve(["status": "rewarded"])
             } catch { call.reject("Reward storage unavailable") }
         }
     }

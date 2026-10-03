@@ -197,16 +197,14 @@ void test('storage rejection prevents starting and leaves earned receipt retryab
   assert.equal(Object.values(readHints(s, key))[0], 1);
   assert.throws(() => redeemHint(s, { id: 'r', context: '{}' }));
 });
-void test('transition caps first two minutes, duplicate transitions, restored wins and recent rewarded ads', () => {
-  const p = new TransitionAds(0);
-  assert.equal(p.take('a', true, 119999), false);
-  assert.equal(p.take('a', true, 130000), false);
-  assert.equal(p.take('restored', false, 130000), false);
-  assert.equal(p.take('b', true, 130000), true);
-  assert.equal(p.take('b', true, 500000), false);
-  p.rewardShown(510000);
-  assert.equal(p.take('c', true, 520000), false);
-  assert.equal(p.take('d', true, 631000), true);
+void test('each fresh completion is eligible once, including the first and replayed levels', () => {
+  const p = new TransitionAds();
+  assert.equal(p.take('first', true), true);
+  assert.equal(p.take('first', true), false);
+  assert.equal(p.take('restored', false), false);
+  assert.equal(p.take('second', true), true);
+  assert.equal(p.take('second', true), false);
+  assert.equal(p.take('first-replayed', true), true);
 });
 void test('all eleven locales have complete hint, ad and privacy instructions', () => {
   for (const { code } of LANGUAGES) {

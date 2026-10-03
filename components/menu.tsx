@@ -2,6 +2,7 @@
 import { useState, type ReactNode } from 'react';
 import PuzzleIcon from './puzzle-icon';
 import AdSettings from './ad-settings';
+import SupportSettings from './support-settings';
 import DifficultySelector from './difficulty-selector';
 import HelpRules from './help-rules';
 import {
@@ -559,6 +560,7 @@ export default function Menu({
                 </select>
               </label>
             </section>
+            <SupportSettings language={language} />
             <AdSettings language={language} />
             <details className="settings-group settings-help">
               <summary>

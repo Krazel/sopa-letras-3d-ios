@@ -10,6 +10,7 @@ import {
 import { TransitionAds } from './ad-policy';
 import { setAudioSuspended } from './audio';
 import { audioBackend } from './native-audio';
+import { refreshSupport } from './support';
 
 type AdStatus = { available: boolean; privacyRequired: boolean };
 interface NativeAds {
@@ -19,6 +20,10 @@ interface NativeAds {
     context: string;
   }): Promise<{ status: 'rewarded' | 'cancelled' | 'unavailable' }>;
   showInterstitial(): Promise<{ status: string }>;
+  claimSupportHint(options: {
+    id: string;
+    context: string;
+  }): Promise<{ status: 'rewarded' | 'unavailable' }>;
   rewards(): Promise<{ receipts: RewardReceipt[] }>;
   acknowledge(options: { id: string }): Promise<void>;
   privacy(): Promise<AdStatus>;
@@ -58,7 +63,7 @@ export function beginHintSession(key: string) {
   };
 }
 export function beginAdSession() {
-  policy ??= new TransitionAds(Date.now());
+  policy ??= new TransitionAds();
 }
 function adBreak(active: boolean, token: string) {
   window.dispatchEvent(
@@ -82,6 +87,9 @@ async function withAdBreak<T>(action: () => Promise<T>): Promise<T> {
 export async function prepareAds(): Promise<AdStatus> {
   beginAdSession();
   if (!nativeAdsAvailable())
+    return { available: false, privacyRequired: false };
+  const support = await refreshSupport();
+  if (!support.ready || support.active)
     return { available: false, privacyRequired: false };
   if (!prepared)
     prepared = (async () => {
@@ -112,13 +120,9 @@ export async function recoverRewards() {
 }
 export async function requestHint(
   offer: HintOffer,
+  withoutAds = false,
 ): Promise<'rewarded' | 'cancelled' | 'unavailable' | 'storage'> {
-  if (
-    busy ||
-    !hintSessions.has(offer.key) ||
-    !nativeAdsAvailable() ||
-    !navigator.onLine
-  )
+  if (busy || !hintSessions.has(offer.key) || !nativeAdsAvailable())
     return 'unavailable';
   busy = true;
   try {
@@ -130,13 +134,30 @@ export async function requestHint(
     }
     if ((readHints(localStorage, offer.key)[offer.word] ?? 0) > offer.before)
       return 'rewarded';
+    const support = await refreshSupport();
+    if (!support.ready) return 'unavailable';
+    if (support.active) {
+      const result = await native.claimSupportHint({
+        id: crypto.randomUUID(),
+        context: JSON.stringify(offer),
+      });
+      try {
+        await recoverRewards();
+      } catch {
+        return 'storage';
+      }
+      return result.status;
+    }
+    // Never replace a promised subscriber hint with an unexpected rewarded ad
+    // when the entitlement expires between opening and accepting the offer.
+    if (withoutAds) return 'unavailable';
+    if (!navigator.onLine) return 'unavailable';
     if (!(await prepareAds()).available) return 'unavailable';
     return await withAdBreak(async () => {
       const result = await native.showRewarded({
         id: crypto.randomUUID(),
         context: JSON.stringify(offer),
       });
-      if (result.status !== 'unavailable') policy?.rewardShown(Date.now());
       try {
         await recoverRewards();
       } catch {
@@ -153,7 +174,7 @@ export async function requestHint(
 export async function transitionAd(completion: string, fresh: boolean) {
   beginAdSession();
   if (
-    !policy!.take(completion, fresh, Date.now()) ||
+    !policy!.take(completion, fresh) ||
     busy ||
     !nativeAdsAvailable() ||
     !navigator.onLine
@@ -161,6 +182,11 @@ export async function transitionAd(completion: string, fresh: boolean) {
     return;
   busy = true;
   try {
+    const support = await refreshSupport();
+    if (!support.ready || support.active) return;
+    if (!(await prepareAds()).available) return;
+    // Preparation was started when the level opened; presentation never waits
+    // for inventory to load and remains unavailable when consent is missing.
     await withAdBreak(() => native.showInterstitial());
   } catch {
     // preloaded only; never delay navigation to load an ad
