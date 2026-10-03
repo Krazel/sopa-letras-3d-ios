@@ -1,8 +1,11 @@
 name: Native iPad landscape assets
 on:
   workflow_dispatch:
-  push:
-    branches: [marketing-native-assets-20261003]
+    inputs:
+      language_set:
+        type: choice
+        default: tr
+        options: [all, tr]
 permissions:
   contents: read
 concurrency:
@@ -40,11 +43,13 @@ jobs:
           xcrun simctl status_bar "$DEVICE" override --time '9:41' --batteryState charged --batteryLevel 100
           xcodebuild build-for-testing -project ios/App/App.xcodeproj -scheme SopaQA -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO > build.log 2>&1
       - name: Capture real bundled game in eleven languages
+        env:
+          CAPTURE_LANGUAGES: ${{ inputs.language_set == 'tr' && 'tr' || 'es en de ca fr it pt tr ar ko ja' }}
         run: |
           set -euo pipefail
           mkdir -p media
           FAIL=0
-          for LANG in es en de ca fr it pt tr ar ko ja; do
+          for LANG in $CAPTURE_LANGUAGES; do
             export SOPA_LANGUAGE="$LANG"
             export TEST_RUNNER_SOPA_LANGUAGE="$LANG"
             REC=""
