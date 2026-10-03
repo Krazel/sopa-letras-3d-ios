@@ -1,4 +1,4 @@
-name: Native marketing assets
+name: Native iPad landscape assets
 on:
   workflow_dispatch:
   push:
@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: sopa-marketing-assets
+  group: sopa-marketing-landscape-assets
   cancel-in-progress: false
 jobs:
   capture:
@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: [iPhone, iPad]
+        device: [iPad]
     runs-on: macos-26
     timeout-minutes: 45
     steps:
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Native-marketing-${{ matrix.device }}-${{ github.sha }}
+          name: Native-landscape-${{ matrix.device }}-${{ github.sha }}
           path: |
             media/
             build.log

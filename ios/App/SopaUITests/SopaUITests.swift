@@ -11,7 +11,7 @@ final class SopaUITests: XCTestCase {
     func shot(_ name: String) { RunLoop.current.run(until:Date().addingTimeInterval(1)); let a=XCTAttachment(screenshot:XCUIScreen.main.screenshot());a.name=name;a.lifetime = .keepAlways;add(a) }
     func testStoreAssets() throws {
         continueAfterFailure=false
-        XCUIDevice.shared.orientation = .portrait
+        XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
         let lang=ProcessInfo.processInfo.environment["SOPA_LANGUAGE"] ?? "es"
         let names:[String:[String]]=["es": ["Jugar", "Niveles", "Continuar · Nivel", "Pausar partida", "Volver al menú", "Juego libre", "Abrir ayuda", "Cerrar ayuda"],
 "en": ["Play", "Levels", "Continue · Level", "Pause game", "Back to menu", "Free play", "Open help", "Close help"],
