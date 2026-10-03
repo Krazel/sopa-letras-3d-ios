@@ -1,6 +1,13 @@
 import XCTest
 import UIKit
 final class SopaUITests: XCTestCase {
+    func dismissTestConsent(_ app: XCUIApplication, control: XCUIElement) {
+        if control.exists && control.isHittable { return }
+        if let form=app.webViews.allElementsBoundByIndex.first(where:{$0.buttons["Save and close"].exists && $0.buttons["Save and close"].isHittable}) {
+            let reject=form.staticTexts["Don't sell or share my data"]
+            if reject.exists { reject.tap(); form.buttons["Save and close"].tap() }
+        }
+    }
     func shot(_ name: String) { RunLoop.current.run(until:Date().addingTimeInterval(1)); let a=XCTAttachment(screenshot:XCUIScreen.main.screenshot());a.name=name;a.lifetime = .keepAlways;add(a) }
     func testStoreAssets() throws {
         continueAfterFailure=false
@@ -34,6 +41,7 @@ final class SopaUITests: XCTestCase {
         let pause=app.buttons[t[3]]
         XCTAssertTrue(pause.waitForExistence(timeout:60),app.debugDescription)
         RunLoop.current.run(until:Date().addingTimeInterval(3))
+        dismissTestConsent(app,control:pause)
         shot("STORE-\(lang)-03-game")
         let window=app.windows.firstMatch
         let from=window.coordinate(withNormalizedOffset:CGVector(dx:0.48,dy:0.54))

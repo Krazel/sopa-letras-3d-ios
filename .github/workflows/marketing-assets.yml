@@ -7,7 +7,7 @@ permissions:
   contents: read
 concurrency:
   group: sopa-marketing-assets
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   capture:
     if: github.actor == github.repository_owner
@@ -45,6 +45,7 @@ jobs:
           mkdir -p media
           for LANG in es en de ca fr it pt tr ar ko ja; do
             export SOPA_LANGUAGE="$LANG"
+            export TEST_RUNNER_SOPA_LANGUAGE="$LANG"
             REC=""
             if [ "$LANG" = es ] || [ "$LANG" = en ]; then
               xcrun simctl io "$DEVICE" recordVideo --codec=h264 "media/native-$LANG.mov" > "media/record-$LANG.log" 2>&1 &
