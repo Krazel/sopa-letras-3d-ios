@@ -29,7 +29,7 @@ void test('shared Unicode puzzle reproduces the exact cube and paths, without pr
   assert.deepEqual(restore(imported).found, []);
   assert(!encodePuzzle(choice).includes('custom-original'));
 });
-void test('reimport is idempotent and preserves saved progress even when the shelf is full', () => {
+void test('reimport preserves progress and a new puzzle can be saved beyond twenty', () => {
   const { choice, game } = generateCustom(
     customChoice('Luna', 'LUNA', 'cube', 3, 9, 'custom-original'),
   );
@@ -44,7 +44,23 @@ void test('reimport is idempotent and preserves saved progress even when the she
   const imported = decodePuzzle(encodePuzzle(choice), 'custom-new');
   assert.equal(addCustom(data, imported), data);
   assert.deepEqual(readSave(JSON.stringify(data)), data);
-  assert.throws(() => addCustom(data, { ...choice, name: 'Extra' }), /20/);
+  const extra = decodePuzzle(encodePuzzle({ ...choice, name: 'Extra' }), 'custom-extra');
+  const expanded = addCustom(data, extra);
+  assert.equal(expanded.customs.length, 21);
+  assert.deepEqual(readSave(JSON.stringify(expanded)), expanded);
+  assert.deepEqual(expanded.progress, data.progress);
+});
+void test('large shelves survive reload without truncating creations or their progress', () => {
+  const choice = customChoice('Luna', 'LUNA', 'cube', 3, 9, 'custom-template');
+  const data = emptySave();
+  for (let i = 0; i < 2500; i++) {
+    const id = `custom-${i}`;
+    data.customs.push({ ...choice, id, name: `Creación ${i} con palabras propias` });
+    data.progress[id] = { paths: {} };
+  }
+  const raw = JSON.stringify(data);
+  assert(raw.length > 256000);
+  assert.deepEqual(readSave(raw), data);
 });
 void test('reject unsupported, truncated, oversized and malicious definitions', () => {
   const pack = (value: unknown) =>

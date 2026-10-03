@@ -1,0 +1,147 @@
+'use client';
+import { useEffect, useState } from 'react';
+import { useSupport } from '@/hooks/use-support';
+import { SUPPORT_COPY } from '@/lib/support-copy';
+import type { Language } from '@/lib/preferences';
+import {
+  supportAvailable,
+  refreshSupport,
+  supportProducts,
+  purchaseSupport,
+  restoreSupport,
+  manageSupport,
+  type SupportProduct,
+} from '@/lib/support';
+
+export default function SupportSettings({ language }: { language: Language }) {
+  const copy = SUPPORT_COPY[language],
+    status = useSupport();
+  const [available, setAvailable] = useState(false),
+    [products, setProducts] = useState<SupportProduct[]>([]);
+  const [busy, setBusy] = useState(false),
+    [notice, setNotice] = useState('');
+  async function load() {
+    setBusy(true);
+    setNotice('');
+    try {
+      await refreshSupport();
+      setProducts(await supportProducts());
+    } catch {
+      setNotice('error');
+    } finally {
+      setBusy(false);
+    }
+  }
+  useEffect(() => {
+    const enabled = supportAvailable();
+    setAvailable(enabled);
+    if (enabled) void load();
+  }, []);
+  if (!available) return null;
+  async function act(action: () => Promise<void>) {
+    if (busy) return;
+    setBusy(true);
+    setNotice('');
+    try {
+      await action();
+    } catch {
+      setNotice('error');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section
+      className="settings-group support-settings"
+      aria-label={copy.title}
+    >
+      <h2>{copy.title}</h2>
+      <p>{copy.intro}</p>
+      {status.active && (
+        <p className="support-active" role="status">
+          {copy.active}
+        </p>
+      )}
+      <div className="support-products">
+        {products.map((product) => (
+          <button
+            key={product.id}
+            className="menu-row"
+            disabled={busy || product.id === status.productID}
+            data-sound="none"
+            onClick={() =>
+              void act(async () => {
+                const result = await purchaseSupport(product.id);
+                setNotice(result === 'purchased' ? '' : result);
+              })
+            }
+          >
+            <span>
+              <strong>{product.name}</strong>
+              <small>
+                {product.price} / {copy.month}
+              </small>
+            </span>
+            <span>
+              {product.id === status.productID ? '✓' : copy.subscribe}
+            </span>
+          </button>
+        ))}
+      </div>
+      {!products.length && !busy && (
+        <p>
+          {copy.unavailable}{' '}
+          <button className="dialog-action" onClick={() => void load()}>
+            {copy.retry}
+          </button>
+        </p>
+      )}
+      {busy && <p role="status">{copy.loading}</p>}
+      <p className="support-terms">{copy.renewal}</p>
+      <div className="support-actions">
+        <button
+          className="dialog-action"
+          disabled={busy}
+          onClick={() =>
+            void act(async () => {
+              const s = await restoreSupport();
+              setNotice(s.active ? '' : 'empty');
+            })
+          }
+        >
+          {copy.restore}
+        </button>
+        <button
+          className="dialog-action"
+          disabled={busy}
+          onClick={() =>
+            void act(async () => {
+              await manageSupport();
+            })
+          }
+        >
+          {copy.manage}
+        </button>
+        <a
+          href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          {copy.terms}
+        </a>
+        <a
+          href="https://krazel.github.io/sopa-letras-3d-ios/privacy/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          {copy.privacy}
+        </a>
+      </div>
+      <output aria-live="polite">
+        {notice
+          ? copy[notice as 'pending' | 'cancelled' | 'error' | 'empty']
+          : ''}
+      </output>
+    </section>
+  );
+}

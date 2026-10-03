@@ -1,0 +1,45 @@
+{
+  "status": "Prepared locally; not provisioned or verified in App Store Connect",
+  "appId": "6809458750",
+  "bundleId": "com.krazel.sopaletras3d",
+  "subscriptionGroup": "Sopa de letras 3D Support",
+  "groupLevel": 1,
+  "duration": "ONE_MONTH",
+  "baseTerritory": "ESP",
+  "baseCurrency": "EUR",
+  "benefits": [
+    "No interstitial ads",
+    "One-letter hints without rewarded ads",
+    "Active supporter status"
+  ],
+  "introductoryOffer": false,
+  "billingGracePeriod": false,
+  "familySharing": false,
+  "displayPrice": "StoreKit Product.displayPrice only",
+  "products": [
+    {
+      "productId": "com.krazel.sopaletras3d.support.monthly.299",
+      "targetBasePrice": "2.99"
+    },
+    {
+      "productId": "com.krazel.sopaletras3d.support.monthly.499",
+      "targetBasePrice": "5.00"
+    },
+    {
+      "productId": "com.krazel.sopaletras3d.support.monthly.999",
+      "targetBasePrice": "10.00"
+    },
+    {
+      "productId": "com.krazel.sopaletras3d.support.monthly.1499",
+      "targetBasePrice": "15.00"
+    },
+    {
+      "productId": "com.krazel.sopaletras3d.support.monthly.2999",
+      "targetBasePrice": "30.00"
+    },
+    {
+      "productId": "com.krazel.sopaletras3d.support.monthly.50",
+      "targetBasePrice": "49.99"
+    }
+  ]
+}

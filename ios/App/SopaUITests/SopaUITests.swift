@@ -150,6 +150,45 @@ final class SopaUITests: XCTestCase {
         // after ~72 s on the hosted simulator. Use the same cold-start budget.
         XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 120), "Bundled game restarts without a development server: " + app.debugDescription)
     }
+    func testCustomCreationBeyondTwentySurvivesRelaunch() {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(es)", "-AppleLocale", "es_ES"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Partida personalizada"].waitForExistence(timeout: 120))
+        let prefix = "QA-" + String(UUID().uuidString.prefix(8)) + "-"
+        for index in 1...21 {
+            app.buttons["Partida personalizada"].tap()
+            let name = app.textFields["Nombre de la sopa"]
+            XCTAssertTrue(name.waitForExistence(timeout: 15), app.debugDescription)
+            name.tap()
+            name.typeText(prefix + String(index))
+            let words = app.textViews["Palabras"]
+            XCTAssertTrue(words.exists, app.debugDescription)
+            words.tap()
+            words.typeText("SOL")
+            let save = app.buttons["Guardar sin jugar"]
+            for _ in 0..<8 {
+                if save.isHittable { break }
+                app.webViews.firstMatch.swipeUp()
+            }
+            XCTAssertTrue(save.isHittable, app.debugDescription)
+            save.tap()
+            XCTAssertTrue(app.buttons["Jugar: " + prefix + String(index)].waitForExistence(timeout: 15), app.debugDescription)
+            app.buttons["Inicio"].tap()
+            XCTAssertTrue(app.buttons["Partida personalizada"].waitForExistence(timeout: 10))
+        }
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.buttons["Partida personalizada"].waitForExistence(timeout: 120))
+        app.buttons["Partida personalizada"].tap()
+        let last = app.buttons["Jugar: " + prefix + "21"]
+        XCTAssertTrue(last.waitForExistence(timeout: 15), "Creation 21 survives native WKWebView relaunch")
+        let saved = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Jugar: " + prefix))
+        XCTAssertEqual(saved.count, 21, "Native storage keeps every creation beyond the old limit")
+        capture("Sopa3D-0.17-customs-21-reloaded")
+    }
     func testResponsiveHomeAndTouchFocus() {
         continueAfterFailure = false
         let app = XCUIApplication()

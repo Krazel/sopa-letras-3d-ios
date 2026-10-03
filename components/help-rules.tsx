@@ -2,11 +2,14 @@ import { AD_COPY } from '@/lib/ad-copy';
 import { translator } from '@/lib/i18n';
 import type { Language } from '@/lib/preferences';
 import { useAdFreeEdition } from '@/hooks/use-ad-free-edition';
+import { useSupport } from '@/hooks/use-support';
+import { SUPPORT_COPY } from '@/lib/support-copy';
 
 export default function HelpRules({ language }: { language: Language }) {
   const t = translator(language);
   const copy = AD_COPY[language];
   const adFree = useAdFreeEdition();
+  const supporter = useSupport().active;
   return (
     <div className="help-rules">
       <p>
@@ -29,9 +32,11 @@ export default function HelpRules({ language }: { language: Language }) {
       </p>
       {!adFree && (
         <p className="hint-help">
-          <strong>{copy.hint}.</strong> {copy.help}
+          <strong>{copy.hint}.</strong>{' '}
+          {supporter ? SUPPORT_COPY[language].intro : copy.help}
         </p>
       )}
+      {!adFree && <p>{SUPPORT_COPY[language].transitions}</p>}
       <p>
         {t(
           'Las palabras pueden compartir casillas, aunque ya estén marcadas. En una misma palabra cada casilla se usa una sola vez.',

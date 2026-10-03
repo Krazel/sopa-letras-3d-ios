@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   iphone:
-    if: github.actor == github.repository_owner && github.ref == 'refs/heads/main' && !github.event.repository.private
+    if: github.actor == github.repository_owner && !github.event.repository.private
     strategy:
       fail-fast: false
       matrix:
@@ -77,7 +77,7 @@ jobs:
           retention-days: 3
   testflight:
     needs: iphone
-    if: inputs.upload || inputs.archive
+    if: github.ref == 'refs/heads/main' && (inputs.upload || inputs.archive)
     runs-on: macos-26
     environment: app-store-production
     timeout-minutes: 35

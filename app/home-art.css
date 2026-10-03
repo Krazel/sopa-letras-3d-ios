@@ -546,9 +546,33 @@ html[lang='ko'] body {
 }
 
 @media (max-aspect-ratio: 2/3) {
+  .studio-menu.section-home {
+    --home-art-height: max(100svh, calc(100vw * 1847 / 852));
+    /* The rings start 13.2% down the artwork. Offset a short-screen crop only
+       when needed to leave 8px below the 44px control and the iOS safe area. */
+    --home-settings-clearance: max(
+      0px,
+      calc(
+        env(safe-area-inset-top, 0px) + 52px - 50svh + var(--home-art-height) *
+          0.368
+      )
+    );
+  }
+  /* Keep the control in the desk space above the notebook on iPhone. */
+  .studio-menu .home-wide-settings {
+    top: env(safe-area-inset-top, 0px);
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+  }
+  .home-wide-settings svg {
+    width: 26px;
+    height: 26px;
+  }
   .straight-home {
     width: max(100vw, calc(100svh * 852 / 1847));
     aspect-ratio: 852 / 1847;
+    transform: translateY(var(--home-settings-clearance));
   }
   .home-notebook-content {
     left: 15%;
@@ -587,6 +611,7 @@ html[lang='ko'] body {
   }
   .straight-home .live-home-motto {
     top: auto;
+    transform: translateY(calc(0px - var(--home-settings-clearance)));
     bottom: max(
       10%,
       calc((100% - 100svh) / 2 + env(safe-area-inset-bottom) + 20px)

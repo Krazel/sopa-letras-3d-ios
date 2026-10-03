@@ -65,6 +65,53 @@ html:not([data-input-mode='pointer']) .hint-button:focus-visible {
   margin: 8px 0;
   font-size: 13px;
 }
+.support-settings {
+  padding: 20px;
+}
+.support-settings p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.support-products {
+  display: grid;
+  gap: 8px;
+  margin-block: 16px;
+}
+.support-products .menu-row {
+  gap: 12px;
+  text-align: start;
+}
+.support-products .menu-row > span:first-child {
+  flex: 1;
+}
+.support-products .menu-row small {
+  display: block;
+}
+.support-active {
+  color: var(--found-text);
+  background: var(--found);
+  padding: 12px;
+  border-radius: 12px;
+}
+.support-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.support-actions a {
+  color: var(--foreground);
+  text-decoration: underline;
+}
+.support-actions button {
+  margin: 0;
+  width: auto;
+  min-height: 44px;
+}
+.support-settings output {
+  display: block;
+  margin-block-start: 12px;
+}
 .hint-help summary {
   cursor: pointer;
   padding: 12px 0;

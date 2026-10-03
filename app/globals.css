@@ -222,11 +222,13 @@ html:not([data-input-mode='pointer']) .cube-stage:focus-visible {
   display: block;
   pointer-events: none;
 }
-/* Semantic hit targets remain native buttons; only the canvas paints tiles. */
+/* Semantic hit targets remain native buttons; only the canvas paints tiles.
+   Include the combined state so its later fallback fill cannot cover the glyph. */
 .canvas-ready .letter,
 .canvas-ready .letter:hover,
 .canvas-ready .letter.selected,
-.canvas-ready .letter.found {
+.canvas-ready .letter.found,
+.canvas-ready .letter.found.selected {
   background: transparent;
   color: transparent;
   border-color: transparent;

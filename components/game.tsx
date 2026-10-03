@@ -32,6 +32,8 @@ import {
 import GameDialog from './game-dialog';
 import HelpRules from './help-rules';
 import { useAdFreeEdition } from '@/hooks/use-ad-free-edition';
+import { useSupport } from '@/hooks/use-support';
+import { SUPPORT_COPY } from '@/lib/support-copy';
 import { levelsFor, campaignFor } from '@/lib/player';
 import { playSound } from '@/lib/audio';
 import { selectionSound } from '@/lib/sound-events';
@@ -189,6 +191,8 @@ export default function Game({
   const [dieFocus, setDieFocus] = useState<number | null>(null);
   const copy = AD_COPY[language];
   const adFree = useAdFreeEdition();
+  const supporter = useSupport().active;
+  const supportCopy = SUPPORT_COPY[language];
   const [hintSession, setHintSession] = useState(() => crypto.randomUUID());
   const ledgerKey = hintKey(game, language, dice, hintSession);
   const [hints, setHints] = useState<HintCounts>({});
@@ -200,6 +204,7 @@ export default function Game({
   const [nativeAds, setNativeAds] = useState(false);
   const freshCompletion = useRef(!isWon(initial ?? game));
   const completionID = useRef('');
+  const advertisedCompletion = useRef('');
   const offer = nextHint(game, hints, ledgerKey, hintPaths);
   const cluePath = hintedPath(game, hints, hintPaths);
   const renderedGame = useMemo(
@@ -242,7 +247,7 @@ export default function Game({
     adLock.current = true;
     setAdBusy(true);
     try {
-      const result = await requestHint(frozenOffer);
+      const result = await requestHint(frozenOffer, supporter);
       setHints(readHints(localStorage, ledgerKey));
       setHintPaths(readHintPaths(localStorage, ledgerKey));
       setAdNotice(copy[result]);
@@ -253,20 +258,9 @@ export default function Game({
       setAdBusy(false);
     }
   }
-  async function leaveResult(action?: () => void) {
+  function leaveResult(action?: () => void) {
     if (adLock.current) return;
-    adLock.current = true;
-    setAdBusy(true);
-    try {
-      await transitionAd(
-        completionID.current,
-        !!pageNumber && freshCompletion.current && isWon(gameRef.current),
-      );
-    } finally {
-      adLock.current = false;
-      setAdBusy(false);
-      action?.();
-    }
+    action?.();
   }
   async function privacyOptions() {
     if (adLock.current) return;
@@ -512,6 +506,27 @@ export default function Game({
     };
   }, []);
   const won = isWon(game);
+  useEffect(() => {
+    if (
+      !won ||
+      !pageNumber ||
+      !freshCompletion.current ||
+      paused ||
+      helpOpen ||
+      adBusy ||
+      adLock.current ||
+      advertisedCompletion.current === completionID.current
+    )
+      return;
+    advertisedCompletion.current = completionID.current;
+    if (adFree || supporter) return;
+    adLock.current = true;
+    setAdBusy(true);
+    void transitionAd(completionID.current, true).finally(() => {
+      adLock.current = false;
+      setAdBusy(false);
+    });
+  }, [won, pageNumber, adFree, supporter, paused, helpOpen, adBusy]);
   const size = game.puzzle.size;
   const foundCells = useMemo(
     () =>
@@ -862,7 +877,7 @@ export default function Game({
             {copy.hint}
           </button>
         )}
-        {nativeAds && !won && <small>{copy.test}</small>}
+        {nativeAds && !won && !supporter && <small>{copy.test}</small>}
         {cluePath.length > 0 && (
           <output aria-label={copy.path} dir="ltr">
             {cluePath.map((id, i) => (
@@ -925,15 +940,15 @@ export default function Game({
         title={copy.hint}
       >
         <h2>{copy.hint}</h2>
-        <p>{copy.offer}</p>
+        <p>{supporter ? supportCopy.hintOffer : copy.offer}</p>
         <strong dir="auto">{hintOffer?.word}</strong>
-        <p>{copy.test}</p>
+        {!supporter && <p>{copy.test}</p>}
         <button
           className="primary-action"
           data-sound="none"
           onClick={() => void watchHint()}
         >
-          {copy.watch}
+          {supporter ? supportCopy.hint : copy.watch}
         </button>
         <button className="dialog-action" onClick={() => setHintOffer(null)}>
           {copy.later}

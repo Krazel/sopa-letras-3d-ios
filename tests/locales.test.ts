@@ -10,6 +10,20 @@ import { CHAPTERS } from '../lib/content.ts';
 import { lettersOf, normalizeWord, validWord } from '../lib/letters.ts';
 import { EN, translate } from '../lib/i18n.ts';
 import { WORLD_UI, WORLD_ALIASES } from '../lib/locale-ui.ts';
+import { SUPPORT_COPY } from '../lib/support-copy.ts';
+void test('subscription, pricing period and restoration copy exists in every supported language', () => {
+  for (const { code } of LANGUAGES) {
+    assert.deepEqual(
+      Object.keys(SUPPORT_COPY[code]),
+      Object.keys(SUPPORT_COPY.es),
+    );
+    assert.ok(
+      Object.values(SUPPORT_COPY[code]).every(
+        (value) => value.trim().length > 0,
+      ),
+    );
+  }
+});
 import {
   PUZZLES,
   initialStateForChoice,
