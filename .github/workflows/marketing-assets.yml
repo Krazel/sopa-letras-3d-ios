@@ -1,6 +1,8 @@
 name: Native marketing assets
 on:
   workflow_dispatch:
+  push:
+    branches: [marketing-native-assets-20261003]
 permissions:
   contents: read
 concurrency:
