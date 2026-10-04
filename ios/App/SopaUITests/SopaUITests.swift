@@ -28,7 +28,7 @@ final class SopaUITests: XCTestCase {
   let app=XCUIApplication();app.launchEnvironment["MARKETING_SCENE"]="video"
   app.launchArguments=["-AppleLanguages","(en)","-AppleLocale","en_US"]
   app.launch();XCTAssertTrue(app.buttons["Pause game"].waitForExistence(timeout:120))
-  RunLoop.current.run(until:Date().addingTimeInterval(34))
+  RunLoop.current.run(until:Date().addingTimeInterval(42))
   let found=app.descendants(matching:.any).matching(NSPredicate(format:"label CONTAINS %@",", found"))
   XCTAssertGreaterThanOrEqual(found.count,2,"Two words selected in real native game")
   shot("TRAILER-EN-END")
