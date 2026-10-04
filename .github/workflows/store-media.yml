@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: [iPad]
+        device: [iPhone]
     name: Gameplay proposal (${{ matrix.device }})
     runs-on: macos-26
     timeout-minutes: 35
@@ -41,6 +41,7 @@ jobs:
           xcrun simctl status_bar "$DEVICE" override --time '9:41' --batteryState charged --batteryLevel 100
           xcodebuild build-for-testing -project ios/App/App.xcodeproj -scheme SopaQA -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO > build.log 2>&1
       - name: Capture clean game screenshots
+        if: false
         env:
           SOPA_DEVICE_CLASS: ${{ matrix.device }}
         run: |
@@ -54,6 +55,7 @@ jobs:
           SOPA_DEVICE_CLASS: ${{ matrix.device }}
         run: |
           set -euo pipefail
+          mkdir -p media
           python3 -c 'import json,time;json.dump({"recordStart":time.time()},open("media/video-clock.json","w"))'
           xcrun simctl spawn "$DEVICE" log stream --level debug --style compact --predicate 'eventMessage CONTAINS "MARKETING_EVENT"' > media/motion-events.log 2>&1 &
           LOGGER=$!

@@ -30,7 +30,7 @@ final class SopaUITests: XCTestCase {
   app.launch();XCTAssertTrue(app.buttons["Pause game"].waitForExistence(timeout:120))
   RunLoop.current.run(until:Date().addingTimeInterval(34))
   let found=app.descendants(matching:.any).matching(NSPredicate(format:"label CONTAINS %@",", found"))
-  XCTAssertGreaterThan(found.count,0,"Two words selected in real native game")
+  XCTAssertGreaterThanOrEqual(found.count,2,"Two words selected in real native game")
   shot("TRAILER-EN-END")
  }
 }
