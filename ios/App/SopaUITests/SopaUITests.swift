@@ -2,13 +2,16 @@ import XCTest
 import UIKit
 final class SopaUITests: XCTestCase {
  func shot(_ name: String) { RunLoop.current.run(until: Date().addingTimeInterval(2)); let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a) }
- func testCleanGameplayScreenshots() throws {
+ func testCleanGameplayScreenshots() throws { try captureScreenshots(landscape: false) }
+ func testLandscapeGameplayScreenshots() throws { try captureScreenshots(landscape: true) }
+ private func captureScreenshots(landscape: Bool) throws {
   continueAfterFailure = false
-  XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
+  XCUIDevice.shared.orientation = landscape ? .landscapeLeft : .portrait
   for key in ["01-3a", "02-3b", "03-4", "04-6", "05-home"] {
    let app = XCUIApplication(); app.launchEnvironment["MARKETING_SCENE"] = key
    app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
    app.launch()
+   XCUIDevice.shared.orientation = landscape ? .landscapeLeft : .portrait
    XCTAssertTrue(app.buttons[key == "05-home" ? "Play" : "Pause game"].waitForExistence(timeout: 120), app.debugDescription)
    RunLoop.current.run(until: Date().addingTimeInterval(4))
    if key != "05-home" {
