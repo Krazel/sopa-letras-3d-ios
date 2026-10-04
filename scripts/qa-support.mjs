@@ -47,6 +47,9 @@ function bridge() {
   window.CapacitorCustomPlatform = { name: 'ios' };
   const q = (window.__supportQA = {
     active: false,
+    hintsRemaining: 10,
+    productID: 'com.krazel.sopaletras3d.support.monthly.299',
+    reminderDue: false,
     calls: [],
     receipts: [],
     listeners: [],
@@ -59,7 +62,10 @@ function bridge() {
     ready: true,
     available: true,
     active: q.active,
-    productID: q.active ? 'com.krazel.sopaletras3d.support.monthly.299' : '',
+    productID: q.active ? q.productID : '',
+    hintLimit: q.active ? ({299:10,499:30,999:60,1499:120,2999:300,50:600}[q.productID.split('.').at(-1)] ?? 0) : 0,
+    hintsRemaining: q.active ? q.hintsRemaining : 0,
+    renewsAt: Date.now()/1000 + 86400,
   });
   q.setActive = (active) => {
     q.active = active;
@@ -75,6 +81,7 @@ function bridge() {
   window.Capacitor = {
     PluginHeaders: [
       headers('SopaSupport', [
+        'completion','review','engagement','reminderShown',
         'status',
         'products',
         'purchase',
@@ -114,6 +121,10 @@ function bridge() {
       }
       if (plugin === 'StatusBar') return {};
       if (plugin === 'SopaSupport') {
+        if (method === 'review') return {requested:false};
+        if (method === 'completion') return {};
+        if (method === 'engagement') return {reminderDue:q.reminderDue&&!q.active};
+        if (method === 'reminderShown') {q.reminderDue=false;return {};}
         if (method === 'status') {
           if (q.failStatus) throw Error('QA status failure');
           return status();
@@ -124,6 +135,7 @@ function bridge() {
               (id, i) => ({
                 id: 'com.krazel.sopaletras3d.support.monthly.' + id,
                 name: 'Apoyo ' + (i + 1),
+                hintLimit: [10,30,60,120,300,600][i],
                 price: [
                   '2,99 €',
                   '5,00 €',
@@ -136,7 +148,7 @@ function bridge() {
             ),
           };
         if (method === 'purchase') {
-          if (q.purchase === 'purchased') q.setActive(true);
+          if (q.purchase === 'purchased') {q.productID=options.id;q.hintsRemaining=({299:10,499:30,999:60,1499:120,2999:300,50:600}[options.id.split('.').at(-1)]);q.setActive(true);}
           return { result: q.purchase, status: status() };
         }
         if (method === 'restore' || method === 'manage') return status();
@@ -148,7 +160,7 @@ function bridge() {
       )
         throw Error('Audio ACK missing');
       if (method === 'prepare')
-        return { available: true, privacyRequired: false };
+        return { available: true, privacyRequired: true };
       if (method === 'showInterstitial') {
         assertNotActive();
         return { status: q.outcome };
@@ -156,7 +168,7 @@ function bridge() {
       if (method === 'showRewarded' || method === 'claimSupportHint') {
         if (method === 'claimSupportHint' && !q.active)
           return { status: 'unavailable' };
-        if (method === 'showRewarded') assertNotActive();
+        if (method === 'claimSupportHint') {if(q.hintsRemaining<=0)return {status:'unavailable'};q.hintsRemaining--;q.setActive(true);}
         q.receipts.push({ id: options.id, context: options.context });
         return { status: 'rewarded' };
       }
@@ -377,6 +389,50 @@ try {
       });
       assert.deepEqual(errors, []);
       await shop.close();
+      const quota = await browser.newPage({viewport:{width:390,height:844}});
+      await quota.addInitScript(bridge);
+      await quota.addInitScript(() => {__supportQA.hintsRemaining=1;});
+      await quota.goto(url);
+      await quota.getByRole('button',{name:'Abrir ajustes',exact:true}).click();
+      await quota.locator('.ad-settings').waitFor();
+      assert.equal(await quota.locator('.settings-help').evaluate(el=>el.nextElementSibling?.classList.contains('ad-settings')),true);
+      assert.equal(await quota.locator('html').getAttribute('data-native-ios'),'true');
+      assert.equal(await quota.locator('.language-setting').evaluate(el=>el.dispatchEvent(new Event('selectstart',{bubbles:true,cancelable:true}))),false);
+      await quota.evaluate(()=>__supportQA.setActive(true));
+      await enter(quota);
+      await quota.getByRole('button',{name:'Pista',exact:true}).click();
+      await quota.getByRole('button',{name:'Revelar 1 letra',exact:true}).click();
+      await quota.waitForFunction(()=>__supportQA.hintsRemaining===0);
+      await quota.getByRole('button',{name:'Pista',exact:true}).click();
+      await quota.getByRole('button',{name:'Mejorar suscripción',exact:true}).click();
+      const upgrades=quota.getByRole('dialog',{name:'Mejorar suscripción',exact:true});
+      await upgrades.locator('.support-products button').first().waitFor();
+      assert.equal(await upgrades.locator('.support-products button').count(),5);
+      await upgrades.getByRole('button',{name:'Ahora no',exact:true}).click();
+      await quota.getByRole('button',{name:'Pista',exact:true}).click();
+      await quota.getByRole('button',{name:'Ver anuncio para esta pista',exact:true}).click();
+      await quota.waitForFunction(()=>__supportQA.calls.includes('SopaAds.showRewarded'));
+      assert.equal(await quota.evaluate(()=>__supportQA.calls.filter(c=>c==='SopaAds.claimSupportHint').length),1);
+      await quota.getByRole('button',{name:'Pista',exact:true}).click();
+      await quota.getByRole('button',{name:'Mejorar suscripción',exact:true}).click();
+      await upgrades.locator('.support-products button').first().click();
+      await quota.waitForFunction(()=>__supportQA.hintsRemaining===30);
+      await upgrades.getByRole('button',{name:'Ahora no',exact:true}).click();
+      await quota.getByRole('button',{name:'Pista',exact:true}).click();
+      await quota.getByRole('button',{name:'Revelar 1 letra',exact:true}).click();
+      await quota.waitForFunction(()=>__supportQA.hintsRemaining===29);
+      assert.equal(await quota.evaluate(()=>__supportQA.calls.filter(c=>c==='SopaAds.showRewarded').length),1);
+      await quota.screenshot({path:`${out}/${engine}-quota.png`});
+      await quota.close();
+      const editable=await browser.newPage({viewport:{width:390,height:844}});
+      await editable.addInitScript(bridge);await editable.goto(url);
+      await editable.getByRole('button',{name:'Partida personalizada',exact:true}).click();
+      const nameField=editable.getByRole('textbox',{name:'Nombre de la sopa',exact:true});await nameField.fill('Texto editable');
+      assert.equal(await nameField.evaluate(el=>el.dispatchEvent(new Event('selectstart',{bubbles:true,cancelable:true}))),true);
+      assert.equal(await nameField.evaluate(el=>getComputedStyle(el).getPropertyValue('user-select') || getComputedStyle(el).getPropertyValue('-webkit-user-select')),'text');await editable.close();
+      const reminder=await browser.newPage({viewport:{width:390,height:844}});await reminder.addInitScript(bridge);await reminder.addInitScript(()=>{__supportQA.reminderDue=true;});await reminder.goto(url);
+      const prompt=reminder.getByRole('dialog',{name:'¿Quieres jugar sin anuncios entre niveles?',exact:true});await prompt.waitFor();await prompt.getByRole('button',{name:'No volver a preguntar',exact:true}).click();assert.equal(await prompt.isVisible(),false);await reminder.close();
+      results.push({engine,case:'Included quota, upgrade options, voluntary subscriber ad, upgraded quota, privacy last, native selection blocked/editors usable, reminder opt-out'});
       for (const failure of ['offline', 'unavailable', 'status']) {
         const p = await browser.newPage({
           viewport: { width: 390, height: 844 },

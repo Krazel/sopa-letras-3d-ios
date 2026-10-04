@@ -46,6 +46,10 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_26.6.app
           xcodebuild -version
           ruby scripts/add-ios-ui-tests.rb
+      - name: Verify native benefit and engagement policies
+        run: |
+          swiftc -D DEBUG plugins/sopa-ads/ios/Sources/SopaAdsPlugin/SopaBenefitLedger.swift plugins/sopa-ads/ios/Sources/SopaAdsPlugin/SopaEngagement.swift scripts/verify-benefits.swift -o /tmp/sopa-benefit-checks
+          /tmp/sopa-benefit-checks
       - name: Run the bundled game on ${{ matrix.device }}
         env:
           SOPA_DEVICE_CLASS: ${{ matrix.device }}

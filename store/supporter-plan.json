@@ -1,16 +1,15 @@
 {
-  "status": "Prepared locally; not provisioned or verified in App Store Connect",
+  "status": "Drafts created in App Store Connect; Spain prices and levels verified; MISSING_METADATA, not submitted for review",
   "appId": "6809458750",
   "bundleId": "com.krazel.sopaletras3d",
   "subscriptionGroup": "Sopa de letras 3D Support",
-  "groupLevel": 1,
   "duration": "ONE_MONTH",
   "baseTerritory": "ESP",
   "baseCurrency": "EUR",
   "benefits": [
     "No interstitial ads",
-    "One-letter hints without rewarded ads",
-    "Active supporter status"
+    "Monthly one-letter hint allowance by plan",
+    "Optional rewarded ads for extra hints after upgrade offer"
   ],
   "introductoryOffer": false,
   "billingGracePeriod": false,
@@ -19,27 +18,54 @@
   "products": [
     {
       "productId": "com.krazel.sopaletras3d.support.monthly.299",
-      "targetBasePrice": "2.99"
+      "targetBasePrice": "2.99",
+      "monthlyHints": 10,
+      "groupLevel": 6,
+      "appStoreConnectId": "6819003331",
+      "state": "MISSING_METADATA"
     },
     {
       "productId": "com.krazel.sopaletras3d.support.monthly.499",
-      "targetBasePrice": "5.00"
+      "targetBasePrice": "5.00",
+      "monthlyHints": 30,
+      "groupLevel": 5,
+      "appStoreConnectId": "6819003533",
+      "state": "MISSING_METADATA"
     },
     {
       "productId": "com.krazel.sopaletras3d.support.monthly.999",
-      "targetBasePrice": "10.00"
+      "targetBasePrice": "10.00",
+      "monthlyHints": 60,
+      "groupLevel": 4,
+      "appStoreConnectId": "6819003785",
+      "state": "MISSING_METADATA"
     },
     {
       "productId": "com.krazel.sopaletras3d.support.monthly.1499",
-      "targetBasePrice": "15.00"
+      "targetBasePrice": "15.00",
+      "monthlyHints": 120,
+      "groupLevel": 3,
+      "appStoreConnectId": "6819003709",
+      "state": "MISSING_METADATA"
     },
     {
       "productId": "com.krazel.sopaletras3d.support.monthly.2999",
-      "targetBasePrice": "30.00"
+      "targetBasePrice": "30.00",
+      "monthlyHints": 300,
+      "groupLevel": 2,
+      "appStoreConnectId": "6819003645",
+      "state": "MISSING_METADATA"
     },
     {
       "productId": "com.krazel.sopaletras3d.support.monthly.50",
-      "targetBasePrice": "49.99"
+      "targetBasePrice": "49.99",
+      "monthlyHints": 600,
+      "groupLevel": 1,
+      "appStoreConnectId": "6819003685",
+      "state": "MISSING_METADATA"
     }
-  ]
+  ],
+  "quotaPeriod": "Verified StoreKit transaction purchase date to expiration; renewals/upgrades create their new paid period. Native device ledger, atomic with recoverable hint receipt.",
+  "subscriptionGroupId": "22439516",
+  "availability": "ESP only; no availability in new territories. Drafts are not published."
 }

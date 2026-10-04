@@ -1,3 +1,4 @@
+import { ENGAGEMENT_COPY } from './engagement-copy.ts';
 import type { Language } from './preferences';
 const keys = [
   'title',
@@ -62,3 +63,8 @@ export const SUPPORT_COPY: Record<Language, Copy> = {
     'العب بلا إعلانات|اختر مبلغ دعم التطوير. تزيل جميع الخيارات الإعلانات وتشمل تلميحات بحرف واحد دون مشاهدة إعلان.|الاشتراك نشط. شكرًا لدعم اللعبة.|جارٍ تحميل الخيارات…|الاشتراكات غير متاحة الآن.|حاول مجددًا|اشترك|شهر|استعادة المشتريات|إدارة الاشتراك|شروط الاستخدام|الخصوصية|اشتراك شهري يتجدد تلقائيًا. يمكنك إلغاؤه من حساب Apple. يستمر الوصول حتى نهاية الفترة المدفوعة.|عملية الشراء بانتظار الموافقة.|أُلغي الشراء.|تعذر إكمال العملية. حاول مجددًا.|لم يُعثر على اشتراك نشط.|كشف حرف واحد|يشمل اشتراكك الحرف التالي من هذه الكلمة:|بعد إكمال كل مستوى تُطلب محاولة عرض إعلان متاح. لا تظهر إعلانات مع اشتراك نشط.',
   ),
 };
+
+for (const language of Object.keys(SUPPORT_COPY) as Language[]) {
+  SUPPORT_COPY[language].intro = ENGAGEMENT_COPY[language].intro;
+  SUPPORT_COPY[language].transitions = ENGAGEMENT_COPY[language].transitions;
+}

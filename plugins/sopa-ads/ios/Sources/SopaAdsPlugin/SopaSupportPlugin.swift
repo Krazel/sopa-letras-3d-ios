@@ -12,6 +12,12 @@ final class SopaSupportStore {
     private(set) var ready = false
     private(set) var active = false
     private(set) var activeID = ""
+    private(set) var hintPeriod = ""
+    private(set) var renewal = 0.0
+    static func hintLimit(_ id: String) -> Int {
+        let amounts = ["299":10,"499":30,"999":60,"1499":120,"2999":300,"50":600]
+        return amounts[id.components(separatedBy: ".").last ?? ""] ?? 0
+    }
     private var updates: Task<Void, Never>?
     private var expiry: Task<Void, Never>?
     private var foreground: NSObjectProtocol?
@@ -31,7 +37,10 @@ final class SopaSupportStore {
         ) { [weak self] _ in Task { @MainActor in await self?.refresh() } }
     }
     var snapshot: [String: Any] {
-        ["ready": ready, "active": active, "productID": activeID, "available": true]
+        let limit = active ? Self.hintLimit(activeID) : 0
+        let used = (try? SopaBenefitLedger.used(hintPeriod)) ?? limit
+        return ["ready": ready, "active": active, "productID": activeID, "available": true,
+                "hintLimit": limit, "hintsRemaining": max(0, limit - used), "renewsAt": renewal]
     }
     func refresh() async {
         refreshGeneration += 1
@@ -40,16 +49,20 @@ final class SopaSupportStore {
         ready = false
         var id = ""
         var expires: Date?
+        var period = ""
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result,
                   Self.ids.contains(transaction.productID), !transaction.isUpgraded,
                   transaction.revocationDate == nil,
                   let end = transaction.expirationDate, end > Date() else { continue }
-            if expires == nil || end > expires! { id = transaction.productID; expires = end }
+            if expires == nil || end > expires! {
+                id = transaction.productID; expires = end
+                period = "\(transaction.originalID):\(transaction.purchaseDate.timeIntervalSince1970)"
+            }
         }
         guard generation == refreshGeneration else { return }
         let changed = !wasReady || activeID != id
-        activeID = id; active = !id.isEmpty; ready = true
+        activeID = id; active = !id.isEmpty; hintPeriod = period; renewal = expires?.timeIntervalSince1970 ?? 0; ready = true
         expiry?.cancel()
         if let expires {
             expiry = Task { [weak self] in
@@ -71,8 +84,44 @@ public class SopaSupportPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "products", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "purchase", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "restore", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "manage", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "manage", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "completion", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "review", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "engagement", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "reminderShown", returnType: CAPPluginReturnPromise)
     ]
+    @objc func completion(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { SopaEngagement.completion(call.getString("id") ?? ""); call.resolve() }
+    }
+    @objc func review(_ call: CAPPluginCall) {
+        Task { @MainActor in
+            guard SopaEngagement.eligible, !SopaEngagement.reviewRequested,
+                  UIApplication.shared.applicationState == .active,
+                  let vc = bridge?.viewController, vc.presentedViewController == nil,
+                  let scene = vc.viewIfLoaded?.window?.windowScene else { call.resolve(["requested":false]); return }
+            #if !DEBUG
+            // TestFlight suppresses this UI. Keep eligibility for the App Store build.
+            if Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt" {
+                call.resolve(["requested":false]); return
+            }
+            #endif
+            SopaEngagement.markReview()
+            if #available(iOS 18.0, *) { AppStore.requestReview(in: scene) }
+            else { SKStoreReviewController.requestReview(in: scene) }
+            call.resolve(["requested":true])
+        }
+    }
+    @objc func engagement(_ call: CAPPluginCall) {
+        Task { @MainActor in
+            await SopaSupportStore.shared.refresh()
+            let due = SopaEngagement.reminderDue
+            let available = !SopaSupportStore.shared.active && SopaSupportStore.shared.ready && due && ((try? await catalog().isEmpty) == false)
+            call.resolve(["reminderDue":available])
+        }
+    }
+    @objc func reminderShown(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { SopaEngagement.markReminder(disable: call.getBool("disable") ?? false); call.resolve() }
+    }
     private var observer: NSObjectProtocol?
     private var busy = false
     public override func load() {
@@ -96,7 +145,7 @@ public class SopaSupportPlugin: CAPPlugin, CAPBridgedPlugin {
             do {
                 let products = try await catalog()
                 call.resolve(["products": products.map {
-                    ["id": $0.id, "name": $0.displayName, "price": $0.displayPrice]
+                    ["id": $0.id, "name": $0.displayName, "price": $0.displayPrice, "hintLimit": SopaSupportStore.hintLimit($0.id)]
                 }])
             } catch { call.reject("Products unavailable") }
         }
