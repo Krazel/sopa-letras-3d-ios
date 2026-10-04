@@ -8,6 +8,14 @@ private final class SopaTextInteractionHandler: NSObject, WKScriptMessageHandler
     weak var controller: SopaViewController?
     init(controller: SopaViewController) { self.controller = controller }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        #if DEBUG
+        if message.name == "sopaTextInputDebug", message.frameInfo.isMainFrame,
+           let payload = message.body as? [String: Any], let length = payload["length"] as? Int,
+           let event = payload["event"] as? String {
+            NSLog("SOPA_EDITOR_EVENT event=%@ length=%d", event, length)
+            return
+        }
+        #endif
         guard message.frameInfo.isMainFrame, let editing = message.body as? Bool,
               let web = controller?.webView else { return }
         if web.configuration.preferences.isTextInteractionEnabled != editing {
@@ -25,9 +33,10 @@ class SopaViewController: CAPBridgeViewController {
     private lazy var textInteractionHandler = SopaTextInteractionHandler(controller: self)
     override func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
         let configuration = super.webViewConfiguration(for: instanceConfiguration)
-        // Disable WebKit selection/loupe gestures before the first document loads.
-        // Enable native editing before any field receives focus on form screens.
-        configuration.preferences.isTextInteractionEnabled = false
+        // Let UIKit initialize its text input machinery with the WebKit default.
+        // The document guard disables text gestures before the game UI appears,
+        // then enables editing before text forms receive their first focus.
+        configuration.preferences.isTextInteractionEnabled = true
         return configuration
     }
     override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
@@ -61,6 +70,26 @@ class SopaViewController: CAPBridgeViewController {
         })();
         """
         configuration.userContentController.addUserScript(WKUserScript(source: editingScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        #if DEBUG
+        configuration.userContentController.add(textInteractionHandler, name: "sopaTextInputDebug")
+        let inputDiagnostics = """
+        (() => {
+          const timers = new WeakMap();
+          const report = (event, field) => {
+            if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)
+              window.webkit.messageHandlers.sopaTextInputDebug.postMessage({event,length:field.value.length});
+          };
+          document.addEventListener('focusin', event => report('focus', event.target), true);
+          document.addEventListener('input', event => {
+            const field = event.target;
+            report('input', field);
+            clearTimeout(timers.get(field));
+            timers.set(field, setTimeout(() => report('settled', field), 1000));
+          }, true);
+        })();
+        """
+        configuration.userContentController.addUserScript(WKUserScript(source: inputDiagnostics, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        #endif
         return super.webView(with: frame, configuration: configuration)
     }
     override func capacitorDidLoad() {

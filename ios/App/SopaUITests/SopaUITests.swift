@@ -4,7 +4,7 @@ import UIKit
 final class SopaUITests: XCTestCase {
     func capture(_ name: String) {
         RunLoop.current.run(until: Date().addingTimeInterval(2))
-        let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        let image = XCTAttachment(screenshot: XCUIApplication().screenshot())
         image.name = name
         image.lifetime = .keepAlways
         add(image)
@@ -170,7 +170,11 @@ final class SopaUITests: XCTestCase {
             XCTAssertTrue(name.waitForExistence(timeout: 15), app.debugDescription)
             name.tap()
             name.typeText(prefix + String(index))
-            XCTAssertEqual(name.value as? String, prefix + String(index), "The first field keeps every typed character")
+            let expectedName = prefix + String(index)
+            let nameReady = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", expectedName), object: name)
+            let typed = XCTWaiter.wait(for: [nameReady], timeout: 10) == .completed
+            if !typed { capture("Sopa3D-0.17.3-name-input-failure-\(index)") }
+            XCTAssertTrue(typed, "The first field keeps every typed character: " + String(describing: name.value))
             let words = app.textViews["Palabras"]
             XCTAssertTrue(words.exists, app.debugDescription)
             words.tap()
