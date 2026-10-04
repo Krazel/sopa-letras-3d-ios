@@ -10,7 +10,9 @@ private final class SopaTextInteractionHandler: NSObject, WKScriptMessageHandler
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.frameInfo.isMainFrame, let editing = message.body as? Bool,
               let web = controller?.webView else { return }
-        web.configuration.preferences.isTextInteractionEnabled = editing
+        if web.configuration.preferences.isTextInteractionEnabled != editing {
+            web.configuration.preferences.isTextInteractionEnabled = editing
+        }
         #if DEBUG
         NSLog("SOPA_TEXT_INTERACTION editing=%d enabled=%d", editing, web.configuration.preferences.isTextInteractionEnabled)
         #endif
@@ -34,13 +36,23 @@ class SopaViewController: CAPBridgeViewController {
         configuration.userContentController.add(textInteractionHandler, name: "sopaTextEditing")
         let editingScript = """
         (() => {
+          const isField = field => !!(field && field.matches('input,textarea,[contenteditable="true"]'));
+          const send = editing => window.webkit.messageHandlers.sopaTextEditing.postMessage(editing);
           const update = () => {
-            const field = document.activeElement;
-            const editing = !!(field && field.matches('input,textarea,[contenteditable="true"]'));
-            window.webkit.messageHandlers.sopaTextEditing.postMessage(editing);
+            send(isField(document.activeElement));
           };
+          // Arm native editing before WebKit starts focusing the first field.
+          // Changing the preference after focus can clear its native caret.
+          document.addEventListener('pointerdown', event => {
+            const field = event.target.closest('input,textarea,[contenteditable="true"]');
+            if (field) send(true);
+          }, true);
           document.addEventListener('focusin', update, true);
-          document.addEventListener('focusout', () => queueMicrotask(update), true);
+          // Focusout precedes focusin when moving between fields. Wait for the
+          // whole transition instead of briefly disabling the new field.
+          document.addEventListener('focusout', () => setTimeout(update, 0), true);
+          document.addEventListener('pointerup', () => setTimeout(update, 0), true);
+          document.addEventListener('pointercancel', () => setTimeout(update, 0), true);
           document.addEventListener('DOMContentLoaded', update, {once:true});
         })();
         """
