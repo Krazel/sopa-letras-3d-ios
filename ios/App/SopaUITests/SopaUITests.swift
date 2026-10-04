@@ -11,12 +11,16 @@ final class SopaUITests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
         XCUIDevice.shared.press(.home)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        springboard.activate()
-        XCUIDevice.shared.press(.home)
+        let homeScreen = springboard.otherElements["Home screen icons"]
+        XCTAssertTrue(homeScreen.waitForExistence(timeout: 30), springboard.debugDescription)
         let icon = springboard.icons.matching(NSPredicate(format: "label CONTAINS[cd] %@", "Sopa de letras")).firstMatch
         for _ in 0..<5 {
             if icon.exists && icon.isHittable { break }
-            springboard.swipeLeft()
+            // Drag the home-screen surface below widgets; a whole-application
+            // swipe traverses widget providers and can time out on hosted iPhone.
+            let start = homeScreen.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.65))
+            let end = homeScreen.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.65))
+            start.press(forDuration: 0.1, thenDragTo: end)
         }
         XCTAssertTrue(icon.waitForExistence(timeout: 10), springboard.debugDescription)
         XCTAssertTrue(icon.isHittable, "The installed game icon must be visible in the native launcher")
