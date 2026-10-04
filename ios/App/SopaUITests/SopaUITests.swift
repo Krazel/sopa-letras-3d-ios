@@ -99,6 +99,12 @@ final class SopaUITests: XCTestCase {
         XCTAssertTrue(shared.waitForExistence(timeout: 10), app.debugDescription)
         XCTAssertTrue(app.buttons["Cerrar ayuda"].exists)
         capture("Sopa3D-0.16-help")
+        shared.press(forDuration: 1.2)
+        for title in ["Copiar", "Seleccionar", "Seleccionar todo", "Copy", "Select", "Select All"] {
+            XCTAssertFalse(app.menuItems[title].exists, "Read-only game text has no selection menu")
+            XCTAssertFalse(app.buttons[title].exists, "Read-only game text has no text action")
+        }
+        capture("Sopa3D-0.17.3-help-long-press")
         app.buttons["Cerrar ayuda"].tap()
         let selected = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", ", seleccionada"))
         XCTAssertEqual(selected.count, 0, "Fresh board has no selection before the rotation gesture")

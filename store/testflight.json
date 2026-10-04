@@ -6,7 +6,7 @@
   "teamId": "B2X6D3A9J9",
   "marketingVersion": "0.17",
   "buildNumber": 3,
-  "purpose": "Internal TestFlight: How to play above collapsed subscription settings; monthly plans lead with prominent actual StoreKit prices and included hints",
+  "purpose": "Internal TestFlight: collapsed price-first monthly subscription settings after How to play; native WebKit loupe and selection disabled outside focused input fields",
   "locale": "es-ES",
   "sku": "krazel-sopa-letras-3d-ios",
   "iconSha256": "cdb13d91775bafe181591aab60efcd818ae28f1196ffd0df32f615fd765ed85a",

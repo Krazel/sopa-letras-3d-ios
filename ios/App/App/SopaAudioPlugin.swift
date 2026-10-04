@@ -1,11 +1,49 @@
 import AVFoundation
 import Capacitor
 import UIKit
+import WebKit
+
+@MainActor
+private final class SopaTextInteractionHandler: NSObject, WKScriptMessageHandler {
+    weak var controller: SopaViewController?
+    init(controller: SopaViewController) { self.controller = controller }
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.frameInfo.isMainFrame, let editing = message.body as? Bool,
+              let web = controller?.webView else { return }
+        web.configuration.preferences.isTextInteractionEnabled = editing
+        #if DEBUG
+        NSLog("SOPA_TEXT_INTERACTION editing=%d enabled=%d", editing, web.configuration.preferences.isTextInteractionEnabled)
+        #endif
+    }
+}
 
 // Registered on the existing storyboard controller: never create another WKWebView.
 @objc(SopaViewController)
 class SopaViewController: CAPBridgeViewController {
+    private lazy var textInteractionHandler = SopaTextInteractionHandler(controller: self)
+    override func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
+        let configuration = super.webViewConfiguration(for: instanceConfiguration)
+        // Disable WebKit selection/loupe gestures before the first document loads.
+        // Restore the native caret/editing tools only while an input is focused.
+        configuration.preferences.isTextInteractionEnabled = false
+        configuration.userContentController.add(textInteractionHandler, name: "sopaTextEditing")
+        let editingScript = """
+        (() => {
+          const update = () => {
+            const field = document.activeElement;
+            const editing = !!(field && field.matches('input,textarea,[contenteditable="true"]'));
+            window.webkit.messageHandlers.sopaTextEditing.postMessage(editing);
+          };
+          document.addEventListener('focusin', update, true);
+          document.addEventListener('focusout', () => queueMicrotask(update), true);
+          document.addEventListener('DOMContentLoaded', update, {once:true});
+        })();
+        """
+        configuration.userContentController.addUserScript(WKUserScript(source: editingScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        return configuration
+    }
     override func capacitorDidLoad() {
+        webView?.allowsLinkPreview = false
         bridge?.registerPluginInstance(SopaAudioPlugin())
     }
 }
