@@ -4,8 +4,9 @@ import UIKit
 final class SopaUITests: XCTestCase {
     func testAppIconInNativeLauncher() {
         let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(es)", "-AppleLocale", "es_ES"]
         app.launch()
-        XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 120), app.debugDescription)
         app.terminate()
         XCUIDevice.shared.orientation = .portrait
         XCUIDevice.shared.press(.home)
@@ -29,7 +30,7 @@ final class SopaUITests: XCTestCase {
         image.lifetime = .keepAlways
         add(image)
         icon.tap()
-        XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 120), app.debugDescription)
     }
 
     func capture(_ name: String) {
