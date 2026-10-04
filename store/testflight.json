@@ -5,10 +5,10 @@
   "bundleResourceId": "TH8X242N92",
   "teamId": "B2X6D3A9J9",
   "marketingVersion": "0.17",
-  "buildNumber": 1,
-  "purpose": "Internal TestFlight: unlimited custom puzzles, found-letter visibility, all-puzzle progress, home settings clearance and ad-free subscription preparation",
+  "buildNumber": 2,
+  "purpose": "Internal TestFlight: approved WORDS3D icon, completion statistics, ad privacy last in settings; preserves unlimited custom puzzles and all 0.17 fixes",
   "locale": "es-ES",
   "sku": "krazel-sopa-letras-3d-ios",
-  "iconSha256": "ffe2ff7a8a7c95eb7bd0d03c46ac5b31e16294814ee239a0afab4eb5e9190138",
+  "iconSha256": "cdb13d91775bafe181591aab60efcd818ae28f1196ffd0df32f615fd765ed85a",
   "ads": "Official test IDs only; commercial release blocked"
 }

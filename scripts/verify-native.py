@@ -14,6 +14,12 @@ html = (app / 'public/index.html').read_text()
 assert '<title>Sopa de letras 3D</title>' in html and 'viewport' in html
 assert any('live-home-label' in p.read_text() for p in (app / 'public/_next/static/chunks').glob('*.js'))
 assert any(app.rglob('PrivacyInfo.xcprivacy'))
+brand = json.loads(pathlib.Path('design/branding/official-branding.json').read_text())
+for asset in brand['assets']:
+    if asset['path'].startswith('public/'):
+        assert hashlib.sha256((app / asset['path']).read_bytes()).hexdigest() == asset['sha256'], 'Bundled branding mismatch: ' + asset['path']
+assert hashlib.sha256((app / brand['source']).read_bytes()).hexdigest() == brand['sourceSha256']
+
 if config.get('iconSha256'):
     catalog=pathlib.Path('ios/App/App/Assets.xcassets/AppIcon.appiconset')
     icon=json.loads((catalog/'Contents.json').read_text())['images'][0]['filename']
@@ -24,5 +30,5 @@ if config.get('iconSha256'):
     assert info['GADApplicationIdentifier']=='ca-app-pub-3940256099942544~1458002511', 'Commercial ads are not authorized for this candidate'
     assert 'NSUserTrackingUsageDescription' not in info
     pathlib.Path('artifacts/testflight').mkdir(parents=True,exist_ok=True)
-    pathlib.Path('artifacts/testflight/icon-verification.json').write_text(json.dumps({'sourceSha256':config['iconSha256'],'compiledIconName':'AppIcon','assets':assets,'commercialReady':False},indent=2))
+    pathlib.Path('artifacts/testflight/icon-verification.json').write_text(json.dumps({'sourceSha256':config['iconSha256'],'compiledIconName':'AppIcon','assets':assets,'commercialReady':False,'brandingSourceSha256':brand['sourceSha256'],'bundledBrandingVerified':True},indent=2))
 print('Verified universal iPhone/iPad bundle, version/build, bundled game, privacy manifest and export compliance')
