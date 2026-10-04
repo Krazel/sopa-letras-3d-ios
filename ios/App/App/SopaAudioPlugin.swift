@@ -26,6 +26,11 @@ class SopaViewController: CAPBridgeViewController {
         // Disable WebKit selection/loupe gestures before the first document loads.
         // Restore the native caret/editing tools only while an input is focused.
         configuration.preferences.isTextInteractionEnabled = false
+        return configuration
+    }
+    override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
+        // Capacitor replaces its content controller after webViewConfiguration.
+        // Install the script on the final controller, before creating the web view.
         configuration.userContentController.add(textInteractionHandler, name: "sopaTextEditing")
         let editingScript = """
         (() => {
@@ -40,7 +45,7 @@ class SopaViewController: CAPBridgeViewController {
         })();
         """
         configuration.userContentController.addUserScript(WKUserScript(source: editingScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
-        return configuration
+        return super.webView(with: frame, configuration: configuration)
     }
     override func capacitorDidLoad() {
         webView?.allowsLinkPreview = false
