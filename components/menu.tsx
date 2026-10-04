@@ -566,7 +566,6 @@ export default function Menu({
                 </select>
               </label>
             </section>
-            <SupportSettings language={language} />
             <details className="settings-group settings-help">
               <summary>
                 <BookOpen size={22} />
@@ -574,6 +573,7 @@ export default function Menu({
               </summary>
               <HelpRules language={language} />
             </details>
+            <SupportSettings language={language} collapsible />
             <AdSettings language={language} />
           </>
         )}

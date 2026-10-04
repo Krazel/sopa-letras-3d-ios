@@ -279,8 +279,19 @@ try {
       await shop
         .getByRole('button', { name: 'Abrir ajustes', exact: true })
         .click();
+      const disclosure = shop.locator('details.support-settings');
+      await disclosure.locator('summary').waitFor();
+      assert.equal(await disclosure.getAttribute('open'), null);
+      assert.equal(await shop.locator('.support-products button').first().isVisible(), false);
+      assert(await shop.evaluate(() => !!(document.querySelector('.settings-help').compareDocumentPosition(document.querySelector('.support-settings')) & Node.DOCUMENT_POSITION_FOLLOWING)));
+      await shop.screenshot({path: `${out}/${engine}-subscriptions-collapsed.png`,fullPage:true});
+      await disclosure.locator('summary').click();
       await shop.locator('.support-products button').first().waitFor();
       assert.equal(await shop.locator('.support-products button').count(), 6);
+      assert.equal(await shop.locator('.support-price').first().innerText(), '2,99 € / mes');
+      assert.match(await shop.locator('.support-products button').first().innerText(), /Plan mensual · 10 pistas incluidas/);
+      assert.match(await shop.locator('.support-products button').first().innerText(), /Sin anuncios entre niveles/);
+      assert(await shop.locator('.support-products button').first().evaluate(b => parseFloat(getComputedStyle(b.querySelector('.support-price')).fontSize) > parseFloat(getComputedStyle(b.querySelector('small')).fontSize)));
       assert.match(
         await shop.locator('.support-products').innerText(),
         /2,99 €/,
@@ -395,7 +406,7 @@ try {
       await quota.goto(url);
       await quota.getByRole('button',{name:'Abrir ajustes',exact:true}).click();
       await quota.locator('.ad-settings').waitFor();
-      assert.equal(await quota.locator('.settings-help').evaluate(el=>el.nextElementSibling?.classList.contains('ad-settings')),true);
+      assert.equal(await quota.locator('.support-settings').evaluate(el=>el.nextElementSibling?.classList.contains('ad-settings')),true);
       assert.equal(await quota.locator('html').getAttribute('data-native-ios'),'true');
       assert.equal(await quota.locator('.language-setting').evaluate(el=>el.dispatchEvent(new Event('selectstart',{bubbles:true,cancelable:true}))),false);
       await quota.evaluate(()=>__supportQA.setActive(true));

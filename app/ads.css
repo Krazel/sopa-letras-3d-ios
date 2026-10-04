@@ -68,6 +68,29 @@ html:not([data-input-mode='pointer']) .hint-button:focus-visible {
 .support-settings {
   padding: 20px;
 }
+.support-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+.support-summary::-webkit-details-marker {
+  display: none;
+}
+.support-summary > span {
+  flex: 1;
+}
+.support-summary > svg {
+  flex-shrink: 0;
+}
+.support-settings[open] > .support-summary > svg:last-child {
+  transform: rotate(90deg);
+}
+.support-settings[open] > .support-body {
+  padding-top: 16px;
+}
 .support-settings p {
   font-size: 14px;
   line-height: 1.5;
@@ -86,6 +109,19 @@ html:not([data-input-mode='pointer']) .hint-button:focus-visible {
 }
 .support-products .menu-row small {
   display: block;
+}
+.support-products .menu-row .support-price {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 8px;
+  color: var(--foreground);
+}
+.support-price > span {
+  font-size: 15px;
+  font-weight: 400;
+  white-space: nowrap;
 }
 .support-active {
   color: var(--found-text);
