@@ -4,7 +4,6 @@ import './ui.css';
 import './reference-ui.css';
 import './home-art.css';
 import './ads.css';
-import './branding.css';
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -46,18 +45,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body>
-        {/* oxlint-disable-next-line next/no-img-element */}
-        <img
-          className="official-home-logo"
-          src="/branding/logo-192.png"
-          width={192}
-          height={192}
-          alt="Sopa de letras 3D"
-          draggable={false}
-        />
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
