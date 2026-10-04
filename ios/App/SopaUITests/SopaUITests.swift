@@ -170,6 +170,7 @@ final class SopaUITests: XCTestCase {
             XCTAssertTrue(name.waitForExistence(timeout: 15), app.debugDescription)
             name.tap()
             name.typeText(prefix + String(index))
+            XCTAssertEqual(name.value as? String, prefix + String(index), "The first field keeps every typed character")
             let words = app.textViews["Palabras"]
             XCTAssertTrue(words.exists, app.debugDescription)
             words.tap()
