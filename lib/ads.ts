@@ -14,7 +14,7 @@ import { refreshSupport } from './support';
 
 type AdStatus = { available: boolean; privacyRequired: boolean };
 interface NativeAds {
-  prepare(): Promise<AdStatus>;
+  prepare(options: {rewardedOnly: boolean}): Promise<AdStatus>;
   showRewarded(options: {
     id: string;
     context: string;
@@ -84,17 +84,17 @@ async function withAdBreak<T>(action: () => Promise<T>): Promise<T> {
     adBreak(false, token);
   }
 }
-export async function prepareAds(): Promise<AdStatus> {
+export async function prepareAds(rewardedOnly = false): Promise<AdStatus> {
   beginAdSession();
   if (!nativeAdsAvailable())
     return { available: false, privacyRequired: false };
   const support = await refreshSupport();
-  if (!support.ready || support.active)
+  if (!support.ready || (support.active && !rewardedOnly))
     return { available: false, privacyRequired: false };
   if (!prepared)
     prepared = (async () => {
       try {
-        return await withAdBreak(() => native.prepare());
+        return await withAdBreak(() => native.prepare({rewardedOnly}));
       } catch {
         prepared = undefined;
         return { available: false, privacyRequired: false };
@@ -120,7 +120,7 @@ export async function recoverRewards() {
 }
 export async function requestHint(
   offer: HintOffer,
-  withoutAds = false,
+  mode: 'included' | 'rewarded' = 'rewarded',
 ): Promise<'rewarded' | 'cancelled' | 'unavailable' | 'storage'> {
   if (busy || !hintSessions.has(offer.key) || !nativeAdsAvailable())
     return 'unavailable';
@@ -136,7 +136,7 @@ export async function requestHint(
       return 'rewarded';
     const support = await refreshSupport();
     if (!support.ready) return 'unavailable';
-    if (support.active) {
+    if (mode === 'included' && support.active && support.hintsRemaining > 0) {
       const result = await native.claimSupportHint({
         id: crypto.randomUUID(),
         context: JSON.stringify(offer),
@@ -150,9 +150,9 @@ export async function requestHint(
     }
     // Never replace a promised subscriber hint with an unexpected rewarded ad
     // when the entitlement expires between opening and accepting the offer.
-    if (withoutAds) return 'unavailable';
+    if (mode === 'included') return 'unavailable';
     if (!navigator.onLine) return 'unavailable';
-    if (!(await prepareAds()).available) return 'unavailable';
+    if (!(await prepareAds(true)).available) return 'unavailable';
     return await withAdBreak(async () => {
       const result = await native.showRewarded({
         id: crypto.randomUUID(),

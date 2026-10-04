@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSupport } from '@/hooks/use-support';
+import { ENGAGEMENT_COPY } from '@/lib/engagement-copy';
 import { SUPPORT_COPY } from '@/lib/support-copy';
 import type { Language } from '@/lib/preferences';
 import {
@@ -13,7 +14,8 @@ import {
   type SupportProduct,
 } from '@/lib/support';
 
-export default function SupportSettings({ language }: { language: Language }) {
+export default function SupportSettings({ language, upgradeOnly = false }: { language: Language; upgradeOnly?: boolean }) {
+  const planCopy = ENGAGEMENT_COPY[language];
   const copy = SUPPORT_COPY[language],
     status = useSupport();
   const [available, setAvailable] = useState(false),
@@ -59,11 +61,11 @@ export default function SupportSettings({ language }: { language: Language }) {
       <p>{copy.intro}</p>
       {status.active && (
         <p className="support-active" role="status">
-          {copy.active}
+          {copy.active}{' '}{planCopy.remaining.replace('{n}', String(status.hintsRemaining))}
         </p>
       )}
       <div className="support-products">
-        {products.map((product) => (
+        {products.filter(product => !upgradeOnly || product.hintLimit > status.hintLimit).map((product) => (
           <button
             key={product.id}
             className="menu-row"
@@ -79,7 +81,7 @@ export default function SupportSettings({ language }: { language: Language }) {
             <span>
               <strong>{product.name}</strong>
               <small>
-                {product.price} / {copy.month}
+                {product.price} / {copy.month} · {planCopy.included.replace('{n}', String(product.hintLimit))}
               </small>
             </span>
             <span>

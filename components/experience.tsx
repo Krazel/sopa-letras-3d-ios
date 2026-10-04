@@ -5,6 +5,8 @@ import { Play as PlayIcon } from 'lucide-react';
 import { useInputMode } from '@/hooks/use-input-mode';
 import Game from './game';
 import GameDialog from './game-dialog';
+import SupportReminder from './support-reminder';
+import { Capacitor } from '@capacitor/core';
 import { encodePuzzle, decodePuzzle, addCustom } from '@/lib/sharing';
 import Menu, { type Section } from './menu';
 import { applyTheme } from '@/lib/theme';
@@ -73,6 +75,17 @@ export default function Experience() {
   const [importError, setImportError] = useState('');
   const [customNotice, setCustomNotice] = useState('');
   useEffect(installInterfaceAudio, []);
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== 'ios') return;
+    document.documentElement.dataset.nativeIos = 'true';
+    const prevent = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Element && !target.closest('input,textarea,[contenteditable="true"],.share-code')) event.preventDefault();
+    };
+    document.addEventListener('selectstart', prevent);
+    document.addEventListener('contextmenu', prevent);
+    return () => { delete document.documentElement.dataset.nativeIos; document.removeEventListener('selectstart', prevent); document.removeEventListener('contextmenu', prevent); };
+  }, []);
   useEffect(() => {
     document.title = translate(language, 'Sopa de letras 3D');
     document.documentElement.dir = directionFor(language);
@@ -344,6 +357,7 @@ export default function Experience() {
     );
   return (
     <>
+      <SupportReminder language={language} quiet={ready && section === 'home' && !shareChoice && !remove} />
       {saveError && (
         <p className="save-warning" role="alert">
           {t(saveError)}

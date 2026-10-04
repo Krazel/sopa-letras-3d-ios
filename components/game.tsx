@@ -31,6 +31,9 @@ import {
 } from 'lucide-react';
 import GameDialog from './game-dialog';
 import HelpRules from './help-rules';
+import SupportSettings from './support-settings';
+import { recordCompletion, requestAppReview, refreshSupport } from '@/lib/support';
+import { ENGAGEMENT_COPY } from '@/lib/engagement-copy';
 import { useAdFreeEdition } from '@/hooks/use-ad-free-edition';
 import { useSupport } from '@/hooks/use-support';
 import { SUPPORT_COPY } from '@/lib/support-copy';
@@ -191,7 +194,12 @@ export default function Game({
   const [dieFocus, setDieFocus] = useState<number | null>(null);
   const copy = AD_COPY[language];
   const adFree = useAdFreeEdition();
-  const supporter = useSupport().active;
+  const supportStatus = useSupport();
+  const supporter = supportStatus.active;
+  const includedHint = supporter && supportStatus.hintsRemaining > 0;
+  const planCopy = ENGAGEMENT_COPY[language];
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [hintMode, setHintMode] = useState<'included' | 'rewarded'>('rewarded');
   const supportCopy = SUPPORT_COPY[language];
   const [hintSession, setHintSession] = useState(() => crypto.randomUUID());
   const ledgerKey = hintKey(game, language, dice, hintSession);
@@ -247,9 +255,10 @@ export default function Game({
     adLock.current = true;
     setAdBusy(true);
     try {
-      const result = await requestHint(frozenOffer, supporter);
+      const result = await requestHint(frozenOffer, hintMode);
       setHints(readHints(localStorage, ledgerKey));
       setHintPaths(readHintPaths(localStorage, ledgerKey));
+      await refreshSupport();
       setAdNotice(copy[result]);
     } catch {
       setAdNotice(copy.storage);
@@ -527,6 +536,18 @@ export default function Game({
       setAdBusy(false);
     });
   }, [won, pageNumber, adFree, supporter, paused, helpOpen, adBusy]);
+  useEffect(() => {
+    if (!won || dice || !freshCompletion.current) return;
+    const id = JSON.stringify([language, game.puzzle.seed, game.puzzle.size, game.puzzle.words.map(w => w.text)]);
+    void recordCompletion(id).catch(() => {});
+  }, [won, dice, language, game.puzzle.seed, game.puzzle.size, game.puzzle.words]);
+  useEffect(() => {
+    if (!won || dice || !freshCompletion.current || adBusy || adLock.current || paused || helpOpen) return;
+    const timer = window.setTimeout(() => {
+      void requestAppReview().catch(() => {});
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [won, dice, language, game.puzzle.seed, game.puzzle.size, game.puzzle.words, adBusy, paused, helpOpen]);
   const size = game.puzzle.size;
   const foundCells = useMemo(
     () =>
@@ -869,6 +890,8 @@ export default function Game({
                 return;
               }
               if (offer) {
+                void refreshSupport();
+                setHintMode(includedHint ? 'included' : 'rewarded');
                 setHintOffer(offer);
                 setAdNotice('');
               }
@@ -940,19 +963,26 @@ export default function Game({
         title={copy.hint}
       >
         <h2>{copy.hint}</h2>
-        <p>{supporter ? supportCopy.hintOffer : copy.offer}</p>
+        <p>{includedHint ? supportCopy.hintOffer : supporter ? planCopy.exhausted : copy.offer}</p>
         <strong dir="auto">{hintOffer?.word}</strong>
-        {!supporter && <p>{copy.test}</p>}
+        {(!includedHint) && <p>{copy.test}</p>}
+        {supporter && !includedHint && supportStatus.hintLimit < 600 && (
+          <button className="primary-action" onClick={() => { setHintOffer(null); setUpgradeOpen(true); }}>{planCopy.upgrade}</button>
+        )}
         <button
           className="primary-action"
           data-sound="none"
-          onClick={() => void watchHint()}
+          onClick={() => { if (hintMode === 'included' && !includedHint) { setHintMode('rewarded'); return; } void watchHint(); }}
         >
-          {supporter ? supportCopy.hint : copy.watch}
+          {hintMode === 'included' && includedHint ? supportCopy.hint : supporter ? planCopy.watch : copy.watch}
         </button>
         <button className="dialog-action" onClick={() => setHintOffer(null)}>
           {copy.later}
         </button>
+      </GameDialog>
+      <GameDialog open={upgradeOpen && !adBusy} onClose={() => setUpgradeOpen(false)} title={planCopy.upgrade}>
+        {upgradeOpen && <SupportSettings language={language} upgradeOnly />}
+        <button className="dialog-action" onClick={() => setUpgradeOpen(false)}>{planCopy.later}</button>
       </GameDialog>
       <GameDialog
         open={paused && !adBusy}

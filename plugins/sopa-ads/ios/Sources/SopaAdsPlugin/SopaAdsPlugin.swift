@@ -45,23 +45,13 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
     private let rewardUnit = "ca-app-pub-3940256099942544/1712485313"
     private let interstitialUnit = "ca-app-pub-3940256099942544/4411468910"
     private let sampleApp = "ca-app-pub-3940256099942544~1458002511"
-    private struct Receipt: Codable { let id: String; let context: String }
+    private typealias Receipt = SopaRewardReceipt
     private var memoryReceipt: Receipt?
-    private var journalURL: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("sopa-ad-rewards.json")
-    }
-    private func journal() throws -> [Receipt] {
-        guard FileManager.default.fileExists(atPath: journalURL.path) else { return [] }
-        return try JSONDecoder().decode([Receipt].self, from: Data(contentsOf: journalURL))
-    }
-    private func writeJournal(_ receipts: [Receipt]) throws {
-        try FileManager.default.createDirectory(at: journalURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try JSONEncoder().encode(receipts).write(to: journalURL, options: .atomic)
-    }
+    private func journal() throws -> [Receipt] { try SopaBenefitLedger.receipts() }
+    private func writeJournal(_ receipts: [Receipt]) throws { try SopaBenefitLedger.setReceipts(receipts) }
     @MainActor private var permitted: Bool {
         Bundle.main.object(forInfoDictionaryKey: "GADApplicationIdentifier") as? String == sampleApp &&
-        ConsentInformation.shared.canRequestAds && SopaSupportStore.shared.ready && !SopaSupportStore.shared.active
+        ConsentInformation.shared.canRequestAds && SopaSupportStore.shared.ready
     }
     @MainActor private var status: [String: Any] {
         ["available": permitted && started,
@@ -79,7 +69,7 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
     @objc func prepare(_ call: CAPPluginCall) {
         Task { @MainActor in
             await SopaSupportStore.shared.refresh()
-            guard !SopaSupportStore.shared.active else { call.resolve(self.status); return }
+            guard !SopaSupportStore.shared.active || (call.getBool("rewardedOnly") ?? false) else { call.resolve(self.status); return }
             guard !self.consentBusy, self.showing == nil, let vc = self.controller() else { call.resolve(self.status); return }
             self.consentBusy = true
             self.pause(true)
@@ -132,7 +122,7 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
                 } catch { /* Retry at the next explicit opportunity. */ }
             }
         }
-        if !loadingInterstitial && interstitial == nil {
+        if !SopaSupportStore.shared.active && !loadingInterstitial && interstitial == nil {
             loadingInterstitial = true
             Task { @MainActor in
                 defer { self.loadingInterstitial = false }
@@ -180,7 +170,7 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
     @objc func showInterstitial(_ call: CAPPluginCall) {
         Task { @MainActor in
             await SopaSupportStore.shared.refresh()
-            guard self.permitted, !self.consentBusy, self.showing == nil,
+            guard self.permitted, !SopaSupportStore.shared.active, !self.consentBusy, self.showing == nil,
                   let vc = self.controller(),
                   let ad = self.interstitial, Date().timeIntervalSince(self.interstitialAt) < 3500 else {
                 if Date().timeIntervalSince(self.interstitialAt) >= 3500 { self.interstitial = nil }
@@ -215,15 +205,20 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
     @objc func claimSupportHint(_ call: CAPPluginCall) {
         Task { @MainActor in
             await SopaSupportStore.shared.refresh()
-            guard SopaSupportStore.shared.active, self.showing == nil,
+            guard SopaSupportStore.shared.ready, SopaSupportStore.shared.active, self.showing == nil,
                   let id = call.getString("id"), let context = call.getString("context"),
                   context.utf8.count < 100_000 else { call.resolve(["status": "unavailable"]); return }
             do {
                 guard try self.journal().isEmpty, self.memoryReceipt == nil else { call.resolve(["status": "unavailable"]); return }
-                try self.writeJournal([Receipt(id: id, context: context)])
+                let store = SopaSupportStore.shared
+                guard try SopaBenefitLedger.claim(Receipt(id:id, context:context), period:store.hintPeriod, limit:SopaSupportStore.hintLimit(store.activeID)) else { call.resolve(["status":"unavailable"]); return }
+                self.notifySupportQuota()
                 call.resolve(["status": "rewarded"])
             } catch { call.reject("Reward storage unavailable") }
         }
+    }
+    @MainActor private func notifySupportQuota() {
+        NotificationCenter.default.post(name: SopaSupportStore.changed, object: nil)
     }
     @objc func acknowledge(_ call: CAPPluginCall) {
         DispatchQueue.main.async {

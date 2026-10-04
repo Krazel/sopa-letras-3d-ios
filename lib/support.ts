@@ -8,14 +8,24 @@ export type SupportStatus = {
   available: boolean;
   active: boolean;
   productID: string;
+  hintLimit: number;
+  hintsRemaining: number;
+  renewsAt: number;
 };
-export type SupportProduct = { id: string; name: string; price: string };
+export type SupportProduct = {
+  id: string;
+  name: string;
+  price: string;
+  hintLimit: number;
+};
 interface NativeSupport {
+  completion(options: { id: string }): Promise<void>;
+  review(): Promise<{ requested: boolean }>;
+  engagement(): Promise<{ reminderDue: boolean }>;
+  reminderShown(options: { disable: boolean }): Promise<void>;
   status(): Promise<SupportStatus>;
   products(): Promise<{ products: SupportProduct[] }>;
-  purchase(options: {
-    id: string;
-  }): Promise<{
+  purchase(options: { id: string }): Promise<{
     result: 'purchased' | 'pending' | 'cancelled';
     status?: SupportStatus;
   }>;
@@ -32,6 +42,9 @@ const initial: SupportStatus = {
   available: false,
   active: false,
   productID: '',
+  hintLimit: 0,
+  hintsRemaining: 0,
+  renewsAt: 0,
 };
 let status = initial;
 const listeners = new Set<() => void>();
@@ -64,7 +77,10 @@ async function observe() {
 }
 export async function refreshSupport() {
   if (!supportAvailable())
-    return update({ ...initial, ready: Capacitor.getPlatform() !== 'ios' });
+    return update({
+      ...initial,
+      ready: Capacitor.getPlatform() !== 'ios',
+    });
   await observe();
   try {
     return update(await native.status());
@@ -85,4 +101,17 @@ export async function restoreSupport() {
 }
 export async function manageSupport() {
   return update(await native.manage());
+}
+
+export async function recordCompletion(id: string) {
+  if (supportAvailable()) await native.completion({ id });
+}
+export async function requestAppReview() {
+  return supportAvailable() && (await native.review()).requested;
+}
+export async function supportReminderDue() {
+  return supportAvailable() && (await native.engagement()).reminderDue;
+}
+export async function markSupportReminder(disable = false) {
+  if (supportAvailable()) await native.reminderShown({ disable });
 }
