@@ -1,133 +1,134 @@
 {
-  "approvedBy": "User, 2026-10-04: Perfecto, me gusta. Haz que ese sea el logo del juego.",
+  "selectedBy": "User, 2026-10-04: me gusta la 2nd, creo que cambiamos la aprobada por esa, a falta de verla en iPhone de verdad",
+  "variant": 2,
+  "approval": "Variante2 elegida; integraci\u00f3n y subida autorizadas por usuario04/10. Valoraci\u00f3n f\u00edsica pendiente.",
   "source": "public/branding/logo-master.png",
-  "sourceSha256": "f42bcc29bd72d8d62a729426f1c6bfdc83044cbb661fbfb19e18990c55606fac",
+  "sourceSha256": "2468c7824bfd6818faef66386fa6112dfaa62508f9ddbea28dea4eab86a5e9d5",
+  "previousSourceSha256": "f42bcc29bd72d8d62a729426f1c6bfdc83044cbb661fbfb19e18990c55606fac",
+  "installedInProduct": true,
+  "testflightBuild": "Candidata0.17.1(1), pendiente de QA/firma/subida",
+  "physicalIphoneQA": "Pendiente",
   "assets": [
     {
-      "path": "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
-      "width": 1024,
-      "height": 1024,
+      "path": "public/branding/logo-master.png",
+      "width": 1254,
+      "height": 1254,
       "hasAlpha": false,
-      "sha256": "cdb13d91775bafe181591aab60efcd818ae28f1196ffd0df32f615fd765ed85a"
-    },
-    {
-      "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png",
-      "width": 2732,
-      "height": 2732,
-      "hasAlpha": true,
-      "sha256": "1c4620d3f440956e285e2c9ebb51476f47a8fded9b5ac73bee763675388404bc"
-    },
-    {
-      "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png",
-      "width": 2732,
-      "height": 2732,
-      "hasAlpha": true,
-      "sha256": "1c4620d3f440956e285e2c9ebb51476f47a8fded9b5ac73bee763675388404bc"
-    },
-    {
-      "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png",
-      "width": 2732,
-      "height": 2732,
-      "hasAlpha": true,
-      "sha256": "1c4620d3f440956e285e2c9ebb51476f47a8fded9b5ac73bee763675388404bc"
-    },
-    {
-      "path": "marketing/app-icon-1024.png",
-      "width": 1024,
-      "height": 1024,
-      "hasAlpha": false,
-      "sha256": "cdb13d91775bafe181591aab60efcd818ae28f1196ffd0df32f615fd765ed85a"
-    },
-    {
-      "path": "marketing/header-1920x640.png",
-      "width": 1920,
-      "height": 640,
-      "hasAlpha": false,
-      "sha256": "8f3438e7d2341aee88009f58a3f899b67794bc5342d25f3c491a54e743660f59"
-    },
-    {
-      "path": "marketing/itch-cover-1260x1000.png",
-      "width": 1260,
-      "height": 1000,
-      "hasAlpha": false,
-      "sha256": "03912515025faef50944077fe4dea508eec02b2bda9d0f65aed9ae83aa6f8572"
-    },
-    {
-      "path": "marketing/itch-cover-630x500.png",
-      "width": 630,
-      "height": 500,
-      "hasAlpha": false,
-      "sha256": "dc2a720247b7102bdb46063025a9e11064dc9ae7337094bd11e0bca5e4d21000"
-    },
-    {
-      "path": "marketing/trailer-endcard.png",
-      "width": 1920,
-      "height": 1080,
-      "hasAlpha": false,
-      "sha256": "971b1d9450b2d67f6ff94cab98ac5cf8f618cecf856f57a400bd4051b1250fcd"
-    },
-    {
-      "path": "public/apple-touch-icon.png",
-      "width": 180,
-      "height": 180,
-      "hasAlpha": false,
-      "sha256": "537547bd375f20ad749fac8b540f91fedc98b002d88d29fbf46780bcc08376b8"
-    },
-    {
-      "path": "public/branding/logo-1024.png",
-      "width": 1024,
-      "height": 1024,
-      "hasAlpha": false,
-      "sha256": "cdb13d91775bafe181591aab60efcd818ae28f1196ffd0df32f615fd765ed85a"
+      "sha256": "2468c7824bfd6818faef66386fa6112dfaa62508f9ddbea28dea4eab86a5e9d5"
     },
     {
       "path": "public/branding/logo-192.png",
       "width": 192,
       "height": 192,
       "hasAlpha": false,
-      "sha256": "31760d6e6125e5d48060adb7673dd55571d9a1260ea4d1454b173eb7b4232f9d"
+      "sha256": "3274d2475faad02622362cddcda51b37a0f781221272576c22a022e8f7a301d5"
     },
     {
       "path": "public/branding/logo-512.png",
       "width": 512,
       "height": 512,
       "hasAlpha": false,
-      "sha256": "1ae0ddb1326f98b0e715f8c62589abb9b35d2ff22bcc38a6dcca200718985cd2"
+      "sha256": "447315391a8c6fcadc81a94537a3d9250dcb615c944cf655f99dd17f73ce696f"
     },
     {
-      "path": "public/branding/logo-master.png",
-      "width": 1254,
-      "height": 1254,
+      "path": "public/branding/logo-1024.png",
+      "width": 1024,
+      "height": 1024,
       "hasAlpha": false,
-      "sha256": "f42bcc29bd72d8d62a729426f1c6bfdc83044cbb661fbfb19e18990c55606fac"
+      "sha256": "4146f4115db1807736834bd64f91f268df803693acb4717b30191d5e2a0d34e7"
     },
     {
-      "path": "public/branding/social-card.png",
-      "width": 1200,
-      "height": 630,
+      "path": "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+      "width": 1024,
+      "height": 1024,
       "hasAlpha": false,
-      "sha256": "3914e1c1bc57b3410c713c0b59a825059b2e01f6900717e7b71a1c2416d1b15e"
+      "sha256": "4146f4115db1807736834bd64f91f268df803693acb4717b30191d5e2a0d34e7"
     },
     {
-      "path": "public/favicon.ico",
-      "width": 48,
-      "height": 48,
+      "path": "marketing/app-icon-1024.png",
+      "width": 1024,
+      "height": 1024,
       "hasAlpha": false,
-      "sha256": "7621cc843ffbc2fa75d895f753eb3e4d3b468b37e57848cdc563fddd52291012"
+      "sha256": "4146f4115db1807736834bd64f91f268df803693acb4717b30191d5e2a0d34e7"
+    },
+    {
+      "path": "public/apple-touch-icon.png",
+      "width": 180,
+      "height": 180,
+      "hasAlpha": false,
+      "sha256": "975fcf1deaa9e48a22ef54115535e9fcbbd511b533c89e9991ce48b4c3dbcb72"
     },
     {
       "path": "public/favicon.png",
       "width": 48,
       "height": 48,
       "hasAlpha": false,
-      "sha256": "41ef050fc2a3e11bf91a6450d81987b6630eda0332c9d4aad844c020fe0bf7e1"
+      "sha256": "2810190cd431cce9a1d20660819a7149e28a792139b423bb5e071361925e2e04"
+    },
+    {
+      "path": "public/favicon.ico",
+      "sha256": "a2c1f79f4f712fbe08392f34c0b8ae3255ac523814b9b65651f530413f74c430"
+    },
+    {
+      "path": "marketing/header-1920x640.png",
+      "width": 1920,
+      "height": 640,
+      "hasAlpha": false,
+      "sha256": "2bd6b36d0dbcd09d37ef8f31753994c601fb0e5a75aa0a2e5edae82a871fd32c"
+    },
+    {
+      "path": "marketing/itch-cover-1260x1000.png",
+      "width": 1260,
+      "height": 1000,
+      "hasAlpha": false,
+      "sha256": "9da0f3fd919a93bd3c425bc350636f6fadf39d8399da73ed032c66db0a464d09"
+    },
+    {
+      "path": "marketing/itch-cover-630x500.png",
+      "width": 630,
+      "height": 500,
+      "hasAlpha": false,
+      "sha256": "dc87765bbdf3c3921de06d0ccc876953471b85804ce761ee3c4b35b2ecaa0fe9"
+    },
+    {
+      "path": "marketing/trailer-endcard.png",
+      "width": 1920,
+      "height": 1080,
+      "hasAlpha": false,
+      "sha256": "61e28f413b0d0ae66731a300a18c00fbc1746b4a5b1e702f426821b716532a22"
+    },
+    {
+      "path": "public/branding/social-card.png",
+      "width": 1200,
+      "height": 630,
+      "hasAlpha": false,
+      "sha256": "7a7115b8237465848db8e3e38602851e8ae14b591ca7b67ad4e95ce1ce444bcd"
+    },
+    {
+      "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png",
+      "width": 2732,
+      "height": 2732,
+      "hasAlpha": false,
+      "sha256": "42f6f1f597f6c89ab17aa280b5e6283cfee0b6729796bbda08cb758720f9649c"
+    },
+    {
+      "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png",
+      "width": 2732,
+      "height": 2732,
+      "hasAlpha": false,
+      "sha256": "42f6f1f597f6c89ab17aa280b5e6283cfee0b6729796bbda08cb758720f9649c"
+    },
+    {
+      "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png",
+      "width": 2732,
+      "height": 2732,
+      "hasAlpha": false,
+      "sha256": "42f6f1f597f6c89ab17aa280b5e6283cfee0b6729796bbda08cb758720f9649c"
     },
     {
       "path": "public/favicon.svg",
-      "width": 128,
-      "height": 128,
-      "hasAlpha": true,
-      "sha256": "fd0914348ad0e001f41c9625be2c1be57d5909bb16605d2d029826008f68b0a2"
+      "sha256": "25726ac0a0bc9e27a5137dc45614c1ef746ce3337d7f8882aad5c257ebfe14a8"
     }
-  ]
+  ],
+  "homeOverlay": "Retirado por petici\u00f3n del usuario; no reintroducir en inicio."
 }

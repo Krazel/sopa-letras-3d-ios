@@ -2,6 +2,36 @@ import XCTest
 import UIKit
 
 final class SopaUITests: XCTestCase {
+    func testAppIconInNativeLauncher() {
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 30))
+        app.terminate()
+        XCUIDevice.shared.orientation = .portrait
+        XCUIDevice.shared.press(.home)
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        springboard.activate()
+        XCUIDevice.shared.press(.home)
+        let icon = springboard.icons.matching(NSPredicate(format: "label CONTAINS[cd] %@", "Sopa de letras")).firstMatch
+        for _ in 0..<5 {
+            if icon.exists && icon.isHittable { break }
+            springboard.swipeLeft()
+        }
+        XCTAssertTrue(icon.waitForExistence(timeout: 10), springboard.debugDescription)
+        XCTAssertTrue(icon.isHittable, "The installed game icon must be visible in the native launcher")
+        guard icon.exists && icon.isHittable else { return }
+        let screen = XCTAttachment(screenshot: springboard.screenshot())
+        screen.name = "Sopa3D-selected-icon-native-launcher"
+        screen.lifetime = .keepAlways
+        add(screen)
+        let image = XCTAttachment(screenshot: icon.screenshot())
+        image.name = "Sopa3D-selected-icon-native-detail"
+        image.lifetime = .keepAlways
+        add(image)
+        icon.tap()
+        XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 30))
+    }
+
     func capture(_ name: String) {
         RunLoop.current.run(until: Date().addingTimeInterval(2))
         let image = XCTAttachment(screenshot: XCUIApplication().screenshot())
