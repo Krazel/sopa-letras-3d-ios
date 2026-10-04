@@ -877,7 +877,6 @@ export default function Game({
             {copy.hint}
           </button>
         )}
-        {nativeAds && !won && !supporter && <small>{copy.test}</small>}
         {cluePath.length > 0 && (
           <output aria-label={copy.path} dir="ltr">
             {cluePath.map((id, i) => (
@@ -942,7 +941,6 @@ export default function Game({
         <h2>{copy.hint}</h2>
         <p>{supporter ? supportCopy.hintOffer : copy.offer}</p>
         <strong dir="auto">{hintOffer?.word}</strong>
-        {!supporter && <p>{copy.test}</p>}
         <button
           className="primary-action"
           data-sound="none"
