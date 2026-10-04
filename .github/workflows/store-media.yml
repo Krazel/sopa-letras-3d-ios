@@ -1,0 +1,79 @@
+name: Final approved store media English
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sopa-final-store-media-20261004
+  cancel-in-progress: false
+jobs:
+  capture:
+    if: github.actor == github.repository_owner && github.ref == 'refs/heads/marketing/final-store-media-20261004'
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPhone, iPad]
+    name: Gameplay proposal (${{ matrix.device }})
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - run: npm ci && npm run build && npx cap sync ios && node scripts/prepare-ios.mjs
+      - name: Build capture target
+        env:
+          SOPA_DEVICE_CLASS: ${{ matrix.device }}
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          ruby scripts/add-ios-ui-tests.rb
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys,os;d=json.load(sys.stdin);wanted="iPhone 17 Pro Max" if os.environ["SOPA_DEVICE_CLASS"]=="iPhone" else "iPad Pro 13-inch (M5)";print(next(x["udid"] for k,v in d["devices"].items() if "iOS" in k for x in v if x["name"]==wanted))')
+          echo "DEVICE=$DEVICE" >> "$GITHUB_ENV"
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl status_bar "$DEVICE" override --time '9:41' --batteryState charged --batteryLevel 100
+          xcodebuild build-for-testing -project ios/App/App.xcodeproj -scheme SopaQA -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+      - name: Capture clean game screenshots
+        env:
+          SOPA_DEVICE_CLASS: ${{ matrix.device }}
+        run: |
+          set -euo pipefail
+          mkdir -p media
+          xcodebuild test-without-building -project ios/App/App.xcodeproj -scheme SopaQA -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -parallel-testing-enabled NO -only-testing:SopaUITests/SopaUITests/testCleanGameplayScreenshots -resultBundlePath shots.xcresult CODE_SIGNING_ALLOWED=NO > media/shots.log 2>&1
+          xcrun xcresulttool export attachments --path shots.xcresult --output-path media/shots
+      - name: Record word formation
+        if: matrix.device == 'iPhone'
+        env:
+          SOPA_DEVICE_CLASS: ${{ matrix.device }}
+        run: |
+          set -euo pipefail
+          python3 -c 'import json,time;json.dump({"recordStart":time.time()},open("media/video-clock.json","w"))'
+          xcrun simctl spawn "$DEVICE" log stream --level debug --style compact --predicate 'eventMessage CONTAINS "MARKETING_EVENT"' > media/motion-events.log 2>&1 &
+          LOGGER=$!
+          xcrun simctl io "$DEVICE" recordVideo --codec=h264 media/word-formation.mov > media/record.log 2>&1 &
+          REC=$!
+          trap 'kill -INT "$REC" || true' EXIT
+          xcodebuild test-without-building -project ios/App/App.xcodeproj -scheme SopaQA -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -parallel-testing-enabled NO -only-testing:SopaUITests/SopaUITests/testWordFormationVideo -resultBundlePath video.xcresult CODE_SIGNING_ALLOWED=NO > media/video.log 2>&1
+          kill -INT "$REC"
+          wait "$REC" || true
+          kill "$LOGGER" || true
+          trap - EXIT
+          xcrun xcresulttool export attachments --path video.xcresult --output-path media/video-shots
+      - name: Export any diagnostic captures
+        if: always()
+        run: |
+          if [ -d shots.xcresult ] && [ ! -f media/shots/manifest.json ]; then xcrun xcresulttool export attachments --path shots.xcresult --output-path media/shots; fi
+          if [ -d video.xcresult ] && [ ! -f media/video-shots/manifest.json ]; then xcrun xcresulttool export attachments --path video.xcresult --output-path media/video-shots; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Final-store-media-${{ matrix.device }}-${{ github.sha }}
+          path: |
+            media/
+            build.log
+          retention-days: 7
