@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { useSupport } from '@/hooks/use-support';
 import { ENGAGEMENT_COPY } from '@/lib/engagement-copy';
 import { SUPPORT_COPY } from '@/lib/support-copy';
+import { SUPPORT_PLAN_COPY } from '@/lib/support-plan-copy';
+import { CreditCard, ChevronRight } from 'lucide-react';
 import type { Language } from '@/lib/preferences';
 import {
   supportAvailable,
@@ -14,8 +16,17 @@ import {
   type SupportProduct,
 } from '@/lib/support';
 
-export default function SupportSettings({ language, upgradeOnly = false }: { language: Language; upgradeOnly?: boolean }) {
+export default function SupportSettings({
+  language,
+  upgradeOnly = false,
+  collapsible = false,
+}: {
+  language: Language;
+  upgradeOnly?: boolean;
+  collapsible?: boolean;
+}) {
   const planCopy = ENGAGEMENT_COPY[language];
+  const menuCopy = SUPPORT_PLAN_COPY[language];
   const copy = SUPPORT_COPY[language],
     status = useSupport();
   const [available, setAvailable] = useState(false),
@@ -52,98 +63,118 @@ export default function SupportSettings({ language, upgradeOnly = false }: { lan
       setBusy(false);
     }
   }
+  const Container = collapsible ? 'details' : 'section';
   return (
-    <section
+    <Container
       className="settings-group support-settings"
-      aria-label={copy.title}
+      aria-label={menuCopy.title}
     >
-      <h2>{copy.title}</h2>
-      <p>{copy.intro}</p>
-      {status.active && (
-        <p className="support-active" role="status">
-          {copy.active}{' '}{planCopy.remaining.replace('{n}', String(status.hintsRemaining))}
-        </p>
+      {collapsible ? (
+        <summary className="support-summary">
+          <CreditCard size={22} />
+          <span>{menuCopy.title}</span>
+          <ChevronRight size={18} />
+        </summary>
+      ) : (
+        <h2>{menuCopy.title}</h2>
       )}
-      <div className="support-products">
-        {products.filter(product => !upgradeOnly || product.hintLimit > status.hintLimit).map((product) => (
+      <div className="support-body">
+        {status.active && (
+          <p className="support-active" role="status">
+            {copy.active}{' '}
+            {planCopy.remaining.replace('{n}', String(status.hintsRemaining))}
+          </p>
+        )}
+        <div className="support-products">
+          {products
+            .filter(
+              (product) => !upgradeOnly || product.hintLimit > status.hintLimit,
+            )
+            .map((product) => (
+              <button
+                key={product.id}
+                className="menu-row"
+                disabled={busy || product.id === status.productID}
+                data-sound="none"
+                onClick={() =>
+                  void act(async () => {
+                    const result = await purchaseSupport(product.id);
+                    setNotice(result === 'purchased' ? '' : result);
+                  })
+                }
+              >
+                <span>
+                  <strong className="support-price">
+                    {product.price}
+                    <span> / {copy.month}</span>
+                  </strong>
+                  <small>
+                    {menuCopy.monthly.replace('{n}', String(product.hintLimit))}
+                  </small>
+                  <small>{menuCopy.noAds}</small>
+                </span>
+                <span>
+                  {product.id === status.productID ? '✓' : copy.subscribe}
+                </span>
+              </button>
+            ))}
+        </div>
+        {!products.length && !busy && (
+          <p>
+            {copy.unavailable}{' '}
+            <button className="dialog-action" onClick={() => void load()}>
+              {copy.retry}
+            </button>
+          </p>
+        )}
+        {busy && <p role="status">{copy.loading}</p>}
+        <p>{copy.intro}</p>
+        <p className="support-terms">{copy.renewal}</p>
+        <div className="support-actions">
           <button
-            key={product.id}
-            className="menu-row"
-            disabled={busy || product.id === status.productID}
-            data-sound="none"
+            className="dialog-action"
+            disabled={busy}
             onClick={() =>
               void act(async () => {
-                const result = await purchaseSupport(product.id);
-                setNotice(result === 'purchased' ? '' : result);
+                const s = await restoreSupport();
+                setNotice(s.active ? '' : 'empty');
               })
             }
           >
-            <span>
-              <strong>{product.name}</strong>
-              <small>
-                {product.price} / {copy.month} · {planCopy.included.replace('{n}', String(product.hintLimit))}
-              </small>
-            </span>
-            <span>
-              {product.id === status.productID ? '✓' : copy.subscribe}
-            </span>
+            {copy.restore}
           </button>
-        ))}
-      </div>
-      {!products.length && !busy && (
-        <p>
-          {copy.unavailable}{' '}
-          <button className="dialog-action" onClick={() => void load()}>
-            {copy.retry}
+          <button
+            className="dialog-action"
+            disabled={busy}
+            onClick={() =>
+              void act(async () => {
+                await manageSupport();
+              })
+            }
+          >
+            {copy.manage}
           </button>
-        </p>
-      )}
-      {busy && <p role="status">{copy.loading}</p>}
-      <p className="support-terms">{copy.renewal}</p>
-      <div className="support-actions">
-        <button
-          className="dialog-action"
-          disabled={busy}
-          onClick={() =>
-            void act(async () => {
-              const s = await restoreSupport();
-              setNotice(s.active ? '' : 'empty');
-            })
-          }
-        >
-          {copy.restore}
-        </button>
-        <button
-          className="dialog-action"
-          disabled={busy}
-          onClick={() =>
-            void act(async () => {
-              await manageSupport();
-            })
-          }
-        >
-          {copy.manage}
-        </button>
-        <a
-          href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
-          target="_blank"
-          rel="noreferrer"
-        >
-          {copy.terms}
-        </a>
-        <a
-          href="https://krazel.github.io/sopa-letras-3d-ios/privacy/"
-          target="_blank"
-          rel="noreferrer"
-        >
-          {copy.privacy}
-        </a>
+          <a
+            href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {copy.terms}
+          </a>
+          <a
+            href="https://krazel.github.io/sopa-letras-3d-ios/privacy/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {copy.privacy}
+          </a>
+        </div>
+        <output aria-live="polite">
+          {notice
+            ? copy[notice as 'pending' | 'cancelled' | 'error' | 'empty']
+            : ''}
+        </output>
       </div>
-      <output aria-live="polite">
-        {notice
-          ? copy[notice as 'pending' | 'cancelled' | 'error' | 'empty']
-          : ''}
-      </output>
-    </section>
+    </Container>
   );
 }
