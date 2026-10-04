@@ -115,7 +115,11 @@ public class SopaSupportPlugin: CAPPlugin, CAPBridgedPlugin {
         Task { @MainActor in
             await SopaSupportStore.shared.refresh()
             let due = SopaEngagement.reminderDue
-            let available = !SopaSupportStore.shared.active && SopaSupportStore.shared.ready && due && ((try? await catalog().isEmpty) == false)
+            var available = false
+            if !SopaSupportStore.shared.active && SopaSupportStore.shared.ready && due {
+                let products = try? await catalog()
+                available = products?.isEmpty == false
+            }
             call.resolve(["reminderDue":available])
         }
     }
