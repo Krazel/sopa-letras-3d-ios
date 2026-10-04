@@ -432,6 +432,13 @@ export default function Menu({
             <div className="stat-grid">
               <div>
                 <strong>
+                  {completedCount}
+                  <small>/{LEVELS.length}</small>
+                </strong>
+                <span>{t('Niveles completados')}</span>
+              </div>
+              <div>
+                <strong>
                   {completedPuzzles}
                   <small>/{PUZZLES.length}</small>
                 </strong>
@@ -439,11 +446,7 @@ export default function Menu({
               </div>
               <div>
                 <strong>{wordsFound}</strong>
-                <span>{t('Palabras guardadas')}</span>
-              </div>
-              <div>
-                <strong>{data.customs.length}</strong>
-                <span>{t('Sopas creadas')}</span>
+                <span>{t('Palabras completadas')}</span>
               </div>
             </div>
             <section className="progress-card">
@@ -493,7 +496,7 @@ export default function Menu({
             </section>
             <p className="local-note">
               {t(
-                'Progreso de niveles y sopas propias guardado en este navegador. El juego libre y los dados no se suman a estas cifras.',
+                'Las sopas completadas incluyen Niveles y Juego libre, sin duplicados. Las palabras completadas también incluyen tus sopas propias. Los dados no se suman.',
               )}{' '}
             </p>
           </>
@@ -564,7 +567,6 @@ export default function Menu({
               </label>
             </section>
             <SupportSettings language={language} />
-            <AdSettings language={language} />
             <details className="settings-group settings-help">
               <summary>
                 <BookOpen size={22} />
@@ -572,6 +574,7 @@ export default function Menu({
               </summary>
               <HelpRules language={language} />
             </details>
+            <AdSettings language={language} />
           </>
         )}
       </div>

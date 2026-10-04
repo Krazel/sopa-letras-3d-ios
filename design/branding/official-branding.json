@@ -1,0 +1,133 @@
+{
+  "approvedBy": "User, 2026-10-04: Perfecto, me gusta. Haz que ese sea el logo del juego.",
+  "source": "public/branding/logo-master.png",
+  "sourceSha256": "f42bcc29bd72d8d62a729426f1c6bfdc83044cbb661fbfb19e18990c55606fac",
+  "assets": [
+    {
+      "path": "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+      "width": 1024,
+      "height": 1024,
+      "hasAlpha": false,
+      "sha256": "cdb13d91775bafe181591aab60efcd818ae28f1196ffd0df32f615fd765ed85a"
+    },
+    {
+      "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png",
+      "width": 2732,
+      "height": 2732,
+      "hasAlpha": true,
+      "sha256": "1c4620d3f440956e285e2c9ebb51476f47a8fded9b5ac73bee763675388404bc"
+    },
+    {
+      "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png",
+      "width": 2732,
+      "height": 2732,
+      "hasAlpha": true,
+      "sha256": "1c4620d3f440956e285e2c9ebb51476f47a8fded9b5ac73bee763675388404bc"
+    },
+    {
+      "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png",
+      "width": 2732,
+      "height": 2732,
+      "hasAlpha": true,
+      "sha256": "1c4620d3f440956e285e2c9ebb51476f47a8fded9b5ac73bee763675388404bc"
+    },
+    {
+      "path": "marketing/app-icon-1024.png",
+      "width": 1024,
+      "height": 1024,
+      "hasAlpha": false,
+      "sha256": "cdb13d91775bafe181591aab60efcd818ae28f1196ffd0df32f615fd765ed85a"
+    },
+    {
+      "path": "marketing/header-1920x640.png",
+      "width": 1920,
+      "height": 640,
+      "hasAlpha": false,
+      "sha256": "8f3438e7d2341aee88009f58a3f899b67794bc5342d25f3c491a54e743660f59"
+    },
+    {
+      "path": "marketing/itch-cover-1260x1000.png",
+      "width": 1260,
+      "height": 1000,
+      "hasAlpha": false,
+      "sha256": "03912515025faef50944077fe4dea508eec02b2bda9d0f65aed9ae83aa6f8572"
+    },
+    {
+      "path": "marketing/itch-cover-630x500.png",
+      "width": 630,
+      "height": 500,
+      "hasAlpha": false,
+      "sha256": "dc2a720247b7102bdb46063025a9e11064dc9ae7337094bd11e0bca5e4d21000"
+    },
+    {
+      "path": "marketing/trailer-endcard.png",
+      "width": 1920,
+      "height": 1080,
+      "hasAlpha": false,
+      "sha256": "971b1d9450b2d67f6ff94cab98ac5cf8f618cecf856f57a400bd4051b1250fcd"
+    },
+    {
+      "path": "public/apple-touch-icon.png",
+      "width": 180,
+      "height": 180,
+      "hasAlpha": false,
+      "sha256": "537547bd375f20ad749fac8b540f91fedc98b002d88d29fbf46780bcc08376b8"
+    },
+    {
+      "path": "public/branding/logo-1024.png",
+      "width": 1024,
+      "height": 1024,
+      "hasAlpha": false,
+      "sha256": "cdb13d91775bafe181591aab60efcd818ae28f1196ffd0df32f615fd765ed85a"
+    },
+    {
+      "path": "public/branding/logo-192.png",
+      "width": 192,
+      "height": 192,
+      "hasAlpha": false,
+      "sha256": "31760d6e6125e5d48060adb7673dd55571d9a1260ea4d1454b173eb7b4232f9d"
+    },
+    {
+      "path": "public/branding/logo-512.png",
+      "width": 512,
+      "height": 512,
+      "hasAlpha": false,
+      "sha256": "1ae0ddb1326f98b0e715f8c62589abb9b35d2ff22bcc38a6dcca200718985cd2"
+    },
+    {
+      "path": "public/branding/logo-master.png",
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": false,
+      "sha256": "f42bcc29bd72d8d62a729426f1c6bfdc83044cbb661fbfb19e18990c55606fac"
+    },
+    {
+      "path": "public/branding/social-card.png",
+      "width": 1200,
+      "height": 630,
+      "hasAlpha": false,
+      "sha256": "3914e1c1bc57b3410c713c0b59a825059b2e01f6900717e7b71a1c2416d1b15e"
+    },
+    {
+      "path": "public/favicon.ico",
+      "width": 48,
+      "height": 48,
+      "hasAlpha": false,
+      "sha256": "7621cc843ffbc2fa75d895f753eb3e4d3b468b37e57848cdc563fddd52291012"
+    },
+    {
+      "path": "public/favicon.png",
+      "width": 48,
+      "height": 48,
+      "hasAlpha": false,
+      "sha256": "41ef050fc2a3e11bf91a6450d81987b6630eda0332c9d4aad844c020fe0bf7e1"
+    },
+    {
+      "path": "public/favicon.svg",
+      "width": 128,
+      "height": 128,
+      "hasAlpha": true,
+      "sha256": "fd0914348ad0e001f41c9625be2c1be57d5909bb16605d2d029826008f68b0a2"
+    }
+  ]
+}

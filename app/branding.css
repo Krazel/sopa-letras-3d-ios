@@ -1,0 +1,22 @@
+.official-home-logo {
+  display: none;
+}
+body:has(.section-home) > .official-home-logo {
+  display: block;
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 16px);
+  left: calc(env(safe-area-inset-left) + 16px);
+  width: clamp(64px, 10vw, 104px);
+  height: auto;
+  border-radius: 18%;
+  box-shadow: 0 3px 12px #0003;
+  pointer-events: none;
+  z-index: 3;
+}
+@media (max-aspect-ratio: 2/3) {
+  body:has(.section-home) > .official-home-logo {
+    top: env(safe-area-inset-top, 0px);
+    width: 44px;
+    border-radius: 13px;
+  }
+}

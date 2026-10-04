@@ -181,6 +181,32 @@ const completedPuzzles: Record<Language, string> = {
   ko: '완료한 퍼즐',
   ja: 'クリアしたパズル',
 };
+const completedWords: Record<Language, string> = {
+  es: 'Palabras completadas',
+  en: 'Completed words',
+  ca: 'Paraules completades',
+  fr: 'Mots complétés',
+  de: 'Gefundene Wörter',
+  it: 'Parole completate',
+  pt: 'Palavras concluídas',
+  tr: 'Tamamlanan kelimeler',
+  ar: 'الكلمات المكتملة',
+  ko: '완료한 단어',
+  ja: '見つけた単語',
+};
+const progressScope: Record<Language, string> = {
+  es: 'Las sopas completadas incluyen Niveles y Juego libre, sin duplicados. Las palabras completadas también incluyen tus sopas propias. Los dados no se suman.',
+  en: 'Completed puzzles include Levels and Free play, without duplicates. Completed words also include your custom puzzles. Dice are not included.',
+  ca: 'Les sopes completades inclouen Nivells i Joc lliure, sense duplicats. Les paraules completades també inclouen les sopes pròpies. Els daus no se sumen.',
+  fr: 'Les grilles terminées incluent les Niveaux et le Jeu libre, sans doublons. Les mots complétés incluent aussi vos grilles personnalisées. Les dés ne sont pas inclus.',
+  de: 'Gelöste Rätsel umfassen Levels und Freies Spiel, ohne doppelte Zählung. Gefundene Wörter umfassen auch eigene Rätsel. Würfel zählen nicht dazu.',
+  it: 'Gli schemi completati includono Livelli e Gioco libero, senza duplicati. Le parole completate includono anche gli schemi personali. I dadi non sono inclusi.',
+  pt: 'As sopas concluídas incluem Níveis e Jogo livre, sem duplicados. As palavras concluídas também incluem as sopas próprias. Os dados não são incluídos.',
+  tr: 'Tamamlanan bulmacalar Bölümler ve Serbest oyunu tekrarsız kapsar. Tamamlanan kelimelere özel bulmacalarınız da dahildir. Zarlar dahil değildir.',
+  ar: 'تشمل الألغاز المكتملة المراحل واللعب الحر دون تكرار. وتشمل الكلمات المكتملة ألغازك المخصصة أيضًا. لا يُحسب النرد.',
+  ko: '완료한 퍼즐에는 레벨과 자유 플레이가 중복 없이 포함됩니다. 완료한 단어에는 직접 만든 퍼즐도 포함됩니다. 주사위는 포함되지 않습니다.',
+  ja: 'クリアしたパズルにはレベルと自由プレイが重複なく含まれます。見つけた単語には自作パズルも含まれます。サイコロは含まれません。',
+};
 const replayLevel: Partial<Record<Language, string>> = {
   en: 'Replay level',
   ca: 'Repeteix el nivell',
@@ -200,12 +226,16 @@ export const MENU_UI = Object.fromEntries(
       ...Object.fromEntries(keys.map((key, i) => [key, row[i]])),
       completed: completed[lang as Language],
       completedpuzzles: completedPuzzles[lang as Language],
+      progressscope: progressScope[lang as Language],
+      completedwords: completedWords[lang as Language],
       replaylevel: replayLevel[lang as Language],
     },
   ]),
 ) as Partial<Record<Language, Record<string, string>>>;
 export const MENU_ALIASES: Record<string, string> = {
   'Sopas completadas': 'completedpuzzles',
+  'Palabras completadas': 'completedwords',
+  'Las sopas completadas incluyen Niveles y Juego libre, sin duplicados. Las palabras completadas también incluyen tus sopas propias. Los dados no se suman.': 'progressscope',
   'Repetir nivel': 'replaylevel',
   Completada: 'completed',
   'Empieza por lo fácil y avanza hacia retos cada vez más difíciles.':
