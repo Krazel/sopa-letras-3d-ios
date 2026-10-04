@@ -168,6 +168,13 @@ final class SopaUITests: XCTestCase {
             XCTAssertTrue(words.exists, app.debugDescription)
             words.tap()
             words.typeText("SOL")
+            // WKWebView's Spanish input accessory has an actual OK button.
+            // Dismiss it before scrolling: a full-view swipe can land on the
+            // keyboard, which otherwise covers Save on iPhone.
+            let keyboardDone = app.toolbars.buttons["OK"].firstMatch
+            if keyboardDone.exists && keyboardDone.isHittable {
+                keyboardDone.tap()
+            }
             let save = app.buttons["Guardar sin jugar"]
             for _ in 0..<8 {
                 if save.isHittable { break }
