@@ -4,18 +4,42 @@ import UIKit
 import WebKit
 
 @MainActor
+private final class SopaGameWebView: WKWebView {
+    var textFields: [CGRect] = []
+    var fieldFocused = false
+
+    func setTextInteraction(_ enabled: Bool) {
+        if configuration.preferences.isTextInteractionEnabled != enabled {
+            configuration.preferences.isTextInteractionEnabled = enabled
+        }
+        #if DEBUG
+        NSLog("SOPA_TEXT_INTERACTION editing=%d enabled=%d", enabled, configuration.preferences.isTextInteractionEnabled)
+        #endif
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        // UIKit resolves the touch before WebKit dispatches DOM pointer/focus
+        // events. Enable editing here so the first field gets its native caret.
+        if event?.type == .touches {
+            setTextInteraction(fieldFocused || textFields.contains { $0.contains(point) })
+        }
+        return super.hitTest(point, with: event)
+    }
+}
+
+@MainActor
 private final class SopaTextInteractionHandler: NSObject, WKScriptMessageHandler {
     weak var controller: SopaViewController?
     init(controller: SopaViewController) { self.controller = controller }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.frameInfo.isMainFrame, let editing = message.body as? Bool,
-              let web = controller?.webView else { return }
-        if web.configuration.preferences.isTextInteractionEnabled != editing {
-            web.configuration.preferences.isTextInteractionEnabled = editing
+        guard message.frameInfo.isMainFrame,
+              let web = controller?.webView as? SopaGameWebView else { return }
+        if message.name == "sopaTextFields", let fields = message.body as? [[String: Double]] {
+            web.textFields = fields.map { CGRect(x: CGFloat($0["x"] ?? 0), y: CGFloat($0["y"] ?? 0), width: CGFloat($0["width"] ?? 0), height: CGFloat($0["height"] ?? 0)) }
+        } else if message.name == "sopaTextEditing", let editing = message.body as? Bool {
+            web.fieldFocused = editing
+            web.setTextInteraction(editing)
         }
-        #if DEBUG
-        NSLog("SOPA_TEXT_INTERACTION editing=%d enabled=%d", editing, web.configuration.preferences.isTextInteractionEnabled)
-        #endif
     }
 }
 
@@ -34,6 +58,7 @@ class SopaViewController: CAPBridgeViewController {
         // Capacitor replaces its content controller after webViewConfiguration.
         // Install the script on the final controller, before creating the web view.
         configuration.userContentController.add(textInteractionHandler, name: "sopaTextEditing")
+        configuration.userContentController.add(textInteractionHandler, name: "sopaTextFields")
         let editingScript = """
         (() => {
           const isField = field => !!(field && field.matches('input,textarea,[contenteditable="true"]'));
@@ -41,23 +66,43 @@ class SopaViewController: CAPBridgeViewController {
           const update = () => {
             send(isField(document.activeElement));
           };
-          // Arm native editing before WebKit starts focusing the first field.
-          // Changing the preference after focus can clear its native caret.
-          document.addEventListener('pointerdown', event => {
-            const field = event.target.closest('input,textarea,[contenteditable="true"]');
-            if (field) send(true);
-          }, true);
+          let scheduled = false;
+          const measureFields = () => {
+            scheduled = false;
+            const viewport = window.visualViewport;
+            const scale = viewport?.scale || 1;
+            const fields = Array.from(document.querySelectorAll('input,textarea,[contenteditable="true"]'))
+              .filter(field => !field.disabled && field.getClientRects().length)
+              .map(field => {
+                const rect = field.getBoundingClientRect();
+                return {x:(rect.x-(viewport?.offsetLeft || 0))*scale,
+                  y:(rect.y-(viewport?.offsetTop || 0))*scale,
+                  width:rect.width*scale,height:rect.height*scale};
+              });
+            window.webkit.messageHandlers.sopaTextFields.postMessage(fields);
+          };
+          const scheduleFields = () => {
+            if (!scheduled) { scheduled = true; requestAnimationFrame(measureFields); }
+          };
           document.addEventListener('focusin', update, true);
           // Focusout precedes focusin when moving between fields. Wait for the
           // whole transition instead of briefly disabling the new field.
           document.addEventListener('focusout', () => setTimeout(update, 0), true);
-          document.addEventListener('pointerup', () => setTimeout(update, 0), true);
-          document.addEventListener('pointercancel', () => setTimeout(update, 0), true);
-          document.addEventListener('DOMContentLoaded', update, {once:true});
+          document.addEventListener('scroll', scheduleFields, true);
+          window.addEventListener('resize', scheduleFields);
+          window.visualViewport?.addEventListener('resize', scheduleFields);
+          window.visualViewport?.addEventListener('scroll', scheduleFields);
+          document.addEventListener('DOMContentLoaded', () => {
+            update();
+            measureFields();
+            new MutationObserver(scheduleFields).observe(document.documentElement,
+              {childList:true,subtree:true,attributes:true,attributeFilter:['class','style','hidden','disabled']});
+            new ResizeObserver(scheduleFields).observe(document.documentElement);
+          }, {once:true});
         })();
         """
         configuration.userContentController.addUserScript(WKUserScript(source: editingScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
-        return super.webView(with: frame, configuration: configuration)
+        return SopaGameWebView(frame: frame, configuration: configuration)
     }
     override func capacitorDidLoad() {
         webView?.allowsLinkPreview = false
