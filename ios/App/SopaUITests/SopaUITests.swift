@@ -18,7 +18,7 @@ final class SopaUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["Abrir ajustes"].waitForExistence(timeout: 120), app.debugDescription)
         app.buttons["Abrir ajustes"].tap()
-        let plans = app.descendants(matching: .any).matching(identifier: "Suscribirse").firstMatch
+        let plans = app.descendants(matching: .any).matching(identifier: "Suscribirse para quitar anuncios").firstMatch
         for _ in 0..<5 {
             if plans.exists && plans.isHittable { break }
             app.swipeUp()

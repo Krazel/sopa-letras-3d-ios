@@ -5,7 +5,7 @@ export const SUPPORT_PLAN_COPY: Record<
   { title: string; monthly: string; noAds: string }
 > = {
   es: {
-    title: 'Suscribirse',
+    title: 'Suscribirse para quitar anuncios',
     monthly: 'Plan mensual · {n} pistas incluidas',
     noAds: 'Sin anuncios entre niveles',
   },
