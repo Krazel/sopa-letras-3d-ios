@@ -28,7 +28,6 @@ final class SopaUITests: XCTestCase {
         let price = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "2,99")).firstMatch
         XCTAssertTrue(price.waitForExistence(timeout: 45), app.debugDescription)
         if !price.isHittable { app.swipeUp() }
-        capture("Sopa3D-commercial-subscriptions-StoreKit-testing")
         for amount in ["2,99", "5,00", "10,00", "15,00", "30,00", "49,99"] {
             let plan = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", amount)).firstMatch
             for _ in 0..<6 {
@@ -36,7 +35,6 @@ final class SopaUITests: XCTestCase {
                 app.swipeUp()
             }
             XCTAssertTrue(plan.exists && plan.isHittable, app.debugDescription)
-            capture("Sopa3D-review-plan-\(amount)-StoreKit-testing")
         }
         for _ in 0..<6 {
             if price.isHittable { break }
@@ -46,7 +44,6 @@ final class SopaUITests: XCTestCase {
         let active = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "10 de 10")).firstMatch
         XCTAssertTrue(active.waitForExistence(timeout: 30), app.debugDescription)
         XCTAssertEqual(session.allTransactions().count, 1)
-        capture("Sopa3D-commercial-subscribed-StoreKit-testing")
         try session.expireSubscription(productIdentifier: "com.krazel.sopaletras3d.support.monthly.299")
         app.terminate()
         app.launch()
