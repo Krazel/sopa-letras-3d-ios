@@ -98,6 +98,7 @@ function bridge() {
         'rewards',
         'acknowledge',
         'privacy',
+        'privacyStatus',
       ]),
       headers('SopaAudio', [
         'configure',
@@ -161,6 +162,8 @@ function bridge() {
         throw Error('Audio ACK missing');
       if (method === 'prepare')
         return { available: true, privacyRequired: true };
+      if (method === 'privacyStatus')
+        return { available: false, privacyRequired: true };
       if (method === 'showInterstitial') {
         assertNotActive();
         return { status: q.outcome };

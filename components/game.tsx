@@ -904,7 +904,6 @@ export default function Game({
             {copy.hint}
           </button>
         )}
-        {nativeAds && !won && !supporter && <small>{copy.test}</small>}
         {cluePath.length > 0 && (
           <output aria-label={copy.path} dir="ltr">
             {cluePath.map((id, i) => (
@@ -978,7 +977,6 @@ export default function Game({
         )}
         <p className="hint-description">{includedHint ? supportCopy.hintOffer : supporter ? planCopy.exhausted : copy.offer}</p>
         <strong className="hint-word" dir="auto">{hintOffer?.word}</strong>
-        {(!includedHint) && <p>{copy.test}</p>}
         {supporter && !includedHint && supportStatus.hintLimit < 600 && (
           <button className="primary-action" onClick={() => { setHintOffer(null); setUpgradeOpen(true); }}>{planCopy.upgrade}</button>
         )}

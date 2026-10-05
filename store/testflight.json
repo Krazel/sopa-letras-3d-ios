@@ -10,5 +10,5 @@
   "locale": "es-ES",
   "sku": "krazel-sopa-letras-3d-ios",
   "iconSha256": "adbc853597e8541b1578df1304dee42328c2db7d8cb60fb8b01ff29785442726",
-  "ads": "Official test IDs only; commercial release blocked"
+  "ads": "Sopa commercial IDs in Release; official test units in Debug. UMP published 2026-10-05. Commercial distribution pending privacy and device QA."
 }

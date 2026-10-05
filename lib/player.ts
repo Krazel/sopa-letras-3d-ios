@@ -67,6 +67,7 @@ export type SaveData = {
   freeCompleted: string[];
   progress: Record<string, Snapshot>;
   customs: PuzzleChoice[];
+  foundWords?: Record<string, string[]>;
 };
 export const SAVE_KEY = 'sopa-player-v1';
 export const saveKeyFor = (language: Language) =>
@@ -102,6 +103,48 @@ export const campaignFor = (language: Language) => {
     number: index + 1,
   }));
 };
+// Historical successes are independent of the current (possibly replayed) board.
+// Old saves recorded free-play wins without paths; recover those from the catalogue.
+export function completedWordCount(
+  data: SaveData,
+  language: Language,
+): number {
+  const completed = new Set([...data.completed, ...data.freeCompleted]);
+  return [...levelsFor(language), ...data.customs].reduce(
+    (total, choice) => {
+      if (completed.has(choice.id))
+        return total + new Set(choice.words).size;
+      const found = new Set(
+        [
+          ...(data.foundWords?.[choice.id] ?? []),
+          ...Object.keys(data.progress[choice.id]?.paths ?? {}),
+        ].map((word) =>
+          choice.legacyWords?.includes(word) && language === 'es'
+            ? spanishSpelling(word)
+            : word,
+        ),
+      );
+      return total + choice.words.filter((word) => found.has(word)).length;
+    },
+    0,
+  );
+}
+function rememberWords(
+  data: SaveData,
+  id: string,
+  game: GameState,
+): SaveData {
+  const previous = data.foundWords?.[id] ?? [];
+  const words = [
+    ...new Set([
+      ...previous,
+      ...Object.keys(data.progress[id]?.paths ?? {}),
+      ...game.found,
+    ]),
+  ];
+  if (words.length === previous.length) return data;
+  return { ...data, foundWords: { ...data.foundWords, [id]: words } };
+}
 export function customChoice(
   name: string,
   text: string,
@@ -132,7 +175,9 @@ export function customChoice(
     shape === 'cube' &&
     words.reduce((n, w) => n + lettersOf(w).length, 0) > size ** 3 * 0.75
   )
-    throw Error('Elige un tamaño mayor para que quepan todas las palabras.');
+    throw Error(
+      'Elige un tamaño mayor para que quepan todas las palabras.',
+    );
   return {
     id,
     name: name.trim(),
@@ -165,7 +210,10 @@ export const snapshot = (game: GameState): Snapshot => ({
       .map((w) => [w.text, w.path]),
   ),
 });
-export function restore(choice: PuzzleChoice, saved?: Snapshot): GameState {
+export function restore(
+  choice: PuzzleChoice,
+  saved?: Snapshot,
+): GameState {
   const game = initialStateForChoice(choice);
   if (!saved?.paths || typeof saved.paths !== 'object') return game;
   for (const word of game.puzzle.words) {
@@ -176,7 +224,9 @@ export function restore(choice: PuzzleChoice, saved?: Snapshot): GameState {
       new Set(path).size !== path.length
     )
       continue;
-    if (!path.every((id) => Number.isInteger(id) && !!game.puzzle.cells[id]))
+    if (
+      !path.every((id) => Number.isInteger(id) && !!game.puzzle.cells[id])
+    )
       continue;
     if (
       !path
@@ -226,7 +276,7 @@ export function saveGame(
   game: GameState,
 ): SaveData {
   return {
-    ...data,
+    ...rememberWords(data, id, game),
     progress: { ...data.progress, [id]: snapshot(game) },
     completed:
       LEVEL_IDS.includes(id) && isWon(game)
@@ -239,7 +289,8 @@ export function campaignPosition(data: SaveData): number {
   // for unfinished boards. New players advance exactly one level per win.
   let position = 0;
   for (const [index, id] of CAMPAIGN_IDS.entries())
-    if (data.completed.includes(id)) position = Math.max(position, index + 1);
+    if (data.completed.includes(id))
+      position = Math.max(position, index + 1);
   return position;
 }
 export function saveFreeCompletion(
@@ -247,18 +298,24 @@ export function saveFreeCompletion(
   id: string,
   game: GameState,
 ): SaveData {
+  data = rememberWords(data, id, game);
   return LEVEL_IDS.includes(id) &&
     isWon(game) &&
     !data.freeCompleted.includes(id)
     ? { ...data, freeCompleted: [...data.freeCompleted, id] }
     : data;
 }
-export function recommendedLevel(data: SaveData, language: Language = 'es') {
+export function recommendedLevel(
+  data: SaveData,
+  language: Language = 'es',
+) {
   return campaignFor(language)[campaignPosition(data)];
 }
 export function isUnlocked(data: SaveData, index: number) {
   return (
-    index >= 0 && index < CAMPAIGN_IDS.length && index <= campaignPosition(data)
+    index >= 0 &&
+    index < CAMPAIGN_IDS.length &&
+    index <= campaignPosition(data)
   );
 }
 export function readSave(raw: string | null): SaveData {
@@ -268,7 +325,9 @@ export function readSave(raw: string | null): SaveData {
     const data = JSON.parse(raw);
     if (data.version !== 1) return clean;
     if (Array.isArray(data.completed))
-      clean.completed = LEVEL_IDS.filter((id) => data.completed.includes(id));
+      clean.completed = LEVEL_IDS.filter((id) =>
+        data.completed.includes(id),
+      );
     if (Array.isArray(data.freeCompleted))
       clean.freeCompleted = LEVEL_IDS.filter((id) =>
         data.freeCompleted.includes(id),
@@ -280,7 +339,8 @@ export function readSave(raw: string | null): SaveData {
     ) {
       for (const [key, val] of Object.entries(data.progress))
         if (
-          (LEVEL_IDS.includes(key) || /^custom-[a-zA-Z0-9-]+$/.test(key)) &&
+          (LEVEL_IDS.includes(key) ||
+            /^custom-[a-zA-Z0-9-]+$/.test(key)) &&
           val &&
           typeof val === 'object' &&
           'paths' in val
@@ -318,6 +378,32 @@ export function readSave(raw: string | null): SaveData {
           clean.customs.some((choice) => choice.id === id),
       ),
     );
+    if (
+      data.foundWords &&
+      typeof data.foundWords === 'object' &&
+      !Array.isArray(data.foundWords)
+    ) {
+      clean.foundWords = Object.fromEntries(
+        Object.entries(data.foundWords)
+          .filter(
+            ([id, words]) =>
+              (LEVEL_IDS.includes(id) ||
+                clean.customs.some((p) => p.id === id)) &&
+              Array.isArray(words),
+          )
+          .map(([id, words]) => [
+            id,
+            [
+              ...new Set(
+                (words as unknown[]).filter(
+                  (word): word is string =>
+                    typeof word === 'string' && validWord(word),
+                ),
+              ),
+            ],
+          ]),
+      );
+    }
     return clean;
   } catch {
     return clean;

@@ -3,14 +3,15 @@ import GoogleMobileAds
 import UserMessagingPlatform
 import UIKit
 
-/// Test-only, no mediation, no ATT request. Production activation requires an
-/// explicit config/privacy review; JS cannot supply commercial ad unit IDs.
+/// App-owned ad units, no mediation and no ATT request. UMP gates all loads.
+/// JavaScript cannot replace the configured app or unit identifiers.
 @objc(SopaAdsPlugin)
 public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelegate {
     public let identifier = "SopaAdsPlugin"
     public let jsName = "SopaAds"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "prepare", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "privacyStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "showRewarded", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "claimSupportHint", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "showInterstitial", returnType: CAPPluginReturnPromise),
@@ -23,6 +24,7 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
     private var rewardedAt = Date.distantPast
     private var interstitialAt = Date.distantPast
     private var started = false
+    private var subscriberRequestedReward = false
     private var consentBusy = false
     private var loadingReward = false
     private var loadingInterstitial = false
@@ -38,19 +40,25 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
             Task { @MainActor in
                 guard let self, SopaSupportStore.shared.active else { return }
                 self.epoch += 1; self.rewarded = nil; self.interstitial = nil
+                self.subscriberRequestedReward = false
             }
         }
     }
     deinit { if let supportObserver { NotificationCenter.default.removeObserver(supportObserver) } }
+    #if DEBUG
     private let rewardUnit = "ca-app-pub-3940256099942544/1712485313"
     private let interstitialUnit = "ca-app-pub-3940256099942544/4411468910"
-    private let sampleApp = "ca-app-pub-3940256099942544~1458002511"
+    #else
+    private let rewardUnit = "ca-app-pub-3425091654264901/9485324880"
+    private let interstitialUnit = "ca-app-pub-3425091654264901/8630399054"
+    #endif
+    private let commercialApp = "ca-app-pub-3425091654264901~5737651561"
     private typealias Receipt = SopaRewardReceipt
     private var memoryReceipt: Receipt?
     private func journal() throws -> [Receipt] { try SopaBenefitLedger.receipts() }
     private func writeJournal(_ receipts: [Receipt]) throws { try SopaBenefitLedger.setReceipts(receipts) }
     @MainActor private var permitted: Bool {
-        Bundle.main.object(forInfoDictionaryKey: "GADApplicationIdentifier") as? String == sampleApp &&
+        Bundle.main.object(forInfoDictionaryKey: "GADApplicationIdentifier") as? String == commercialApp &&
         ConsentInformation.shared.canRequestAds && SopaSupportStore.shared.ready
     }
     @MainActor private var status: [String: Any] {
@@ -71,6 +79,7 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
             await SopaSupportStore.shared.refresh()
             guard !SopaSupportStore.shared.active || (call.getBool("rewardedOnly") ?? false) else { call.resolve(self.status); return }
             guard !self.consentBusy, self.showing == nil, let vc = self.controller() else { call.resolve(self.status); return }
+            self.subscriberRequestedReward = call.getBool("rewardedOnly") ?? false
             self.consentBusy = true
             self.pause(true)
             Task { @MainActor in
@@ -93,6 +102,7 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
             // Non-personalized requests, no publisher first-party identifier,
             // no ATT prompt/IDFA flow. UMP is independent of ATT.
             MobileAds.shared.requestConfiguration.setPublisherFirstPartyIDEnabled(false)
+            MobileAds.shared.requestConfiguration.publisherPrivacyPersonalizationState = .disabled
             MobileAds.shared.requestConfiguration.maxAdContentRating = .general
             await MobileAds.shared.start()
             started = true
@@ -109,7 +119,7 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
     @MainActor private func preload() {
         guard permitted, started, !consentBusy || showing == nil else { return }
         let generation = epoch
-        if !loadingReward && rewarded == nil {
+        if (!SopaSupportStore.shared.active || subscriberRequestedReward) && !loadingReward && rewarded == nil {
             loadingReward = true
             Task { @MainActor in
                 defer { self.loadingReward = false }
@@ -232,6 +242,7 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
                   ConsentInformation.shared.privacyOptionsRequirementStatus == .required else { call.resolve(self.status); return }
             self.consentBusy = true; self.epoch += 1
             self.rewarded = nil; self.interstitial = nil // never reuse inventory loaded before withdrawal
+            self.subscriberRequestedReward = false
             self.pause(true)
             Task { @MainActor in
                 defer { self.consentBusy = false; self.pause(false) }
@@ -239,6 +250,19 @@ public class SopaAdsPlugin: CAPPlugin, CAPBridgedPlugin, FullScreenContentDelega
                 catch { /* Current UMP state still governs every request. */ }
                 call.resolve(self.status)
             }
+        }
+    }
+    @objc func privacyStatus(_ call: CAPPluginCall) {
+        Task { @MainActor in
+            guard !self.consentBusy, self.showing == nil else { call.resolve(self.status); return }
+            self.consentBusy = true
+            defer { self.consentBusy = false }
+            do {
+                // Refresh the privacy entry even for subscribers, without a form,
+                // SDK startup or an ad request. A subscription cannot revoke access.
+                try await ConsentInformation.shared.requestConsentInfoUpdate(with: RequestParameters())
+            } catch { /* Preserve the previous privacy entry while offline. */ }
+            call.resolve(self.status)
         }
     }
 }

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { AD_COPY } from '@/lib/ad-copy';
 import type { Language } from '@/lib/preferences';
-import { prepareAds, showAdPrivacy } from '@/lib/ads';
+import { readAdPrivacyStatus, showAdPrivacy } from '@/lib/ads';
 
 export default function AdSettings({ language }: { language: Language }) {
   const copy = AD_COPY[language];
@@ -10,9 +10,11 @@ export default function AdSettings({ language }: { language: Language }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   useEffect(() => {
-    void prepareAds().then((s) => {
-      setRequired(s.privacyRequired);
-    });
+    void readAdPrivacyStatus()
+      .then((s) => {
+        setRequired(s.privacyRequired);
+      })
+      .catch(() => setError(true));
   }, []);
   if (!required && !error) return null;
   return (

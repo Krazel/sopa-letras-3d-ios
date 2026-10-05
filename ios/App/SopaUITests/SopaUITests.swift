@@ -1,7 +1,43 @@
 import XCTest
 import UIKit
+import StoreKitTest
 
 final class SopaUITests: XCTestCase {
+    func testCommercialSubscriptionWithStoreKit() throws {
+        let configuration = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "Commercial", withExtension: "storekit"))
+        let session = try SKTestSession(contentsOf: configuration)
+        session.resetToDefaultState()
+        session.clearTransactions()
+        session.disableDialogs = true
+        session.storefront = "ESP"
+        session.locale = Locale(identifier: "es_ES")
+        defer { session.clearTransactions() }
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(es)", "-AppleLocale", "es_ES"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Abrir ajustes"].waitForExistence(timeout: 120), app.debugDescription)
+        app.buttons["Abrir ajustes"].tap()
+        let plans = app.descendants(matching: .any).matching(identifier: "Suscribirse").firstMatch
+        for _ in 0..<5 {
+            if plans.exists && plans.isHittable { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(plans.waitForExistence(timeout: 15), app.debugDescription)
+        plans.tap()
+        let price = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "2,99")).firstMatch
+        XCTAssertTrue(price.waitForExistence(timeout: 45), app.debugDescription)
+        if !price.isHittable { app.swipeUp() }
+        capture("Sopa3D-commercial-subscriptions-StoreKit-testing")
+        price.tap()
+        let active = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "10 de 10")).firstMatch
+        XCTAssertTrue(active.waitForExistence(timeout: 30), app.debugDescription)
+        XCTAssertEqual(try session.allTransactions().count, 1)
+        capture("Sopa3D-commercial-subscribed-StoreKit-testing")
+        try session.expireSubscription(productIdentifier: "com.krazel.sopaletras3d.support.monthly.299")
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 60))
+    }
     func testAppIconInNativeLauncher() {
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(es)", "-AppleLocale", "es_ES"]

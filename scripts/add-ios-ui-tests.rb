@@ -45,6 +45,28 @@ unless test
   end
 end
 project.save
+require 'json'
+plans = JSON.parse(File.read('store/supporter-plan.json'))
+group_id = '22439516'
+configuration = {
+  'identifier' => 'SopaCommercialQA', 'products' => [], 'nonRenewingSubscriptions' => [],
+  'settings' => {'_storefront' => 'ESP', '_locale' => 'es_ES'},
+  'subscriptionGroups' => [{ 'id' => group_id, 'name' => 'Sopa plans', 'localizations' => [],
+    'subscriptions' => plans['products'].map { |p| {
+      'adHocOffers' => [], 'codeOffers' => [], 'displayPrice' => p['targetBasePrice'],
+      'familyShareable' => false, 'groupNumber' => p['groupLevel'], 'internalID' => p['appStoreConnectId'],
+      'introductoryOffer' => nil, 'localizations' => [
+        {'locale' => 'es_ES', 'displayName' => "#{p['monthlyHints']} pistas al mes", 'description' => 'Sin anuncios entre sopas'},
+        {'locale' => 'en_US', 'displayName' => "#{p['monthlyHints']} hints monthly", 'description' => 'No ads between puzzles'}],
+      'productID' => p['productId'], 'recurringSubscriptionPeriod' => 'P1M',
+      'referenceName' => p['productId'], 'subscriptionGroupID' => group_id, 'type' => 'RecurringSubscription'
+    }} }], 'version' => {'major' => 3, 'minor' => 0}
+}
+File.write('ios/App/SopaUITests/Commercial.storekit', JSON.pretty_generate(configuration))
+qa_group = project.main_group.groups.find { |g| g.path == 'SopaUITests' }
+storekit = qa_group.files.find { |f| f.path == 'Commercial.storekit' } || qa_group.new_file('Commercial.storekit')
+test.resources_build_phase.add_file_reference(storekit, true)
+project.save
 scheme = Xcodeproj::XCScheme.new
 scheme.add_build_target(app)
 scheme.add_test_target(test)

@@ -14,7 +14,7 @@ import { refreshSupport } from './support';
 
 type AdStatus = { available: boolean; privacyRequired: boolean };
 interface NativeAds {
-  prepare(options: {rewardedOnly: boolean}): Promise<AdStatus>;
+  prepare(options: { rewardedOnly: boolean }): Promise<AdStatus>;
   showRewarded(options: {
     id: string;
     context: string;
@@ -27,10 +27,12 @@ interface NativeAds {
   rewards(): Promise<{ receipts: RewardReceipt[] }>;
   acknowledge(options: { id: string }): Promise<void>;
   privacy(): Promise<AdStatus>;
+  privacyStatus(): Promise<AdStatus>;
 }
 const native = registerPlugin<NativeAds>('SopaAds');
 export const nativeAdsAvailable = () =>
-  Capacitor.getPlatform() === 'ios' && Capacitor.isPluginAvailable('SopaAds');
+  Capacitor.getPlatform() === 'ios' &&
+  Capacitor.isPluginAvailable('SopaAds');
 let busy = false;
 let prepared: Promise<AdStatus> | undefined;
 let policy: TransitionAds | undefined;
@@ -73,7 +75,8 @@ function adBreak(active: boolean, token: string) {
 async function withAdBreak<T>(action: () => Promise<T>): Promise<T> {
   const token = `ad:${crypto.randomUUID()}`;
   try {
-    if (audioBackend() !== 'native') throw Error('Native audio unavailable');
+    if (audioBackend() !== 'native')
+      throw Error('Native audio unavailable');
     await setAudioSuspended(token, true); // wait for native ACK before presenting
     adBreak(true, token);
     return await action();
@@ -94,7 +97,7 @@ export async function prepareAds(rewardedOnly = false): Promise<AdStatus> {
   if (!prepared)
     prepared = (async () => {
       try {
-        return await withAdBreak(() => native.prepare({rewardedOnly}));
+        return await withAdBreak(() => native.prepare({ rewardedOnly }));
       } catch {
         prepared = undefined;
         return { available: false, privacyRequired: false };
@@ -132,11 +135,17 @@ export async function requestHint(
     } catch {
       return 'storage';
     }
-    if ((readHints(localStorage, offer.key)[offer.word] ?? 0) > offer.before)
+    if (
+      (readHints(localStorage, offer.key)[offer.word] ?? 0) > offer.before
+    )
       return 'rewarded';
     const support = await refreshSupport();
     if (!support.ready) return 'unavailable';
-    if (mode === 'included' && support.active && support.hintsRemaining > 0) {
+    if (
+      mode === 'included' &&
+      support.active &&
+      support.hintsRemaining > 0
+    ) {
       const result = await native.claimSupportHint({
         id: crypto.randomUUID(),
         context: JSON.stringify(offer),
@@ -206,4 +215,10 @@ export async function showAdPrivacy(): Promise<AdStatus> {
   } finally {
     busy = false;
   }
+}
+export async function readAdPrivacyStatus(): Promise<AdStatus> {
+  if (!nativeAdsAvailable())
+    return { available: false, privacyRequired: false };
+  // Privacy access must not depend on a subscription or initialize ads.
+  return native.privacyStatus();
 }
