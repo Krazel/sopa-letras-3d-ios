@@ -1,134 +1,134 @@
 {
-  "selectedBy": "User, 2026-10-04: me gusta la 2nd, creo que cambiamos la aprobada por esa, a falta de verla en iPhone de verdad",
-  "variant": 2,
-  "approval": "Variante2 elegida; integraci\u00f3n y subida autorizadas por usuario04/10. Valoraci\u00f3n f\u00edsica pendiente.",
+  "selectedBy": "Usuario 2026-10-05: la variante 1 es la correcta; cambiar en todas las partes necesarias y TestFlight",
+  "variant": 1,
+  "approval": "Variante1, 3D grande abajo a la derecha, aprobada expresamente; sustituye variante2",
   "source": "public/branding/logo-master.png",
-  "sourceSha256": "2468c7824bfd6818faef66386fa6112dfaa62508f9ddbea28dea4eab86a5e9d5",
-  "previousSourceSha256": "f42bcc29bd72d8d62a729426f1c6bfdc83044cbb661fbfb19e18990c55606fac",
+  "sourceSha256": "fed674c2c4e26edc9c9cfa6a93229a21eebef0b8a7e58c8c76b42329dad3fb8e",
+  "previousSourceSha256": "2468c7824bfd6818faef66386fa6112dfaa62508f9ddbea28dea4eab86a5e9d5",
   "installedInProduct": true,
-  "testflightBuild": "Candidata0.17.1(1), pendiente de QA/firma/subida",
+  "testflightBuild": "Candidata0.17.2(1), pendiente QA/firma/subida",
   "physicalIphoneQA": "Pendiente",
+  "homeOverlay": "Retirado; no reintroducir",
   "assets": [
     {
       "path": "public/branding/logo-master.png",
       "width": 1254,
       "height": 1254,
       "hasAlpha": false,
-      "sha256": "2468c7824bfd6818faef66386fa6112dfaa62508f9ddbea28dea4eab86a5e9d5"
+      "sha256": "fed674c2c4e26edc9c9cfa6a93229a21eebef0b8a7e58c8c76b42329dad3fb8e"
     },
     {
       "path": "public/branding/logo-192.png",
       "width": 192,
       "height": 192,
       "hasAlpha": false,
-      "sha256": "3274d2475faad02622362cddcda51b37a0f781221272576c22a022e8f7a301d5"
+      "sha256": "ad649d7b1ff26116f54151f2270987b4c3acc269c1d74ec2f8dd5fa8bb4151b5"
     },
     {
       "path": "public/branding/logo-512.png",
       "width": 512,
       "height": 512,
       "hasAlpha": false,
-      "sha256": "447315391a8c6fcadc81a94537a3d9250dcb615c944cf655f99dd17f73ce696f"
+      "sha256": "aa380e7e10bf57a4bdfeaeb2e91e7725ce38df6d95e54b0219d46266c7119977"
     },
     {
       "path": "public/branding/logo-1024.png",
       "width": 1024,
       "height": 1024,
       "hasAlpha": false,
-      "sha256": "4146f4115db1807736834bd64f91f268df803693acb4717b30191d5e2a0d34e7"
+      "sha256": "adbc853597e8541b1578df1304dee42328c2db7d8cb60fb8b01ff29785442726"
     },
     {
       "path": "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
       "width": 1024,
       "height": 1024,
       "hasAlpha": false,
-      "sha256": "4146f4115db1807736834bd64f91f268df803693acb4717b30191d5e2a0d34e7"
+      "sha256": "adbc853597e8541b1578df1304dee42328c2db7d8cb60fb8b01ff29785442726"
     },
     {
       "path": "marketing/app-icon-1024.png",
       "width": 1024,
       "height": 1024,
       "hasAlpha": false,
-      "sha256": "4146f4115db1807736834bd64f91f268df803693acb4717b30191d5e2a0d34e7"
+      "sha256": "adbc853597e8541b1578df1304dee42328c2db7d8cb60fb8b01ff29785442726"
     },
     {
       "path": "public/apple-touch-icon.png",
       "width": 180,
       "height": 180,
       "hasAlpha": false,
-      "sha256": "975fcf1deaa9e48a22ef54115535e9fcbbd511b533c89e9991ce48b4c3dbcb72"
+      "sha256": "b216482dd13fbf5087c07917db31fbe9c9199545caa3e1be1e54a1207409de27"
     },
     {
       "path": "public/favicon.png",
       "width": 48,
       "height": 48,
       "hasAlpha": false,
-      "sha256": "2810190cd431cce9a1d20660819a7149e28a792139b423bb5e071361925e2e04"
+      "sha256": "8da577df0df8a7a13ef7f31cfb636face0a92f2063668de821361866de748b54"
     },
     {
       "path": "public/favicon.ico",
-      "sha256": "a2c1f79f4f712fbe08392f34c0b8ae3255ac523814b9b65651f530413f74c430"
+      "sha256": "14bf98058e95e8a93374dc0826e23e49c32f46147fe915f736223fa7a31529a6"
     },
     {
       "path": "marketing/header-1920x640.png",
       "width": 1920,
       "height": 640,
       "hasAlpha": false,
-      "sha256": "2bd6b36d0dbcd09d37ef8f31753994c601fb0e5a75aa0a2e5edae82a871fd32c"
+      "sha256": "338440551d923d38443b32af961e4175ffa41816c0644a48c5e938c43057e19e"
     },
     {
       "path": "marketing/itch-cover-1260x1000.png",
       "width": 1260,
       "height": 1000,
       "hasAlpha": false,
-      "sha256": "9da0f3fd919a93bd3c425bc350636f6fadf39d8399da73ed032c66db0a464d09"
+      "sha256": "7f401cc6ef356baece998de783ecf25f4137459278c697860460c389fb3679d3"
     },
     {
       "path": "marketing/itch-cover-630x500.png",
       "width": 630,
       "height": 500,
       "hasAlpha": false,
-      "sha256": "dc87765bbdf3c3921de06d0ccc876953471b85804ce761ee3c4b35b2ecaa0fe9"
+      "sha256": "3c008597da2cac7d135e4a80ca27101fbee9e0f28e379b0fbcb3e49e97323007"
     },
     {
       "path": "marketing/trailer-endcard.png",
       "width": 1920,
       "height": 1080,
       "hasAlpha": false,
-      "sha256": "61e28f413b0d0ae66731a300a18c00fbc1746b4a5b1e702f426821b716532a22"
+      "sha256": "ed342513e9a44d056770b060c4dd344056ee65e29f94ce16a0e9538798fad874"
     },
     {
       "path": "public/branding/social-card.png",
       "width": 1200,
       "height": 630,
       "hasAlpha": false,
-      "sha256": "7a7115b8237465848db8e3e38602851e8ae14b591ca7b67ad4e95ce1ce444bcd"
+      "sha256": "7d0ac273bb91a9b0725b77b91bc14fc132f1031a021e6578cbc52351c696a925"
     },
     {
       "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png",
       "width": 2732,
       "height": 2732,
       "hasAlpha": false,
-      "sha256": "42f6f1f597f6c89ab17aa280b5e6283cfee0b6729796bbda08cb758720f9649c"
+      "sha256": "0bdadbad331dff93d157e133ce4d1c9250c4a712695b2aeff457d6ec52631790"
     },
     {
       "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png",
       "width": 2732,
       "height": 2732,
       "hasAlpha": false,
-      "sha256": "42f6f1f597f6c89ab17aa280b5e6283cfee0b6729796bbda08cb758720f9649c"
+      "sha256": "0bdadbad331dff93d157e133ce4d1c9250c4a712695b2aeff457d6ec52631790"
     },
     {
       "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png",
       "width": 2732,
       "height": 2732,
       "hasAlpha": false,
-      "sha256": "42f6f1f597f6c89ab17aa280b5e6283cfee0b6729796bbda08cb758720f9649c"
+      "sha256": "0bdadbad331dff93d157e133ce4d1c9250c4a712695b2aeff457d6ec52631790"
     },
     {
       "path": "public/favicon.svg",
-      "sha256": "25726ac0a0bc9e27a5137dc45614c1ef746ce3337d7f8882aad5c257ebfe14a8"
+      "sha256": "0878a037895b735ce0eec7cfddf39ee347e7eb1c6b0aaac0695e04193c8c91a9"
     }
-  ],
-  "homeOverlay": "Retirado por petici\u00f3n del usuario; no reintroducir en inicio."
+  ]
 }

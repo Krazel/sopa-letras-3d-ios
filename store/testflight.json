@@ -4,11 +4,11 @@
   "bundleId": "com.krazel.sopaletras3d",
   "bundleResourceId": "TH8X242N92",
   "teamId": "B2X6D3A9J9",
-  "marketingVersion": "0.17.1",
+  "marketingVersion": "0.17.2",
   "buildNumber": 1,
-  "purpose": "Internal TestFlight: approved variant2 icon/splash with large 3D at lower left; home logo overlay removed; existing loupe/settings/customs fixes preserved",
+  "purpose": "Internal TestFlight: user-corrected variant1 icon/splash, large 3D at lower right; preserves home without corner logo and existing gameplay fixes",
   "locale": "es-ES",
   "sku": "krazel-sopa-letras-3d-ios",
-  "iconSha256": "4146f4115db1807736834bd64f91f268df803693acb4717b30191d5e2a0d34e7",
+  "iconSha256": "adbc853597e8541b1578df1304dee42328c2db7d8cb60fb8b01ff29785442726",
   "ads": "Official test IDs only; commercial release blocked"
 }
