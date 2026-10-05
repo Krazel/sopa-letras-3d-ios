@@ -20,6 +20,8 @@ import { translator } from '@/lib/i18n';
 import type { Language } from '@/lib/preferences';
 import {
   Pause,
+  Moon,
+  Sun,
   Play,
   Home,
   Trophy,
@@ -143,6 +145,7 @@ export default function Game({
   initial,
   title,
   onExit,
+  onToggleTheme,
   onProgress,
   onNext,
   dice = false,
@@ -153,6 +156,7 @@ export default function Game({
   initial?: GameState;
   title?: string;
   onExit?: () => void;
+  onToggleTheme?: () => void;
   onProgress?: (game: GameState) => void;
   onNext?: () => void;
   nextLabel?: string;
@@ -972,8 +976,8 @@ export default function Game({
             </strong>
           </p>
         )}
-        <p>{includedHint ? supportCopy.hintOffer : supporter ? planCopy.exhausted : copy.offer}</p>
-        <strong dir="auto">{hintOffer?.word}</strong>
+        <p className="hint-description">{includedHint ? supportCopy.hintOffer : supporter ? planCopy.exhausted : copy.offer}</p>
+        <strong className="hint-word" dir="auto">{hintOffer?.word}</strong>
         {(!includedHint) && <p>{copy.test}</p>}
         {supporter && !includedHint && supportStatus.hintLimit < 600 && (
           <button className="primary-action" onClick={() => { setHintOffer(null); setUpgradeOpen(true); }}>{planCopy.upgrade}</button>
@@ -1003,6 +1007,19 @@ export default function Game({
         </div>
         <h2>{t('Un pequeño descanso')}</h2>
         <p>{t('Todo sigue donde lo dejaste.')}</p>
+        {onToggleTheme && (
+          <button
+            className="menu-row pause-theme-toggle"
+            role="switch"
+            aria-checked={theme === 'dark'}
+            aria-label={t('Modo oscuro')}
+            onClick={onToggleTheme}
+          >
+            {theme === 'dark' ? <Moon /> : <Sun />}
+            <span><strong>{t('Modo oscuro')}</strong></span>
+            <span className="switch-track" data-checked={theme === 'dark'} aria-hidden="true"><i /></span>
+          </button>
+        )}
         <button className="primary-action" onClick={() => setPaused(false)}>
           <Play size={19} />
           {t('Seguir jugando')}{' '}

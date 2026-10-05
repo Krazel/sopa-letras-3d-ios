@@ -1095,6 +1095,16 @@ progress::-moz-progress-bar {
   margin-top: 8px;
   font-size: 15px;
 }
+.pause-theme-toggle {
+  margin-block: 0 18px;
+}
+.dialog-content > .hint-description {
+  margin-bottom: 12px;
+}
+.hint-word {
+  display: block;
+  margin-bottom: 18px;
+}
 .dialog-close {
   position: absolute;
   right: 12px;

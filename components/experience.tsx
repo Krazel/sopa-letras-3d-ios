@@ -339,6 +339,7 @@ export default function Experience() {
               : undefined
           }
           onExit={exit}
+          onToggleTheme={toggleTheme}
           onProgress={onProgress}
           onNext={next}
           hasNextLevel={!!followingLevel}
