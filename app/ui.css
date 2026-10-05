@@ -1095,8 +1095,32 @@ progress::-moz-progress-bar {
   margin-top: 8px;
   font-size: 15px;
 }
+.pause-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pause-heading h2 {
+  flex: 1;
+  min-width: 0;
+}
 .pause-theme-toggle {
-  margin-block: 0 18px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--foreground);
+}
+.pause-theme-toggle svg {
+  box-sizing: content-box;
+  padding: 6px;
+  border-radius: 50%;
+  background: var(--line);
 }
 .dialog-content > .hint-description {
   margin-bottom: 12px;
