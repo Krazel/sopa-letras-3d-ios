@@ -71,4 +71,9 @@ scheme = Xcodeproj::XCScheme.new
 scheme.add_build_target(app)
 scheme.add_test_target(test)
 scheme.set_launch_target(app)
+# XCUIApplication is a separate process from the UI-test runner: configuring
+# SKTestSession alone does not route its StoreKit requests to the local catalog.
+# This generated QA scheme is never used by the signed release job.
+scheme.launch_action.xml_element.add_element('StoreKitConfigurationFileReference',
+  { 'identifier' => File.expand_path('ios/App/SopaUITests/Commercial.storekit') })
 scheme.save_as(project_path, 'SopaQA', true)

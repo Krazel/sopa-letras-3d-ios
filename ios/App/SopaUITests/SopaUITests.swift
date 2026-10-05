@@ -4,6 +4,7 @@ import StoreKitTest
 
 final class SopaUITests: XCTestCase {
     func testCommercialSubscriptionWithStoreKit() throws {
+        continueAfterFailure = false
         let configuration = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "Commercial", withExtension: "storekit"))
         let session = try SKTestSession(contentsOf: configuration)
         session.resetToDefaultState()
@@ -28,10 +29,23 @@ final class SopaUITests: XCTestCase {
         XCTAssertTrue(price.waitForExistence(timeout: 45), app.debugDescription)
         if !price.isHittable { app.swipeUp() }
         capture("Sopa3D-commercial-subscriptions-StoreKit-testing")
+        for amount in ["2,99", "5,00", "10,00", "15,00", "30,00", "49,99"] {
+            let plan = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", amount)).firstMatch
+            for _ in 0..<6 {
+                if plan.exists && plan.isHittable { break }
+                app.swipeUp()
+            }
+            XCTAssertTrue(plan.exists && plan.isHittable, app.debugDescription)
+            capture("Sopa3D-review-plan-\(amount)-StoreKit-testing")
+        }
+        for _ in 0..<6 {
+            if price.isHittable { break }
+            app.swipeDown()
+        }
         price.tap()
         let active = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "10 de 10")).firstMatch
         XCTAssertTrue(active.waitForExistence(timeout: 30), app.debugDescription)
-        XCTAssertEqual(try session.allTransactions().count, 1)
+        XCTAssertEqual(session.allTransactions().count, 1)
         capture("Sopa3D-commercial-subscribed-StoreKit-testing")
         try session.expireSubscription(productIdentifier: "com.krazel.sopaletras3d.support.monthly.299")
         app.terminate()
@@ -325,8 +339,10 @@ final class SopaUITests: XCTestCase {
         app.buttons["Cerrar ayuda"].tap()
         XCTAssertTrue(app.buttons["Pista"].waitForExistence(timeout: 10))
         capture("Sopa3D-0.16-2-after-help-touch")
-        app.buttons["Pista"].tap()
-        XCTAssertTrue(app.staticTexts["Un anuncio para revelar la siguiente letra de esta palabra:"].waitForExistence(timeout: 10))
+        let hint = app.buttons["Pista"]
+        XCTAssertTrue(hint.isHittable)
+        hint.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(app.staticTexts["Un anuncio para revelar la siguiente letra de esta palabra:"].waitForExistence(timeout: 10), app.debugDescription)
         XCTAssertTrue(app.buttons["Ahora no"].exists)
         capture("Sopa3D-0.16-2-hint-explanation")
         app.buttons["Ahora no"].tap()
