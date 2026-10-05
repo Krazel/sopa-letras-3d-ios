@@ -20,6 +20,8 @@ import { translator } from '@/lib/i18n';
 import type { Language } from '@/lib/preferences';
 import {
   Pause,
+  Moon,
+  Sun,
   Play,
   Home,
   Trophy,
@@ -143,6 +145,7 @@ export default function Game({
   initial,
   title,
   onExit,
+  onToggleTheme,
   onProgress,
   onNext,
   dice = false,
@@ -153,6 +156,7 @@ export default function Game({
   initial?: GameState;
   title?: string;
   onExit?: () => void;
+  onToggleTheme?: () => void;
   onProgress?: (game: GameState) => void;
   onNext?: () => void;
   nextLabel?: string;
@@ -972,8 +976,8 @@ export default function Game({
             </strong>
           </p>
         )}
-        <p>{includedHint ? supportCopy.hintOffer : supporter ? planCopy.exhausted : copy.offer}</p>
-        <strong dir="auto">{hintOffer?.word}</strong>
+        <p className="hint-description">{includedHint ? supportCopy.hintOffer : supporter ? planCopy.exhausted : copy.offer}</p>
+        <strong className="hint-word" dir="auto">{hintOffer?.word}</strong>
         {(!includedHint) && <p>{copy.test}</p>}
         {supporter && !includedHint && supportStatus.hintLimit < 600 && (
           <button className="primary-action" onClick={() => { setHintOffer(null); setUpgradeOpen(true); }}>{planCopy.upgrade}</button>
@@ -1002,6 +1006,17 @@ export default function Game({
           <Pause size={32} />
         </div>
         <h2>{t('Un pequeño descanso')}</h2>
+        {onToggleTheme && (
+          <button
+            className="pause-theme-toggle"
+            aria-pressed={theme === 'dark'}
+            aria-label={t('Modo oscuro')}
+            title={t('Modo oscuro')}
+            onClick={onToggleTheme}
+          >
+            {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+          </button>
+        )}
         <p>{t('Todo sigue donde lo dejaste.')}</p>
         <button className="primary-action" onClick={() => setPaused(false)}>
           <Play size={19} />
