@@ -82,7 +82,9 @@ export default function SupportSettings({
         {status.active && (
           <p className="support-active" role="status">
             {copy.active}{' '}
-            {planCopy.remaining.replace('{n}', String(status.hintsRemaining))}
+            {planCopy.remaining
+              .replace('{n}', String(status.hintsRemaining))
+              .replace('{total}', String(status.hintLimit))}
           </p>
         )}
         <div className="support-products">

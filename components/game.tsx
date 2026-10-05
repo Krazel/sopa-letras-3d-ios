@@ -963,6 +963,15 @@ export default function Game({
         title={copy.hint}
       >
         <h2>{copy.hint}</h2>
+        {supporter && supportStatus.ready && (
+          <p className="hint-allowance" role="status">
+            <strong>
+              {planCopy.remaining
+                .replace('{n}', String(supportStatus.hintsRemaining))
+                .replace('{total}', String(supportStatus.hintLimit))}
+            </strong>
+          </p>
+        )}
         <p>{includedHint ? supportCopy.hintOffer : supporter ? planCopy.exhausted : copy.offer}</p>
         <strong dir="auto">{hintOffer?.word}</strong>
         {(!includedHint) && <p>{copy.test}</p>}
