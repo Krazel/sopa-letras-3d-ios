@@ -55,7 +55,11 @@ jobs:
           SOPA_DEVICE_CLASS: ${{ matrix.device }}
         run: |
           set -o pipefail
-          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys,os; d=json.load(sys.stdin); print(next(x["udid"] for k,v in d["devices"].items() if "iOS" in k for x in v if os.environ["SOPA_DEVICE_CLASS"] in x["name"]))')
+          # StoreKitTest configuration sync regressed in later 26.x simulator
+          # runtimes (Apple FB22237318). Keep SDK/Xcode current while testing
+          # purchases on the installed 26.2 runtime; do not pick an arbitrary OS.
+          xcrun simctl list runtimes
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys,os; d=json.load(sys.stdin); print(next(x["udid"] for k,v in d["devices"].items() if k.endswith("iOS-26-2") for x in v if os.environ["SOPA_DEVICE_CLASS"] in x["name"]))')
           xcrun simctl boot "$DEVICE"
           xcrun simctl bootstatus "$DEVICE" -b
           echo "SOPA_SIMULATOR=$DEVICE" >> "$GITHUB_ENV"

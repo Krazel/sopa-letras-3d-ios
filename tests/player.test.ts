@@ -24,7 +24,76 @@ import {
   levelsFor,
   customChoice,
   generateCustom,
+  completedWordCount,
 } from '../lib/player.ts';
+void test('word statistics recover old wins without paths in every language, counting each board once', () => {
+  for (const { code } of LANGUAGES) {
+    const [first, second] = levelsFor(code);
+    const data = readSave(
+      JSON.stringify({
+        ...emptySave(),
+        completed: [first.id],
+        freeCompleted: [first.id, second.id],
+      }),
+    );
+    assert.equal(
+      completedWordCount(data, code),
+      first.words.length + second.words.length,
+    );
+    const replay = saveGame(data, first.id, initialStateForChoice(first));
+    assert.equal(
+      completedWordCount(readSave(JSON.stringify(replay)), code),
+      first.words.length + second.words.length,
+    );
+  }
+});
+void test('partial free-play and custom words survive restarts without duplicate replay credit', () => {
+  for (const choice of [
+    levelsFor('es')[0],
+    customChoice('Personal', 'SOL,LUNA', 'cube', 4, 73, 'custom-stats'),
+  ]) {
+    let game = initialStateForChoice(choice);
+    for (const id of game.puzzle.words[0].path)
+      game = selectCell(game, id);
+    const fresh = {
+      ...emptySave(),
+      customs: choice.id.startsWith('custom-') ? [choice] : [],
+    };
+    const save = choice.id.startsWith('custom-')
+      ? saveGame
+      : saveFreeCompletion;
+    let data = readSave(JSON.stringify(save(fresh, choice.id, game)));
+    assert.equal(completedWordCount(data, 'es'), 1);
+    data = save(data, choice.id, initialStateForChoice(choice));
+    data = save(data, choice.id, game);
+    assert.equal(
+      completedWordCount(readSave(JSON.stringify(data)), 'es'),
+      1,
+    );
+    assert.deepEqual(data.completed, []);
+    assert.deepEqual(data.freeCompleted, []);
+  }
+});
+void test('word statistics ignore unknown boards and words in imported history', () => {
+  const choice = levelsFor('es')[0];
+  const data = readSave(
+    JSON.stringify({
+      ...emptySave(),
+      foundWords: {
+        unknown: ['SOL'],
+        [choice.id]: [
+          choice.words[0],
+          choice.words[0],
+          'INEXISTENTE',
+          null,
+          42,
+        ],
+      },
+    }),
+  );
+  assert.equal(completedWordCount(data, 'es'), 1);
+  assert.equal(data.foundWords?.unknown, undefined);
+});
 void test('replaying a completed campaign board resets only its attempt, retaining unlocks', () => {
   const campaign = campaignFor('es');
   let game = initialStateForChoice(campaign[0]);
@@ -32,17 +101,26 @@ void test('replaying a completed campaign board resets only its attempt, retaini
     for (const id of word.path) game = selectCell(game, id);
   assert.equal(isWon(game), true);
   const completed = saveGame(emptySave(), campaign[0].id, game);
-  const replay = replayCampaignState({ ...game, hintPath: [0, 1], selection: [0] });
+  const replay = replayCampaignState({
+    ...game,
+    hintPath: [0, 1],
+    selection: [0],
+  });
   assert.equal(isWon(replay), false);
   assert.deepEqual(replay.found, []);
   assert.deepEqual(replay.selection, []);
   assert.equal(replay.hintPath, undefined);
   assert.equal(replay.puzzle, game.puzzle);
   assert.equal(isWon(game), true);
-  const saved = readSave(JSON.stringify(saveGame(completed, campaign[0].id, replay)));
+  const saved = readSave(
+    JSON.stringify(saveGame(completed, campaign[0].id, replay)),
+  );
   assert.deepEqual(saved.completed, completed.completed);
   assert.equal(isUnlocked(saved, 1), true);
-  assert.equal(isWon(restore(campaign[0], saved.progress[campaign[0].id])), false);
+  assert.equal(
+    isWon(restore(campaign[0], saved.progress[campaign[0].id])),
+    false,
+  );
 });
 void test('free-play wins persist a separate tick without unlocking campaign levels', () => {
   const choice = LEVELS.find((p) => p.size === 6)!;
@@ -58,9 +136,10 @@ void test('free-play wins persist a separate tick without unlocking campaign lev
   assert.deepEqual(save.completed, []);
   assert.equal(campaignPosition(save), 0);
   assert.equal(isUnlocked(save, 1), false);
-  assert.deepEqual(saveFreeCompletion(save, choice.id, game).freeCompleted, [
-    choice.id,
-  ]);
+  assert.deepEqual(
+    saveFreeCompletion(save, choice.id, game).freeCompleted,
+    [choice.id],
+  );
   assert.deepEqual(
     readSave(JSON.stringify({ version: 1, completed: ['cielo'] }))
       .freeCompleted,
@@ -99,7 +178,10 @@ void test('the campaign has four boards per size and advances exactly one by one
     assert.equal(campaignPosition(save), index + 1);
     assert.equal(save.completed.length, index + 1);
     assert(isWon(restore(choice, save.progress[choice.id])));
-    assert.equal(saveGame(save, choice.id, game).completed.length, index + 1);
+    assert.equal(
+      saveGame(save, choice.id, game).completed.length,
+      index + 1,
+    );
   }
   assert.equal(recommendedLevel(save), undefined);
   assert(!isUnlocked(save, -1));
@@ -189,7 +271,9 @@ void test('creator preserves accents and Ñ, rejects duplicates and validates ca
       'custom-test',
     ),
   );
-  assert.throws(() => customChoice('', 'SOL', 'cube', 4, 1, 'custom-test'));
+  assert.throws(() =>
+    customChoice('', 'SOL', 'cube', 4, 1, 'custom-test'),
+  );
 });
 void test('retired stars cannot return through creator or saves; cube progress survives', () => {
   const cube = customChoice(
@@ -203,7 +287,10 @@ void test('retired stars cannot return through creator or saves; cube progress s
   const raw = {
     ...emptySave(),
     completed: ['cielo', 'estrella'],
-    customs: [cube, { ...cube, id: 'custom-retired', shape: 'star', size: 13 }],
+    customs: [
+      cube,
+      { ...cube, id: 'custom-retired', shape: 'star', size: 13 },
+    ],
     progress: {
       cielo: { paths: {} },
       'custom-cube': { paths: {} },
@@ -220,7 +307,14 @@ void test('retired stars cannot return through creator or saves; cube progress s
   assert(isUnlocked({ ...saved, completed: CAMPAIGN_IDS.slice(0, 9) }, 9));
   assert(LEVELS.some((p) => p.id === 'universo'));
   assert.throws(() =>
-    customChoice('Retirada', 'SOL', 'star' as 'cube', 13, 1, 'custom-retired'),
+    customChoice(
+      'Retirada',
+      'SOL',
+      'star' as 'cube',
+      13,
+      1,
+      'custom-retired',
+    ),
   );
   assert.throws(() => createPuzzle(1, 13, ['SOL'], 'star' as 'cube'));
 });

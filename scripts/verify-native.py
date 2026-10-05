@@ -27,7 +27,7 @@ if config.get('iconSha256'):
     assets=json.loads(subprocess.check_output(['xcrun','assetutil','--info',str(app/'Assets.car')]))
     assert any('AppIcon' in str(a.get('Name','')) for a in assets), 'Compiled app icon missing'
     assert info['CFBundleIcons']['CFBundlePrimaryIcon']['CFBundleIconName']=='AppIcon'
-    assert info['GADApplicationIdentifier']=='ca-app-pub-3940256099942544~1458002511', 'Commercial ads are not authorized for this candidate'
+    assert info['GADApplicationIdentifier']=='ca-app-pub-3425091654264901~5737651561', 'Incorrect Sopa AdMob app'
     assert 'NSUserTrackingUsageDescription' not in info
     pathlib.Path('artifacts/testflight').mkdir(parents=True,exist_ok=True)
     pathlib.Path('artifacts/testflight/icon-verification.json').write_text(json.dumps({'sourceSha256':config['iconSha256'],'compiledIconName':'AppIcon','assets':assets,'commercialReady':False,'brandingSourceSha256':brand['sourceSha256'],'bundledBrandingVerified':True},indent=2))

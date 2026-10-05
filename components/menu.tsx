@@ -26,13 +26,13 @@ import {
 import {
   levelsFor,
   campaignFor,
+  completedWordCount,
   CAMPAIGN_SIZES,
   recommendedLevel,
   type SaveData,
 } from '@/lib/player';
 import { type PuzzleChoice } from '@/lib/game';
 import { translator } from '@/lib/i18n';
-import { spanishSpelling } from '@/lib/spanish-spelling';
 import { LANGUAGES, type Language } from '@/lib/preferences';
 
 export type Section =
@@ -89,25 +89,15 @@ export default function Menu({
     .slice()
     .sort((a, b) => a.size - b.size);
   const completedPuzzles = PUZZLES.filter(
-    (p) => data.completed.includes(p.id) || data.freeCompleted.includes(p.id),
+    (p) =>
+      data.completed.includes(p.id) || data.freeCompleted.includes(p.id),
   ).length;
   const suggested = recommendedLevel(data, language);
   const filteredPuzzles = PUZZLES.filter(
     (p) => difficulty === 'all' || p.difficulty === difficulty,
   );
   const next = suggested ?? LEVELS.at(-1)!;
-  const wordsFound = [...PUZZLES, ...data.customs].reduce(
-    (n, p) =>
-      n +
-      [
-        ...new Set(
-          Object.keys(data.progress[p.id]?.paths ?? {}).map((w) =>
-            p.legacyWords?.includes(w) ? spanishSpelling(w) : w,
-          ),
-        ),
-      ].filter((w) => p.words.includes(w)).length,
-    0,
-  );
+  const wordsFound = completedWordCount(data, language);
   const title = {
     home: t('Sopa de letras'),
     modes: t('Jugar'),
@@ -139,7 +129,9 @@ export default function Menu({
               className="icon-button"
               onClick={() =>
                 navigate(
-                  ['levels', 'catalog'].includes(section) ? 'modes' : 'home',
+                  ['levels', 'catalog'].includes(section)
+                    ? 'modes'
+                    : 'home',
                 )
               }
               aria-label={t('Volver')}
@@ -218,7 +210,10 @@ export default function Menu({
                 className="home-hotspot home-modes"
                 onClick={() => navigate('create')}
               >
-                <Gamepad2 className="home-action-icon" aria-hidden="true" />
+                <Gamepad2
+                  className="home-action-icon"
+                  aria-hidden="true"
+                />
                 <span className="live-home-label">
                   {t('Partida personalizada')}
                 </span>
@@ -231,7 +226,9 @@ export default function Menu({
                   className="home-action-icon"
                   aria-hidden="true"
                 />
-                <span className="live-home-label">{t('Estadísticas')}</span>
+                <span className="live-home-label">
+                  {t('Estadísticas')}
+                </span>
               </button>
               <p className="live-home-motto">
                 {t('Pequeños desafíos, grandes mentes')}
@@ -241,16 +238,23 @@ export default function Menu({
         )}
         {section === 'modes' && (
           <>
-            <p className="screen-intro">{t('Elige cómo quieres jugar hoy.')}</p>
+            <p className="screen-intro">
+              {t('Elige cómo quieres jugar hoy.')}
+            </p>
             <div className="mode-list">
               <button
                 className="mode-card green"
                 onClick={() => navigate('levels')}
               >
-                <span className="mode-art mode-art-leaf" aria-hidden="true" />
+                <span
+                  className="mode-art mode-art-leaf"
+                  aria-hidden="true"
+                />
                 <span>
                   <strong>{t('Niveles')}</strong>
-                  <small>{t('Un reto cada vez. Cuatro de cada tamaño.')}</small>
+                  <small>
+                    {t('Un reto cada vez. Cuatro de cada tamaño.')}
+                  </small>
                 </span>
                 <ChevronRight />
               </button>
@@ -289,7 +293,10 @@ export default function Menu({
               aria-labelledby="experimental-heading"
             >
               <h2 id="experimental-heading">{t('EXPERIMENTAL')}</h2>
-              <button className="experimental-dice" onClick={() => free(true)}>
+              <button
+                className="experimental-dice"
+                onClick={() => free(true)}
+              >
                 <Dices aria-hidden="true" />
                 <span>
                   <strong>{t('Probar dados')}</strong>
@@ -327,7 +334,9 @@ export default function Menu({
                 onClick={() => open(next, 'level')}
               >
                 <Play size={18} />
-                {t(suggested ? 'Continuar · Nivel' : 'Volver a jugar')}{' '}
+                {t(
+                  suggested ? 'Continuar · Nivel' : 'Volver a jugar',
+                )}{' '}
                 {next.number}
                 <ChevronRight aria-hidden="true" />
               </button>
@@ -339,7 +348,10 @@ export default function Menu({
                 )}
               </p>
             )}
-            <section className="campaign-stages" aria-label={t('Tu recorrido')}>
+            <section
+              className="campaign-stages"
+              aria-label={t('Tu recorrido')}
+            >
               {CAMPAIGN_SIZES.map((size) => {
                 const levels = LEVELS.filter((p) => p.size === size);
                 return (
@@ -355,7 +367,9 @@ export default function Menu({
                         return (
                           <button
                             key={p.id}
-                            className={done ? 'done' : current ? 'current' : ''}
+                            className={
+                              done ? 'done' : current ? 'current' : ''
+                            }
                             aria-label={label}
                             title={label}
                             aria-current={current ? 'step' : undefined}
@@ -483,7 +497,11 @@ export default function Menu({
                 <h2>
                   {completedCount === LEVELS.length
                     ? t('¡Tu libro está completo!')
-                    : t(suggested ? 'Tu siguiente página' : 'Volver a jugar')}
+                    : t(
+                        suggested
+                          ? 'Tu siguiente página'
+                          : 'Volver a jugar',
+                      )}
                 </h2>
                 <p>
                   {next.name} · {dimensions(next, language)}
@@ -538,7 +556,10 @@ export default function Menu({
                       : t('Papel claro y cálido')}
                   </small>
                 </span>
-                <span className="switch-track" data-checked={theme === 'dark'}>
+                <span
+                  className="switch-track"
+                  data-checked={theme === 'dark'}
+                >
                   <i />
                 </span>
               </button>
@@ -556,7 +577,9 @@ export default function Menu({
                   aria-label={t('Idioma')}
                   value={language}
                   disabled={LANGUAGES.length < 2}
-                  onChange={(e) => changeLanguage(e.target.value as Language)}
+                  onChange={(e) =>
+                    changeLanguage(e.target.value as Language)
+                  }
                 >
                   {LANGUAGES.map((item) => (
                     <option key={item.code} value={item.code}>

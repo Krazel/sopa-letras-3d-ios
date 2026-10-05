@@ -1,7 +1,72 @@
 import XCTest
 import UIKit
+import StoreKitTest
 
 final class SopaUITests: XCTestCase {
+    private var storeSession: SKTestSession!
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        continueAfterFailure = false
+        XCUIApplication().terminate()
+        let configuration = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "Commercial", withExtension: "storekit"))
+        storeSession = try SKTestSession(contentsOf: configuration)
+        storeSession.resetToDefaultState()
+        storeSession.clearTransactions()
+        storeSession.disableDialogs = true
+        // Storefront and locale come from Commercial.storekit. Reassigning them
+        // during a running UI-test session can fail with SKInternalError 10.
+    }
+
+    override func tearDownWithError() throws {
+        // XCTest still invokes teardown when a fatal assertion aborts a test;
+        // a Swift defer in that test does not reliably provide this isolation.
+        XCUIApplication().terminate()
+        storeSession?.clearTransactions()
+        storeSession = nil
+        try super.tearDownWithError()
+    }
+
+    func testCommercialSubscriptionWithStoreKit() throws {
+        let session = try XCTUnwrap(storeSession)
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(es)", "-AppleLocale", "es_ES"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Abrir ajustes"].waitForExistence(timeout: 120), app.debugDescription)
+        app.buttons["Abrir ajustes"].tap()
+        let plans = app.descendants(matching: .any).matching(identifier: "Suscribirse para quitar anuncios").firstMatch
+        for _ in 0..<5 {
+            if plans.exists && plans.isHittable { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(plans.waitForExistence(timeout: 15), app.debugDescription)
+        plans.tap()
+        let price = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "2,99")).firstMatch
+        XCTAssertTrue(price.waitForExistence(timeout: 45), app.debugDescription)
+        if !price.isHittable { app.swipeUp() }
+        for amount in ["2,99", "5,00", "10,00", "15,00", "30,00", "49,99"] {
+            let plan = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", amount)).firstMatch
+            for _ in 0..<6 {
+                if plan.exists && plan.isHittable { break }
+                app.swipeUp()
+            }
+            XCTAssertTrue(plan.exists && plan.isHittable, app.debugDescription)
+        }
+        for _ in 0..<6 {
+            if price.isHittable { break }
+            app.swipeDown()
+        }
+        price.tap()
+        let active = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "10 de 10")).firstMatch
+        // Hosted simulator StoreKit transactions can take longer than catalog
+        // queries. Still require the real purchase callback and visible quota.
+        XCTAssertTrue(active.waitForExistence(timeout: 120), app.debugDescription)
+        XCTAssertEqual(session.allTransactions().count, 1)
+        try session.expireSubscription(productIdentifier: "com.krazel.sopaletras3d.support.monthly.299")
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.buttons["Jugar"].waitForExistence(timeout: 60))
+    }
     func testAppIconInNativeLauncher() {
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(es)", "-AppleLocale", "es_ES"]
@@ -289,8 +354,10 @@ final class SopaUITests: XCTestCase {
         app.buttons["Cerrar ayuda"].tap()
         XCTAssertTrue(app.buttons["Pista"].waitForExistence(timeout: 10))
         capture("Sopa3D-0.16-2-after-help-touch")
-        app.buttons["Pista"].tap()
-        XCTAssertTrue(app.staticTexts["Un anuncio para revelar la siguiente letra de esta palabra:"].waitForExistence(timeout: 10))
+        let hint = app.buttons["Pista"]
+        XCTAssertTrue(hint.isHittable)
+        hint.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(app.staticTexts["Un anuncio para revelar la siguiente letra de esta palabra:"].waitForExistence(timeout: 10), app.debugDescription)
         XCTAssertTrue(app.buttons["Ahora no"].exists)
         capture("Sopa3D-0.16-2-hint-explanation")
         app.buttons["Ahora no"].tap()
