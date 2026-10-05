@@ -3,16 +3,32 @@ import UIKit
 import StoreKitTest
 
 final class SopaUITests: XCTestCase {
-    func testCommercialSubscriptionWithStoreKit() throws {
+    private var storeSession: SKTestSession!
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
         continueAfterFailure = false
+        XCUIApplication().terminate()
         let configuration = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "Commercial", withExtension: "storekit"))
-        let session = try SKTestSession(contentsOf: configuration)
-        session.resetToDefaultState()
-        session.clearTransactions()
-        session.disableDialogs = true
-        session.storefront = "ESP"
-        session.locale = Locale(identifier: "es_ES")
-        defer { session.clearTransactions() }
+        storeSession = try SKTestSession(contentsOf: configuration)
+        storeSession.resetToDefaultState()
+        storeSession.clearTransactions()
+        storeSession.disableDialogs = true
+        // Storefront and locale come from Commercial.storekit. Reassigning them
+        // during a running UI-test session can fail with SKInternalError 10.
+    }
+
+    override func tearDownWithError() throws {
+        // XCTest still invokes teardown when a fatal assertion aborts a test;
+        // a Swift defer in that test does not reliably provide this isolation.
+        XCUIApplication().terminate()
+        storeSession?.clearTransactions()
+        storeSession = nil
+        try super.tearDownWithError()
+    }
+
+    func testCommercialSubscriptionWithStoreKit() throws {
+        let session = try XCTUnwrap(storeSession)
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(es)", "-AppleLocale", "es_ES"]
         app.launch()
@@ -42,7 +58,9 @@ final class SopaUITests: XCTestCase {
         }
         price.tap()
         let active = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "10 de 10")).firstMatch
-        XCTAssertTrue(active.waitForExistence(timeout: 30), app.debugDescription)
+        // Hosted simulator StoreKit transactions can take longer than catalog
+        // queries. Still require the real purchase callback and visible quota.
+        XCTAssertTrue(active.waitForExistence(timeout: 120), app.debugDescription)
         XCTAssertEqual(session.allTransactions().count, 1)
         try session.expireSubscription(productIdentifier: "com.krazel.sopaletras3d.support.monthly.299")
         app.terminate()
