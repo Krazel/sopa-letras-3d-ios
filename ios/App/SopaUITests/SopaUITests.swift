@@ -46,11 +46,17 @@ final class SopaUITests: XCTestCase {
         if !price.isHittable { app.swipeUp() }
         for amount in ["2,99", "5,00", "10,00", "15,00", "30,00", "49,99"] {
             let plan = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", amount)).firstMatch
-            for _ in 0..<6 {
-                if plan.exists && plan.isHittable { break }
-                app.swipeUp()
+            let visibleArea = app.windows.firstMatch.frame.insetBy(dx: 0, dy: 90)
+            for _ in 0..<12 {
+                if plan.exists && plan.isHittable && visibleArea.contains(plan.frame) { break }
+                let view = app.webViews.firstMatch
+                let start = view.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.70))
+                let end = view.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.48))
+                start.press(forDuration: 0.1, thenDragTo: end)
             }
             XCTAssertTrue(plan.exists && plan.isHittable, app.debugDescription)
+            XCTAssertTrue(visibleArea.contains(plan.frame), "The complete plan is visible for private App Review evidence")
+            capture("Sopa3D-private-subscription-" + amount.replacingOccurrences(of: ",", with: "-"))
         }
         for _ in 0..<6 {
             if price.isHittable { break }
