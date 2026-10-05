@@ -1095,19 +1095,12 @@ progress::-moz-progress-bar {
   margin-top: 8px;
   font-size: 15px;
 }
-.pause-heading {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.pause-heading h2 {
-  flex: 1;
-  min-width: 0;
-}
 .pause-theme-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
   display: grid;
   place-items: center;
-  flex: 0 0 44px;
   width: 44px;
   height: 44px;
   padding: 0;

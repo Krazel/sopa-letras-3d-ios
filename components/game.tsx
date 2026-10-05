@@ -1005,20 +1005,18 @@ export default function Game({
         <div className="dialog-symbol">
           <Pause size={32} />
         </div>
-        <div className="pause-heading">
-          <h2>{t('Un pequeño descanso')}</h2>
-          {onToggleTheme && (
-            <button
-              className="pause-theme-toggle"
-              aria-pressed={theme === 'dark'}
-              aria-label={t('Modo oscuro')}
-              title={t('Modo oscuro')}
-              onClick={onToggleTheme}
-            >
-              {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
-            </button>
-          )}
-        </div>
+        <h2>{t('Un pequeño descanso')}</h2>
+        {onToggleTheme && (
+          <button
+            className="pause-theme-toggle"
+            aria-pressed={theme === 'dark'}
+            aria-label={t('Modo oscuro')}
+            title={t('Modo oscuro')}
+            onClick={onToggleTheme}
+          >
+            {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+          </button>
+        )}
         <p>{t('Todo sigue donde lo dejaste.')}</p>
         <button className="primary-action" onClick={() => setPaused(false)}>
           <Play size={19} />
