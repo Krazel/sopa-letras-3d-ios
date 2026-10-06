@@ -13,7 +13,18 @@ assert not cap.get('server', {}).get('url')
 html = (app / 'public/index.html').read_text()
 assert '<title>Sopa de letras 3D</title>' in html and 'viewport' in html
 assert any('live-home-label' in p.read_text() for p in (app / 'public/_next/static/chunks').glob('*.js'))
-assert any(app.rglob('PrivacyInfo.xcprivacy'))
+# SDK manifests do not declare the app executable's own required-reason APIs.
+# SopaEngagement keeps app-only review/reminder preferences in UserDefaults.
+privacy_path = app / 'PrivacyInfo.xcprivacy'
+assert privacy_path.is_file(), 'App-level privacy manifest missing (SDK manifests are insufficient)'
+privacy = plistlib.loads(privacy_path.read_bytes())
+assert privacy['NSPrivacyTracking'] is False
+assert privacy['NSPrivacyTrackingDomains'] == []
+assert privacy['NSPrivacyCollectedDataTypes'] == []
+assert privacy['NSPrivacyAccessedAPITypes'] == [{
+    'NSPrivacyAccessedAPIType': 'NSPrivacyAccessedAPICategoryUserDefaults',
+    'NSPrivacyAccessedAPITypeReasons': ['CA92.1'],
+}], 'App-only UserDefaults reason must match SopaEngagement usage'
 brand = json.loads(pathlib.Path('design/branding/official-branding.json').read_text())
 for asset in brand['assets']:
     if asset['path'].startswith('public/'):
